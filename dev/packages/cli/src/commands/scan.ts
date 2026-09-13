@@ -5,7 +5,7 @@ import {
   readStudio,
   renderAtlas,
   renderAtlasDigest,
-  renderFlow,
+  renderFlowFile,
   resolveStudioHome,
   scan,
   writeAtlas,
@@ -54,7 +54,7 @@ export async function runScan(
   const atlasPath = await writeAtlas(studioHome, registered.alias, renderAtlas(inferred, overlay));
   const atlasSections = computeAtlasSections(inferred, overlay);
   await writeAtlasDigest(studioHome, registered.alias, renderAtlasDigest(computeAtlasCounts(atlasSections)));
-  await writeFlow(studioHome, registered.alias, renderFlow(inferred, overlay));
+  await writeFlow(studioHome, registered.alias, renderFlowFile(inferred, overlay));
 
   printResult(json, { ok: true, alias: registered.alias, atlasPath }, [
     `Rescanned "${registered.alias}".`,

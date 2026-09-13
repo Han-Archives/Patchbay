@@ -11,7 +11,7 @@ import {
   registerProject,
   renderAtlas,
   renderAtlasDigest,
-  renderFlow,
+  renderFlowFile,
   resolveStudioHome,
   scan,
   walk,
@@ -94,7 +94,7 @@ export async function runProjectAdd(
   const atlasPath = await writeAtlas(studioHome, alias, renderAtlas(inferred, overlay));
   const atlasSections = computeAtlasSections(inferred, overlay);
   await writeAtlasDigest(studioHome, alias, renderAtlasDigest(computeAtlasCounts(atlasSections)));
-  await writeFlow(studioHome, alias, renderFlow(inferred, overlay));
+  await writeFlow(studioHome, alias, renderFlowFile(inferred, overlay));
 
   printResult(json, { ok: true, alias, path: absolutePath, score, atlasPath }, [
     `Registered project "${alias}" at ${absolutePath} (clarity score ${score}).`,

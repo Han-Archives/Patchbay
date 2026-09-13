@@ -154,4 +154,60 @@ describe("patchbay CLI (built binary)", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
   });
+
+  it("patch: unknown skill slug -> exit 1 (the Bay is empty until a later phase populates it)", async () => {
+    const projectDir = buildFixtureRepo();
+    await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+    const result = await runCli(["patch", "nonexistent-skill", "demo"]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("patch: unregistered project alias -> exit 1", async () => {
+    const slug = "demo-skill";
+    fs.mkdirSync(path.join(studioHome, "skills", slug), { recursive: true });
+    fs.writeFileSync(path.join(studioHome, "skills", slug, "SKILL.md"), "# Demo Skill\n");
+
+    const result = await runCli(["patch", slug, "nope"]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("patch: installs a skill into a registered project, records the wire, and it surfaces under atlas's Gaps section", async () => {
+    const projectDir = buildFixtureRepo();
+    await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+    const slug = "demo-skill";
+    const bayDir = path.join(studioHome, "skills", slug);
+    fs.mkdirSync(bayDir, { recursive: true });
+    fs.writeFileSync(path.join(bayDir, "SKILL.md"), "# Demo Skill\n");
+
+    const patchResult = await runCli(["patch", slug, "demo", "--json"]);
+    expect(patchResult.exitCode).toBe(0);
+    const payload = JSON.parse(patchResult.stdout);
+    expect(payload.ok).toBe(true);
+    expect(["symlink", "copy"]).toContain(payload.install);
+    expect(payload.wire).toMatchObject({
+      from: `skill:${slug}`,
+      to: `skill:skills/${slug}/SKILL.md`,
+      kind: "uses",
+    });
+
+    const installedSkillMd = path.join(projectDir, "skills", slug, "SKILL.md");
+    expect(fs.existsSync(installedSkillMd)).toBe(true);
+    expect(fs.readFileSync(installedSkillMd, "utf8")).toBe("# Demo Skill\n");
+
+    // ATLAS.md is kernel-owned and only rewritten by project add/scan --
+    // `patch` itself only touches overlay.yaml (spec: scans never touch
+    // overlay.yaml, but a scan DOES read it to re-render Atlas/Flow), so a
+    // rescan is required before the new wire shows up in ATLAS.md.
+    const rescan = await runCli(["scan", "--project", "demo"]);
+    expect(rescan.exitCode).toBe(0);
+
+    // No Patch was ever declared for this -- the Wire is expected to show
+    // up as "wires without a patch" in Atlas's Gaps section, not an error.
+    const atlasResult = await runCli(["atlas", "--project", "demo"]);
+    expect(atlasResult.exitCode).toBe(0);
+    expect(atlasResult.stdout).toContain("## Gaps");
+    expect(atlasResult.stdout).toContain(`skill:${slug} --[uses]--> skill:skills/${slug}/SKILL.md`);
+  });
 });

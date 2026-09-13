@@ -52,3 +52,64 @@ export function renderFlow(inferred: Inferred, overlay: Overlay): string {
   const lines = ["```mermaid", "flowchart TD", ...nodeLines, ...edgeLines, "```", ""];
   return lines.join("\n");
 }
+
+/** `c` + the commit's position in chronological (oldest-first) order, 0-based. Not a PortId, so it doesn't need to match `nodeIdFor`'s sha1 scheme. */
+function progressNodeIdFor(chronologicalIndex: number): string {
+  return `c${chronologicalIndex}`;
+}
+
+/**
+ * Sanitizes a commit subject for use as a Mermaid quoted node label:
+ * collapses internal whitespace/newlines to single spaces, truncates to a
+ * reasonable length, and swaps `"` for `'` so it can't break out of the
+ * `["..."]` label syntax.
+ */
+function sanitizeMermaidLabel(subject: string): string {
+  const oneLine = subject.replace(/\s+/g, " ").trim().replace(/"/g, "'");
+  const MAX_LENGTH = 72;
+  return oneLine.length > MAX_LENGTH ? `${oneLine.slice(0, MAX_LENGTH - 3)}...` : oneLine;
+}
+
+/**
+ * Renders `FLOW.md`'s progress-mode Mermaid block (spec 5.2: "same data,
+ * two modes" -- architecture mode above shows the wiring, this shows
+ * current position via git activity). `Inferred.git.recentCommitSubjects`
+ * is subject strings only, most-recent-first, with no timestamps (spec
+ * 7.8) -- so "timeline" here means an ordered sequence, not a date axis.
+ *
+ * Ordering: the array is most-recent-first; this function reverses it to
+ * render oldest-to-newest (chronological, top-to-bottom -- "how we got to
+ * now"), one node per commit subject, connected in a single chain.
+ *
+ * Pure function -- no I/O, no LLM calls. Produces a syntactically valid (if
+ * trivial) diagram even with zero commits.
+ */
+export function renderFlowProgress(inferred: Inferred): string {
+  const chronological = [...inferred.git.recentCommitSubjects].reverse();
+
+  const nodeLines = chronological.map(
+    (subject, index) => `  ${progressNodeIdFor(index)}["${sanitizeMermaidLabel(subject)}"]`,
+  );
+  const edgeLines: string[] = [];
+  for (let index = 0; index < chronological.length - 1; index++) {
+    edgeLines.push(`  ${progressNodeIdFor(index)} --> ${progressNodeIdFor(index + 1)}`);
+  }
+
+  const lines = ["```mermaid", "flowchart TD", ...nodeLines, ...edgeLines, "```", ""];
+  return lines.join("\n");
+}
+
+/**
+ * Renders the full contents of `FLOW.md`: the architecture-mode block
+ * (`renderFlow`, byte-identical to its pre-Phase-5 output) followed by a
+ * `## Progress` heading and the progress-mode block (`renderFlowProgress`).
+ * There is only one `FLOW.md` per project (spec file tree) -- both views
+ * live in it rather than a second file. This is what `project add`/`scan`
+ * write to disk; `renderFlow` itself stays architecture-mode-only for
+ * existing callers.
+ */
+export function renderFlowFile(inferred: Inferred, overlay: Overlay): string {
+  const architecture = renderFlow(inferred, overlay);
+  const progress = renderFlowProgress(inferred);
+  return `${architecture}\n## Progress\n\n${progress}`;
+}

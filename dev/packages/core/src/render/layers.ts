@@ -1,6 +1,7 @@
 import type { Inferred } from "../types/inferred.js";
 import type { Overlay } from "../types/overlay.js";
 import type { PortId } from "../types/portId.js";
+import { matchPatchesAndWires, type Patch, type Wire } from "../types/project.js";
 
 /**
  * Shared aggregation for Atlas's layered views (spec Phase 4, spec
@@ -13,18 +14,28 @@ import type { PortId } from "../types/portId.js";
  * ontology yet, Phase 8 -- see `atlasRenderer.ts` for the rationale, which
  * used to live inline there and now lives here so `atlasRenderer.ts` (L2)
  * and the L1 digest renderer below both consume the exact same values).
+ *
+ * Phase 5 adds `patchesWithoutWire`/`wiresWithoutPatch` (spec section 7.2's
+ * `matchPatchesAndWires`, reused as-is here rather than reimplemented):
+ * `patchesWithoutWire` is a "to-do" -- declared intent nothing has actually
+ * wired up yet. `wiresWithoutPatch` is a normal discovered integration
+ * nobody declared a Patch for -- expected, not a bug.
  */
 export interface AtlasSections {
   skills: PortId[];
   rules: PortId[];
   unlabeledPorts: PortId[];
+  patchesWithoutWire: Patch[];
+  wiresWithoutPatch: Wire[];
 }
 
 /**
- * Categorizes `inferred`/`overlay` into the three Atlas buckets:
- *   - skills:          distinct `from` PortIds of kind "skill" in overlay.patches
- *   - rules:           discoveredPorts of kind "source"
- *   - unlabeledPorts:  discoveredPorts of kind "skill"
+ * Categorizes `inferred`/`overlay` into the Atlas buckets:
+ *   - skills:             distinct `from` PortIds of kind "skill" in overlay.patches
+ *   - rules:               discoveredPorts of kind "source"
+ *   - unlabeledPorts:      discoveredPorts of kind "skill"
+ *   - patchesWithoutWire:  overlay.patches with no matching overlay.wires entry (spec 7.2)
+ *   - wiresWithoutPatch:   overlay.wires with no matching overlay.patches entry (spec 7.2)
  *
  * Pure function -- no I/O, no LLM calls. Takes the raw `Inferred`/`Overlay`
  * data structures, never a rendered string.
@@ -37,7 +48,9 @@ export function computeAtlasSections(inferred: Inferred, overlay: Overlay): Atla
   const rules = inferred.discoveredPorts.filter((port) => port.startsWith("source:"));
   const unlabeledPorts = inferred.discoveredPorts.filter((port) => port.startsWith("skill:"));
 
-  return { skills, rules, unlabeledPorts };
+  const { patchesWithoutWire, wiresWithoutPatch } = matchPatchesAndWires(overlay.patches, overlay.wires);
+
+  return { skills, rules, unlabeledPorts, patchesWithoutWire, wiresWithoutPatch };
 }
 
 /** L1 counts -- a trivial `.length` mapping over `AtlasSections`. */
@@ -45,6 +58,8 @@ export interface AtlasCounts {
   skills: number;
   rules: number;
   unlabeledPorts: number;
+  patchesWithoutWire: number;
+  wiresWithoutPatch: number;
 }
 
 export function computeAtlasCounts(sections: AtlasSections): AtlasCounts {
@@ -52,6 +67,8 @@ export function computeAtlasCounts(sections: AtlasSections): AtlasCounts {
     skills: sections.skills.length,
     rules: sections.rules.length,
     unlabeledPorts: sections.unlabeledPorts.length,
+    patchesWithoutWire: sections.patchesWithoutWire.length,
+    wiresWithoutPatch: sections.wiresWithoutPatch.length,
   };
 }
 
@@ -66,6 +83,8 @@ export function renderAtlasDigest(counts: AtlasCounts): string {
     `- Skills: ${counts.skills}`,
     `- Rules: ${counts.rules}`,
     `- Unlabeled ports: ${counts.unlabeledPorts}`,
+    `- Patches without a wire: ${counts.patchesWithoutWire}`,
+    `- Wires without a patch: ${counts.wiresWithoutPatch}`,
     "",
   ].join("\n");
 }

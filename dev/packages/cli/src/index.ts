@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { runAtlas } from "./commands/atlas.js";
 import { runInit } from "./commands/init.js";
+import { runPatch } from "./commands/patch.js";
 import { runProjectAdd } from "./commands/projectAdd.js";
 import { runProjectNew } from "./commands/projectNew.js";
 import { runScan } from "./commands/scan.js";
@@ -79,6 +80,16 @@ program
   .option("--level <level>", "layer to print: 1 (digest), 2 (ATLAS.md, default), or 3 (inferred.json)", "2")
   .action(async (opts) => {
     process.exitCode = await runAction(() => runAtlas(opts));
+  });
+
+program
+  .command("patch")
+  .description("Install a Skill Bay skill into a registered project and record the resulting wire")
+  .argument("<skill>", "studio Skill Bay slug (no skill: prefix)")
+  .argument("<project>", "alias of the registered project to install into")
+  .option("--json", "machine-readable output")
+  .action(async (skill, projectAlias, opts) => {
+    process.exitCode = await runAction(() => runPatch(skill, projectAlias, opts));
   });
 
 try {

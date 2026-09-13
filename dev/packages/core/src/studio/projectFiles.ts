@@ -3,6 +3,7 @@ import path from "node:path";
 import YAML from "yaml";
 import { overlaySchema, type Overlay } from "../types/overlay.js";
 import { inferredSchema, type Inferred } from "../types/inferred.js";
+import { wireSchema, type Wire } from "../types/project.js";
 import { projectStudioDir } from "./studioStore.js";
 
 /**
@@ -73,6 +74,28 @@ export async function readOverlay(studioHome: string, alias: string): Promise<Ov
   return overlaySchema.parse(parsed);
 }
 
+/** Overwrites `overlay.yaml` wholesale. Private -- unlike `writeOverlayIfAbsent`, this DOES clobber an existing file, so it's only used by explicit, validated CLI actions (`appendWire`) below, never by a scan. */
+async function writeOverlay(studioHome: string, alias: string, overlay: Overlay): Promise<void> {
+  const validated = overlaySchema.parse(overlay);
+  const dir = await ensureProjectDir(studioHome, alias);
+  await fs.writeFile(path.join(dir, OVERLAY_FILE_NAME), YAML.stringify(validated), "utf8");
+}
+
+/**
+ * Appends `wire` to `alias`'s `overlay.yaml` and writes the whole file back.
+ * `overlay.yaml` is human-owned in the sense that scans never touch it --
+ * but an explicit CLI action like `patchbay patch` (spec Phase 5) is
+ * exactly how it's meant to be modified. Validates `wire` with `wireSchema`
+ * before writing anything. Returns the updated `Overlay`.
+ */
+export async function appendWire(studioHome: string, alias: string, wire: Wire): Promise<Overlay> {
+  const validatedWire = wireSchema.parse(wire);
+  const overlay = await readOverlay(studioHome, alias);
+  const updated: Overlay = { ...overlay, wires: [...overlay.wires, validatedWire] };
+  await writeOverlay(studioHome, alias, updated);
+  return updated;
+}
+
 /** Overwrites `inferred.json` for `alias` wholesale (kernel-owned). */
 export async function writeInferred(studioHome: string, alias: string, inferred: Inferred): Promise<void> {
   const validated = inferredSchema.parse(inferred);
@@ -136,4 +159,56 @@ export function atlasDigestPath(studioHome: string, alias: string): string {
 
 export function flowPath(studioHome: string, alias: string): string {
   return path.join(projectStudioDir(studioHome, alias), FLOW_FILE_NAME);
+}
+
+// --- Skill Bay / `patchbay patch` install (spec Phase 5) -------------------
+//
+// The Bay itself lives at `<studioHome>/skills/<slug>/` (empty until a
+// later phase populates it, Phase 8). Nothing here reaches into
+// `studioStore.ts` (out of scope this phase) -- these are plain path/fs
+// helpers colocated here because this is the one other file new studio-side
+// I/O is allowed to live in.
+
+/** Absolute path to a Skill Bay package's directory: `<studioHome>/skills/<slug>/`. */
+export function skillBayDir(studioHome: string, slug: string): string {
+  return path.join(studioHome, "skills", slug);
+}
+
+/** True iff `<studioHome>/skills/<slug>/SKILL.md` exists -- i.e. the Bay actually has this skill. */
+export async function skillPackageExists(studioHome: string, slug: string): Promise<boolean> {
+  return fileExists(path.join(skillBayDir(studioHome, slug), "SKILL.md"));
+}
+
+export const SKILL_INSTALL_METHODS = ["symlink", "copy"] as const;
+export type SkillInstallMethod = (typeof SKILL_INSTALL_METHODS)[number];
+
+/**
+ * Installs a Skill Bay package into a project by symlinking the whole
+ * source directory (not just SKILL.md -- a package may carry other files
+ * alongside it) to `<projectPath>/skills/<slug>/`. Falls back to a
+ * recursive copy if the symlink call fails (cross-device link, permissions,
+ * or anything else -- caught generically) and returns exactly which method
+ * was used, so a caller can never accidentally record the wrong one.
+ *
+ * `symlinkFn` is an injectable seam (defaults to `fs.symlink`) so tests can
+ * force the fallback path deterministically without needing a genuinely
+ * different filesystem/device.
+ */
+export async function installSkillIntoProject(
+  skillSourceDir: string,
+  projectPath: string,
+  slug: string,
+  symlinkFn: (target: string, linkPath: string, type?: string) => Promise<void> = fs.symlink,
+): Promise<SkillInstallMethod> {
+  const skillsDir = path.join(projectPath, "skills");
+  await fs.mkdir(skillsDir, { recursive: true });
+  const targetDir = path.join(skillsDir, slug);
+
+  try {
+    await symlinkFn(skillSourceDir, targetDir, "dir");
+    return "symlink";
+  } catch {
+    await fs.cp(skillSourceDir, targetDir, { recursive: true });
+    return "copy";
+  }
 }

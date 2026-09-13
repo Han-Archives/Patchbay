@@ -19,8 +19,45 @@ describe("renderAtlas", () => {
     expect(headingOrder).toEqual([...headingOrder].sort((a, b) => a - b));
     expect(headingOrder.every((i) => i >= 0)).toBe(true);
 
-    // Every section is empty in this input, so 없음 appears exactly 3 times.
-    expect(md.match(/없음/g)?.length).toBe(3);
+    // Every section is empty in this input: the original three (Skills,
+    // Rules, Unlabeled ports) plus Phase 5's two Gaps sub-sections
+    // (Patches without a wire, Wires without a patch) -- 없음 five times.
+    expect(md.match(/없음/g)?.length).toBe(5);
+  });
+
+  it("Phase 5: renders a ## Gaps section with Patches-without-wire / Wires-without-patch sub-sections, from computeAtlasSections's fields", () => {
+    const inferred = inferredSchema.parse({ discoveredPorts: [], git: baseGit });
+    const overlay = overlaySchema.parse({
+      patches: [{ project: "demo", from: "skill:map-project", to: "artifact:ATLAS.md", kind: "produces" }],
+      wires: [
+        {
+          project: "demo",
+          from: "skill:extra-skill",
+          to: "artifact:EXTRA.md",
+          kind: "uses",
+          install: "copy",
+        },
+      ],
+    });
+    const md = renderAtlas(inferred, overlay);
+
+    expect(md).toContain("## Gaps");
+    expect(md.indexOf("## Gaps")).toBeGreaterThan(md.indexOf("## Unlabeled ports"));
+
+    const gapsSection = md.split("## Gaps")[1] ?? "";
+    const patchesWithoutWireSection = gapsSection.split("### Wires without a patch")[0] ?? "";
+    expect(patchesWithoutWireSection).toContain("- `skill:map-project --[produces]--> artifact:ATLAS.md`");
+    expect(gapsSection).toContain("- `skill:extra-skill --[uses]--> artifact:EXTRA.md`");
+
+    // A wire without a patch is normal, not a bug -- the prose must say so.
+    expect(gapsSection.toLowerCase()).toMatch(/normal|expected/);
+  });
+
+  it("phase 5 typical case: overlay has no patches/wires yet -> Gaps renders 없음 in both sub-sections (not a bug)", () => {
+    const inferred = inferredSchema.parse({ discoveredPorts: [], git: baseGit });
+    const md = renderAtlas(inferred, emptyOverlay);
+    const gapsSection = md.split("## Gaps")[1] ?? "";
+    expect(gapsSection.match(/없음/g)?.length).toBe(2);
   });
 
   it("Rules lists source: discovered ports, Unlabeled ports lists skill: discovered ports", () => {
