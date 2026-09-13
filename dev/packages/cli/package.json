@@ -8,9 +8,14 @@
   },
   "scripts": {
     "build": "tsc -b && chmod +x dist/index.js",
+    "pretest": "pnpm run build",
     "test": "vitest run"
   },
   "dependencies": {
-    "@patchbay/core": "workspace:*"
+    "@patchbay/core": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "execa": "^9.5.1"
   }
 }
