@@ -1,14 +1,20 @@
-import type { Studio } from "@patchbay/core";
+import type { Studio } from "../types/studio.js";
 
 export type AliasResolution = { ok: true; alias: string } | { ok: false; message: string };
 
 /**
- * Resolves which registered project alias a command (`scan`, `atlas`)
- * should act on: the explicit `--project` flag if given, else the single
- * registered project if there's exactly one, else an error asking the
- * caller to disambiguate.
+ * Resolves which registered project alias a command (`scan`, `atlas`, and
+ * the MCP tools in `@patchbay/mcp`) should act on: the explicit `--project`
+ * flag/`alias` argument if given, else the single registered project if
+ * there's exactly one, else an error asking the caller to disambiguate.
+ *
+ * Lives in Core (moved here from the CLI in Phase 6) because both the CLI
+ * and the MCP server need the exact same "alias omitted -> sole registered
+ * project, else a clear error" logic -- per the project's core architecture
+ * rule, MCP and CLI both go through Core rather than either one
+ * reimplementing the other's logic.
  */
-export function resolveProjectAlias(studio: Studio, explicitAlias: string | undefined): AliasResolution {
+export function resolveProjectAlias(studio: Studio, explicitAlias?: string): AliasResolution {
   const knownAliases = studio.projects.map((project) => project.alias);
 
   if (explicitAlias) {

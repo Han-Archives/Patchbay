@@ -1,13 +1,6 @@
-import { createHash } from "node:crypto";
 import type { Inferred } from "../types/inferred.js";
 import type { Overlay } from "../types/overlay.js";
-import type { PortId } from "../types/portId.js";
-
-/** `n` + the first 12 hex chars of `sha1(portId)`, lowercase, no underscore. */
-function nodeIdFor(portId: PortId): string {
-  const hex = createHash("sha1").update(portId).digest("hex");
-  return `n${hex.slice(0, 12)}`;
-}
+import { computeFlowGraph } from "./graph.js";
 
 /**
  * Renders `FLOW.md` (architecture mode only -- no progress/timeline mode in
@@ -19,35 +12,20 @@ function nodeIdFor(portId: PortId): string {
  *     its `kind`; both endpoint nodes are declared even if a PortId (e.g. an
  *     `artifact:` patch target) never appeared in `discoveredPorts`
  *
+ * Node id generation and edge construction live in `graph.ts`'s
+ * `computeFlowGraph` (Phase 6, extracted from here the same way Phase 4
+ * extracted Atlas's L1/L2 shared aggregation into `layers.ts`) -- this
+ * function is now just the Mermaid text formatting on top of that shared
+ * structure. Output is byte-identical to the pre-Phase-6 inline version.
+ *
  * Pure function -- no I/O, no LLM calls. Produces a syntactically valid
  * (if trivial) diagram even with zero ports and zero patches/wires.
  */
 export function renderFlow(inferred: Inferred, overlay: Overlay): string {
-  const nodeIds = new Map<PortId, string>();
-  const nodeOrder: PortId[] = [];
+  const { nodes, edges } = computeFlowGraph(inferred, overlay);
 
-  function ensureNode(portId: PortId): string {
-    let id = nodeIds.get(portId);
-    if (id === undefined) {
-      id = nodeIdFor(portId);
-      nodeIds.set(portId, id);
-      nodeOrder.push(portId);
-    }
-    return id;
-  }
-
-  for (const port of inferred.discoveredPorts) {
-    ensureNode(port);
-  }
-
-  const edgeLines: string[] = [];
-  for (const entry of [...overlay.patches, ...overlay.wires]) {
-    const fromId = ensureNode(entry.from);
-    const toId = ensureNode(entry.to);
-    edgeLines.push(`  ${fromId} -->|${entry.kind}| ${toId}`);
-  }
-
-  const nodeLines = nodeOrder.map((portId) => `  ${nodeIds.get(portId)}["${portId}"]`);
+  const nodeLines = nodes.map((node) => `  ${node.id}["${node.portId}"]`);
+  const edgeLines = edges.map((edge) => `  ${edge.from} -->|${edge.kind}| ${edge.to}`);
 
   const lines = ["```mermaid", "flowchart TD", ...nodeLines, ...edgeLines, "```", ""];
   return lines.join("\n");

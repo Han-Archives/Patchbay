@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@patchbay/core": "workspace:*"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@patchbay/core": "workspace:*",
+    "zod": "^4.6.2"
   }
 }

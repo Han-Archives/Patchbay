@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Studio } from "@patchbay/core";
+import type { Studio } from "../types/studio.js";
 import { resolveProjectAlias } from "./aliasResolution.js";
 
 function studioWith(aliases: string[]): Studio {

@@ -6,6 +6,7 @@ import {
   renderAtlas,
   renderAtlasDigest,
   renderFlowFile,
+  resolveProjectAlias,
   resolveStudioHome,
   scan,
   writeAtlas,
@@ -13,7 +14,6 @@ import {
   writeFlow,
   writeInferred,
 } from "@patchbay/core";
-import { resolveProjectAlias } from "../aliasResolution.js";
 import { printError, printResult } from "../output.js";
 
 export interface ScanCommandOptions {

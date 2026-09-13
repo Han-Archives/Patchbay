@@ -1,5 +1,11 @@
-import { readAtlas, readAtlasDigest, readInferred, readStudio, resolveStudioHome } from "@patchbay/core";
-import { resolveProjectAlias } from "../aliasResolution.js";
+import {
+  readAtlas,
+  readAtlasDigest,
+  readInferred,
+  readStudio,
+  resolveProjectAlias,
+  resolveStudioHome,
+} from "@patchbay/core";
 import { printError } from "../output.js";
 
 export interface AtlasCommandOptions {
