@@ -55,4 +55,24 @@ describe("walk", () => {
     expect(files.some((f) => f.includes("/node_modules/"))).toBe(false);
     expect(files.some((f) => f.includes("/dist/"))).toBe(false);
   });
+
+  // Regression test (명세 7.7, 20260913c): running the built CLI against the
+  // real Patchbay repo turned up this very package's own scan test fixtures
+  // as if they were the scanned project's real signals -- the ignore list
+  // had no entry for test-infrastructure directories. A dynamic temp dir is
+  // used here (not the static __fixtures__ fixture) to keep this test
+  // independent of that fixture's own contents.
+  it("skips __fixtures__/__mocks__/__snapshots__ entirely", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-filewalker-testdirs-"));
+    fs.mkdirSync(path.join(dir, "__fixtures__"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "__mocks__"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "__snapshots__"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "__fixtures__", "fake-readme.md"), "not real\n");
+    fs.writeFileSync(path.join(dir, "__mocks__", "fake-agents.md"), "not real\n");
+    fs.writeFileSync(path.join(dir, "__snapshots__", "fake.snap"), "not real\n");
+    fs.writeFileSync(path.join(dir, "REAL.md"), "the actual project content\n");
+
+    const files = walk(dir).map((f) => f.relativePath);
+    expect(files).toEqual(["REAL.md"]);
+  });
 });

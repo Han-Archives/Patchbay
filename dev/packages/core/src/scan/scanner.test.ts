@@ -107,5 +107,18 @@ describe("scan", () => {
       const result = await scan(realDir);
       expect(inferredSchema.safeParse(result).success).toBe(true);
     });
+
+    // Regression test: running the built CLI against the real Patchbay repo
+    // (not this isolated test) turned up the scanner's own __fixtures__
+    // content as if it were this package's real README/AGENTS.md/SKILL.md --
+    // the ignore list didn't cover test-fixture directories. Fixed by adding
+    // __fixtures__/__mocks__/__snapshots__ to IGNORED_DIR_NAMES (명세 7.7,
+    // 20260913c); this asserts none of this package's own scan test fixtures
+    // ever leak into a scan of the package itself again.
+    it("does not leak this package's own scan test fixtures into its own discoveredPorts", async () => {
+      const realDir = path.resolve(__dirname, "..", ".."); // dev/packages/core
+      const result = await scan(realDir);
+      expect(result.discoveredPorts.some((port) => port.includes("__fixtures__"))).toBe(false);
+    });
   });
 });

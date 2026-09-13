@@ -3,8 +3,17 @@ import path from "node:path";
 
 /**
  * Directory names skipped entirely during traversal, at any depth (spec
- * Phase 2 ignore list). Matched against the bare directory name, not a
- * path segment pattern.
+ * Phase 2 ignore list, extended per 명세 7.7 20260913c). Matched against the
+ * bare directory name, not a path segment pattern.
+ *
+ * `__fixtures__`/`__mocks__`/`__snapshots__` (Jest/vitest test-infrastructure
+ * conventions) were added after scanning Patchbay's own repo turned up its
+ * own scanner's test fixtures as if they were the real project's README/
+ * AGENTS.md/SKILL.md -- discovered by actually running the built CLI against
+ * a real project, not by the automated test suite (which only ever scanned
+ * isolated temp fixtures). Deliberately double-underscore-only: a bare
+ * `fixtures/` is not assumed to be test-only, since some real projects use
+ * that name for genuine product content.
  */
 export const IGNORED_DIR_NAMES = [
   "node_modules",
@@ -24,6 +33,9 @@ export const IGNORED_DIR_NAMES = [
   ".pnpm-store",
   "Pods",
   ".output",
+  "__fixtures__",
+  "__mocks__",
+  "__snapshots__",
 ] as const;
 
 const IGNORED_DIR_SET = new Set<string>(IGNORED_DIR_NAMES);
