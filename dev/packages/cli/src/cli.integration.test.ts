@@ -210,4 +210,82 @@ describe("patchbay CLI (built binary)", () => {
     expect(atlasResult.stdout).toContain("## Gaps");
     expect(atlasResult.stdout).toContain(`skill:${slug} --[uses]--> skill:skills/${slug}/SKILL.md`);
   });
+
+  it("progress: no progress recorded yet -> exit 1, both with and without --project", async () => {
+    const projectDir = buildFixtureRepo();
+    await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+    const noProject = await runCli(["progress"]);
+    expect(noProject.exitCode).toBe(1);
+
+    const withProject = await runCli(["progress", "--project", "demo", "--level", "2"]);
+    expect(withProject.exitCode).toBe(1);
+  });
+
+  it("progress write: unregistered project alias -> exit 1", async () => {
+    const result = await runCli(["progress", "write", "--project", "nope", "--summary", "x"]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it(
+    "progress write regenerates progress.yaml/PROGRESS.md/the studio-wide progress.md in one call, and " +
+      "`progress` (bare) / `progress --project` read them back correctly -- specifically exercises commander's " +
+      "nested `progress write --project ...` parsing, where `progress`'s own `--project` option must not swallow " +
+      "the value meant for `write`'s `--project`",
+    async () => {
+      const projectDir = buildFixtureRepo();
+      await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+      const writeResult = await runCli([
+        "progress",
+        "write",
+        "--project",
+        "demo",
+        "--summary",
+        "wiring up phase 7",
+        "--skill",
+        "skill:map-project",
+        "--step",
+        "scan",
+        "--json",
+      ]);
+      expect(writeResult.exitCode).toBe(0);
+      const payload = JSON.parse(writeResult.stdout);
+      expect(payload.ok).toBe(true);
+      expect(payload.alias).toBe("demo");
+      expect(fs.existsSync(path.join(studioHome, "projects", "demo", "progress.yaml"))).toBe(true);
+      expect(fs.existsSync(path.join(studioHome, "projects", "demo", "PROGRESS.md"))).toBe(true);
+      expect(fs.existsSync(path.join(studioHome, "progress.md"))).toBe(true);
+
+      // `progress` with no --project -> the studio-wide rollup, not a
+      // sole-registered-project default.
+      const rollup = await runCli(["progress"]);
+      expect(rollup.exitCode).toBe(0);
+      expect(rollup.stdout).toContain("demo");
+      expect(rollup.stdout).toContain("wiring up phase 7");
+
+      // `progress --project demo` (level 1 default) -> one-line summary.
+      const level1 = await runCli(["progress", "--project", "demo"]);
+      expect(level1.exitCode).toBe(0);
+      expect(level1.stdout).toContain("wiring up phase 7");
+      expect(level1.stdout).not.toContain("# Progress");
+
+      // `progress --project demo --level 2` -> full PROGRESS.md.
+      const level2 = await runCli(["progress", "--project", "demo", "--level", "2"]);
+      expect(level2.exitCode).toBe(0);
+      expect(level2.stdout).toContain("# Progress");
+      expect(level2.stdout).toContain("wiring up phase 7");
+
+      // `progress --project demo --level 3` -> raw progress.yaml.
+      const level3 = await runCli(["progress", "--project", "demo", "--level", "3"]);
+      expect(level3.exitCode).toBe(0);
+      expect(level3.stdout).toContain("wiring up phase 7");
+      expect(level3.stdout).toContain("current:");
+    },
+  );
+
+  it("progress --project: unregistered alias -> exit 1", async () => {
+    const result = await runCli(["progress", "--project", "nope"]);
+    expect(result.exitCode).toBe(1);
+  });
 });

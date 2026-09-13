@@ -3,6 +3,8 @@ import { Command } from "commander";
 import { runAtlas } from "./commands/atlas.js";
 import { runInit } from "./commands/init.js";
 import { runPatch } from "./commands/patch.js";
+import { runProgress } from "./commands/progress.js";
+import { runProgressWrite } from "./commands/progressWrite.js";
 import { runProjectAdd } from "./commands/projectAdd.js";
 import { runProjectNew } from "./commands/projectNew.js";
 import { runScan } from "./commands/scan.js";
@@ -90,6 +92,48 @@ program
   .option("--json", "machine-readable output")
   .action(async (skill, projectAlias, opts) => {
     process.exitCode = await runAction(() => runPatch(skill, projectAlias, opts));
+  });
+
+const progress = program
+  .command("progress")
+  .description("Show progress: the studio-wide rollup (no --project), or one project's progress");
+
+// The read behavior (`patchbay progress [--project] [--level]`) is
+// registered as a *hidden default* subcommand rather than options directly
+// on `progress` itself. Commander parses a subcommand's own args by first
+// stripping its name off as a bare "operand" at the parent's parse pass and
+// only afterwards handing the rest to `progress`'s parser -- so if
+// `progress` declared its own `--project`/`--level` options directly, a
+// colliding `--project`/`--level` typed after `progress write` would be
+// consumed by `progress`'s parser before `write`'s own parser ever saw it
+// (verified directly against commander@12's `_dispatchSubcommand`/
+// `_parseCommand`). Giving `progress` itself zero options -- exactly like
+// the existing `project` namespace command above, which also has no options
+// of its own -- sidesteps the collision entirely; `isDefault: true` makes
+// `patchbay progress ...` dispatch here without the caller ever typing a
+// subcommand name, and `hidden: true` keeps that implementation detail out
+// of `--help` output.
+progress
+  .command("show", { isDefault: true, hidden: true })
+  .description("Show progress: the studio-wide rollup (no --project), or one project's progress")
+  .option("--project <alias>", "alias of a registered project (omit for the studio-wide rollup)")
+  .option("--level <level>", "layer to print for --project: 1 (summary, default), 2 (PROGRESS.md), or 3 (raw progress.yaml)")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runProgress(opts));
+  });
+
+progress
+  .command("write")
+  .description(
+    "Record a new current-progress entry for a project, regenerating progress.yaml, PROGRESS.md, and the studio-wide progress.md",
+  )
+  .option("--project <alias>", "alias of the registered project (required)")
+  .option("--summary <text>", "freeform description of what is currently being worked on (required)")
+  .option("--skill <slug>", "skill port/slug being run, if any")
+  .option("--step <name>", "named step within that skill, if any")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runProgressWrite(opts));
   });
 
 try {
