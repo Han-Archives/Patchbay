@@ -8,3 +8,13 @@ coverage/
 .env.*
 !.env.example
 .patchbay-local/
+
+# Exception: the scanner's ignore-list test fixture deliberately needs real
+# node_modules/dist directories on disk (fileWalker.test.ts asserts they get
+# skipped) — without this, the two patterns above silently drop them and the
+# "skips ignored directories" test passes vacuously (nothing to find, rather
+# than something correctly filtered out).
+!dev/packages/core/src/scan/__fixtures__/sample-project/dist/
+!dev/packages/core/src/scan/__fixtures__/sample-project/dist/**
+!dev/packages/core/src/scan/__fixtures__/sample-project/node_modules/
+!dev/packages/core/src/scan/__fixtures__/sample-project/node_modules/**
