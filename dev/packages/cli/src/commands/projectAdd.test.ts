@@ -82,6 +82,15 @@ describe("runProjectAdd", () => {
     expect(fs.readFileSync(printed.atlasPath, "utf8")).toContain("## Skills");
   });
 
+  it("also writes ATLAS.digest.md (L1) alongside ATLAS.md on registration", async () => {
+    const projectDir = buildHighClarityFixture();
+    await runProjectAdd({ path: projectDir, alias: "demo" }, studioHome);
+
+    const digestPath = path.join(studioHome, "projects", "demo", "ATLAS.digest.md");
+    expect(fs.existsSync(digestPath)).toBe(true);
+    expect(fs.readFileSync(digestPath, "utf8")).toContain("Skills:");
+  });
+
   it("writes a fresh empty overlay.yaml on first registration", async () => {
     const projectDir = buildHighClarityFixture();
     await runProjectAdd({ path: projectDir, alias: "demo" }, studioHome);

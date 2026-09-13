@@ -9,10 +9,11 @@ import { projectStudioDir } from "./studioStore.js";
  * Read/write helpers for a single registered project's studio-side file
  * tree (`<studioHome>/projects/<alias>/...`, spec Phase 3):
  *
- *   overlay.yaml    human-owned  -- created once if absent, never overwritten
- *   inferred.json   kernel-owned -- always overwritten wholesale by a scan
- *   ATLAS.md        kernel-owned -- always overwritten wholesale
- *   FLOW.md         kernel-owned -- always overwritten wholesale
+ *   overlay.yaml       human-owned  -- created once if absent, never overwritten
+ *   inferred.json      kernel-owned -- always overwritten wholesale by a scan
+ *   ATLAS.md           kernel-owned -- always overwritten wholesale
+ *   ATLAS.digest.md    kernel-owned -- always overwritten wholesale (L1, spec Phase 4)
+ *   FLOW.md            kernel-owned -- always overwritten wholesale
  *
  * Kept in Core (not the CLI) for the same reason as `studioStore.ts`: MCP
  * will need to read these same files later.
@@ -21,6 +22,7 @@ import { projectStudioDir } from "./studioStore.js";
 const OVERLAY_FILE_NAME = "overlay.yaml";
 const INFERRED_FILE_NAME = "inferred.json";
 const ATLAS_FILE_NAME = "ATLAS.md";
+const ATLAS_DIGEST_FILE_NAME = "ATLAS.digest.md";
 const FLOW_FILE_NAME = "FLOW.md";
 
 function defaultOverlay(): Overlay {
@@ -98,6 +100,19 @@ export async function readAtlas(studioHome: string, alias: string): Promise<stri
   return fs.readFile(path.join(projectStudioDir(studioHome, alias), ATLAS_FILE_NAME), "utf8");
 }
 
+/** Overwrites `ATLAS.digest.md` (L1) for `alias` wholesale. Returns the absolute path written. */
+export async function writeAtlasDigest(studioHome: string, alias: string, content: string): Promise<string> {
+  const dir = await ensureProjectDir(studioHome, alias);
+  const filePath = path.join(dir, ATLAS_DIGEST_FILE_NAME);
+  await fs.writeFile(filePath, content, "utf8");
+  return filePath;
+}
+
+/** Reads `ATLAS.digest.md` (L1) for `alias`. Throws if it hasn't been generated yet. */
+export async function readAtlasDigest(studioHome: string, alias: string): Promise<string> {
+  return fs.readFile(path.join(projectStudioDir(studioHome, alias), ATLAS_DIGEST_FILE_NAME), "utf8");
+}
+
 /** Overwrites `FLOW.md` for `alias` wholesale. Returns the absolute path written. */
 export async function writeFlow(studioHome: string, alias: string, content: string): Promise<string> {
   const dir = await ensureProjectDir(studioHome, alias);
@@ -113,6 +128,10 @@ export async function readFlow(studioHome: string, alias: string): Promise<strin
 
 export function atlasPath(studioHome: string, alias: string): string {
   return path.join(projectStudioDir(studioHome, alias), ATLAS_FILE_NAME);
+}
+
+export function atlasDigestPath(studioHome: string, alias: string): string {
+  return path.join(projectStudioDir(studioHome, alias), ATLAS_DIGEST_FILE_NAME);
 }
 
 export function flowPath(studioHome: string, alias: string): string {

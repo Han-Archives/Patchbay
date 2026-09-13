@@ -123,4 +123,35 @@ describe("patchbay CLI (built binary)", () => {
     const result = await runCli(["atlas", "--project", "nope"]);
     expect(result.exitCode).toBe(1);
   });
+
+  it("atlas --level 1/2/3 print the digest, ATLAS.md, and raw inferred.json respectively", async () => {
+    const projectDir = buildFixtureRepo();
+    await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+    const l2Default = await runCli(["atlas", "--project", "demo"]);
+    const l2Explicit = await runCli(["atlas", "--project", "demo", "--level", "2"]);
+    expect(l2Default.exitCode).toBe(0);
+    expect(l2Explicit.exitCode).toBe(0);
+    expect(l2Explicit.stdout).toBe(l2Default.stdout);
+    expect(l2Default.stdout).toContain("## Skills");
+
+    const l1 = await runCli(["atlas", "--project", "demo", "--level", "1"]);
+    expect(l1.exitCode).toBe(0);
+    expect(l1.stdout).toContain("Rules: 1");
+    expect(l1.stdout).not.toContain("## Skills");
+
+    const l3 = await runCli(["atlas", "--project", "demo", "--level", "3"]);
+    expect(l3.exitCode).toBe(0);
+    const parsed = JSON.parse(l3.stdout);
+    expect(parsed.discoveredPorts).toContain("source:README.md");
+  });
+
+  it("atlas --level 9 -> exit 1, doesn't silently fall back to L2", async () => {
+    const projectDir = buildFixtureRepo();
+    await runCli(["project", "add", "--path", projectDir, "--alias", "demo", "--json"]);
+
+    const result = await runCli(["atlas", "--project", "demo", "--level", "9"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+  });
 });

@@ -2,17 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ProjectAliasAlreadyRegisteredError,
+  computeAtlasCounts,
+  computeAtlasSections,
   computeClarityScore,
   ensureStudioInitialized,
   hasReadmePort,
   readOverlay,
   registerProject,
   renderAtlas,
+  renderAtlasDigest,
   renderFlow,
   resolveStudioHome,
   scan,
   walk,
   writeAtlas,
+  writeAtlasDigest,
   writeFlow,
   writeInferred,
   writeOverlayIfAbsent,
@@ -88,6 +92,8 @@ export async function runProjectAdd(
   await writeInferred(studioHome, alias, inferred);
   const overlay = await readOverlay(studioHome, alias);
   const atlasPath = await writeAtlas(studioHome, alias, renderAtlas(inferred, overlay));
+  const atlasSections = computeAtlasSections(inferred, overlay);
+  await writeAtlasDigest(studioHome, alias, renderAtlasDigest(computeAtlasCounts(atlasSections)));
   await writeFlow(studioHome, alias, renderFlow(inferred, overlay));
 
   printResult(json, { ok: true, alias, path: absolutePath, score, atlasPath }, [

@@ -6,10 +6,12 @@ import { inferredSchema, type Inferred } from "../types/inferred.js";
 import {
   ensureProjectDir,
   readAtlas,
+  readAtlasDigest,
   readFlow,
   readInferred,
   readOverlay,
   writeAtlas,
+  writeAtlasDigest,
   writeFlow,
   writeInferred,
   writeOverlayIfAbsent,
@@ -86,5 +88,22 @@ describe("ATLAS.md / FLOW.md (kernel-owned)", () => {
     expect(written).toBe(path.join(home, "projects", "demo", "FLOW.md"));
     const read = await readFlow(home, "demo");
     expect(read).toContain("flowchart TD");
+  });
+
+  it("writeAtlasDigest returns the absolute path written (next to ATLAS.md), and readAtlasDigest reads it back", async () => {
+    const home = tmpStudioHome();
+    const written = await writeAtlasDigest(home, "demo", "# Atlas Digest\n\n- Skills: 0\n");
+    expect(path.isAbsolute(written)).toBe(true);
+    expect(written).toBe(path.join(home, "projects", "demo", "ATLAS.digest.md"));
+    const read = await readAtlasDigest(home, "demo");
+    expect(read).toBe("# Atlas Digest\n\n- Skills: 0\n");
+  });
+
+  it("writeAtlasDigest always overwrites wholesale, like writeAtlas", async () => {
+    const home = tmpStudioHome();
+    await writeAtlasDigest(home, "demo", "- Skills: 1\n");
+    await writeAtlasDigest(home, "demo", "- Skills: 2\n");
+    const read = await readAtlasDigest(home, "demo");
+    expect(read).toBe("- Skills: 2\n");
   });
 });

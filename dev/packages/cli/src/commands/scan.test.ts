@@ -61,6 +61,18 @@ describe("runScan", () => {
     expect(inferred.discoveredPorts).toContain("source:README.md");
   });
 
+  it("also rewrites ATLAS.digest.md (L1) alongside ATLAS.md", async () => {
+    const projectDir = buildFixtureRepo();
+    await registerProject(studioHome, { alias: "demo", kind: "local_repo", path: projectDir });
+
+    const exitCode = await runScan({}, studioHome);
+    expect(exitCode).toBe(0);
+
+    const digestPath = path.join(studioHome, "projects", "demo", "ATLAS.digest.md");
+    expect(fs.existsSync(digestPath)).toBe(true);
+    expect(fs.readFileSync(digestPath, "utf8")).toContain("Rules: 1");
+  });
+
   it("never touches overlay.yaml even if one already exists", async () => {
     const projectDir = buildFixtureRepo();
     await registerProject(studioHome, { alias: "demo", kind: "local_repo", path: projectDir });

@@ -74,8 +74,9 @@ program
 
 program
   .command("atlas")
-  .description("Print a registered project's ATLAS.md to stdout")
+  .description("Print a registered project's Atlas to stdout")
   .option("--project <alias>", "alias of the registered project (required if more than one is registered)")
+  .option("--level <level>", "layer to print: 1 (digest), 2 (ATLAS.md, default), or 3 (inferred.json)", "2")
   .action(async (opts) => {
     process.exitCode = await runAction(() => runAtlas(opts));
   });

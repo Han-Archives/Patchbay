@@ -1,11 +1,15 @@
 import {
+  computeAtlasCounts,
+  computeAtlasSections,
   readOverlay,
   readStudio,
   renderAtlas,
+  renderAtlasDigest,
   renderFlow,
   resolveStudioHome,
   scan,
   writeAtlas,
+  writeAtlasDigest,
   writeFlow,
   writeInferred,
 } from "@patchbay/core";
@@ -48,6 +52,8 @@ export async function runScan(
   await writeInferred(studioHome, registered.alias, inferred);
   const overlay = await readOverlay(studioHome, registered.alias);
   const atlasPath = await writeAtlas(studioHome, registered.alias, renderAtlas(inferred, overlay));
+  const atlasSections = computeAtlasSections(inferred, overlay);
+  await writeAtlasDigest(studioHome, registered.alias, renderAtlasDigest(computeAtlasCounts(atlasSections)));
   await writeFlow(studioHome, registered.alias, renderFlow(inferred, overlay));
 
   printResult(json, { ok: true, alias: registered.alias, atlasPath }, [
