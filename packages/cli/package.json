@@ -1,0 +1,16 @@
+{
+  "name": "@patchbay/cli",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "patchbay": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b && chmod +x dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@patchbay/core": "workspace:*"
+  }
+}
