@@ -80,6 +80,7 @@ import { defaultHostSpawner, launchPlanHost, type HostSpawner } from "./processH
 import { loadProjectView } from "./projectView.js";
 import { addProcessStep, saveProjectProcess } from "./processView.js";
 import { loadArchitectureMap, placeArchitectureMap } from "./boardArchitecture.js";
+import { readOverviewDoc } from "./overviewView.js";
 import {
   linkBoardItems,
   loadBoardView,
@@ -1294,6 +1295,13 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     });
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true });
+  });
+
+  // 개요 화면 — 문서 폴더의 개요.md (없으면 화면이 PRD로 그린다).
+  app.get("/api/overview", async (c) => {
+    const result = await readOverviewDoc(options.studioHome, c.req.query("alias"));
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json({ rel: result.rel, content: result.content });
   });
 
   app.get("/api/prd", async (c) => {

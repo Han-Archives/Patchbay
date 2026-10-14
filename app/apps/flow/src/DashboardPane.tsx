@@ -5,6 +5,8 @@ import type { BuildViewReady, BuildViewResponse } from "./buildContract.js";
 import { toIrCanvas, irNodeText } from "./irCanvas.js";
 import type { DashboardView } from "./opsContract.js";
 import { TodoPane } from "./TodoPane.js";
+import { OverviewDocument } from "./OverviewDocument.js";
+import { parseOverview, type OverviewDoc } from "./overviewContract.js";
 import { CycleSteps, ProjectCycleFlow, cycleCurrent, cycleState, markSteps, type CycleStep, type SubStep } from "./ProjectCycleFlow.js";
 
 type MainView = "overview" | "dashboard";
@@ -74,6 +76,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   const [view, setView] = useState<DashboardView | null>(null);
   const [build, setBuild] = useState<BuildViewReady | null>(null);
   const [prd, setPrd] = useState<PrdSection[] | null>(null);
+  const [overview, setOverview] = useState<{ doc: OverviewDoc; rel: string } | null>(null);
   const [prdTopics, setPrdTopics] = useState<PrdTopic[]>([]);
   const [prdReviewed, setPrdReviewed] = useState(false);
   const [flowPick, setFlowPick] = useState<CycleStep | null>(null);
@@ -90,7 +93,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
 
   useEffect(() => {
     let cancelled = false;
-    setView(current => current?.alias === project ? current : null); setBuild(null); setPrd(null); setAgents([]); setRooms([]); setRoomMembers([]); setError(null);
+    setView(current => current?.alias === project ? current : null); setBuild(null); setPrd(null); setOverview(null); setAgents([]); setRooms([]); setRoomMembers([]); setError(null);
     fetch(`/api/dashboard?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as DashboardView & { error?: string };
       if (!res.ok || body.error) throw new Error(body.error ?? "현황을 불러오지 못했습니다.");
@@ -101,6 +104,12 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
       if (!res.ok) throw new Error(body.error ?? "구조를 불러오지 못했습니다.");
       if (!cancelled) setBuild(body.status === "ready" ? body : null);
     }).catch(() => { if (!cancelled) setBuild(null); });
+    // 문서 폴더에 개요.md가 있으면 개요 화면은 그 문서를 그린다 — 없으면 PRD로.
+    fetch(`/api/overview?alias=${encodeURIComponent(project)}`).then(async res => {
+      const body = await res.json() as { content?: string; rel?: string; error?: string };
+      if (!res.ok || !body.content) throw new Error(body.error ?? "개요 문서가 없습니다.");
+      if (!cancelled) setOverview({ doc: parseOverview(body.content), rel: body.rel ?? "" });
+    }).catch(() => { if (!cancelled) setOverview(null); });
     fetch(`/api/prd?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as PrdBody;
       if (!res.ok || body.error || body.status !== "ready" || !body.sections?.length) throw new Error(body.error ?? "PRD가 없습니다.");
@@ -220,7 +229,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
         <section className="main-card"><h3>최근 기록</h3>{progress.length ? <div className="main-log-list">{progress.slice(0, 5).map((entry, index) => <div key={`${entry.timestamp}:${index}`}><time>{logTime(entry.timestamp)}</time><span>{entry.summary}</span></div>)}</div> : <p className="main-empty">진행 기록 없음</p>}</section>
       </div>
       <TodoPane key={project} project={project} revision={revision} suggestions={todoSuggestions} />
-    </div> : <div className="main-overview">
+    </div> : overview ? <OverviewDocument doc={overview.doc} source={overview.rel} /> : <div className="main-overview">
       <nav className="main-toc" aria-label="개요 목차">{["목적과 대상", "성공 기준", "범위", "구조 · LangGraph", "흐름과 결정", "산출물 · 역할 · 도구"].map((title, index) => <button type="button" key={title} onClick={() => document.getElementById(`main-section-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span>{index + 1}</span>{title}</button>)}</nav>
       <div className="main-document">
         <section id="main-section-1"><h3><span>1</span>목적과 대상</h3>{missingPrd ? fallback : <>{purposeSummary ? <p className="main-summary">{purposeSummary}</p> : null}<DocumentLines lines={prdLines(2)} open={expandedSections.has(1)} onToggle={() => toggleSection(1)} /></>}</section>
