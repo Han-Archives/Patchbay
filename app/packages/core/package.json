@@ -1,0 +1,23 @@
+{
+  "name": "@patchbay/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "simple-git": "^3.36.0",
+    "yaml": "^2.6.0",
+    "zod": "^4.6.2"
+  }
+}

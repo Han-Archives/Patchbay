@@ -1,0 +1,35 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist-server",
+    "rootDir": "src",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false
+  },
+  "include": [
+    "src/graph.ts",
+    "src/shellContract.ts",
+    "src/shell.ts",
+    "src/langgraphContract.ts",
+    "src/langgraphAdapter.ts",
+    "src/flowView.ts",
+    "src/neo4jContract.ts",
+    "src/neo4jAdapter.ts",
+    "src/knowledgeView.ts",
+    "src/runsContract.ts",
+    "src/runsView.ts",
+    "src/langgraphRuns.ts",
+    "src/projectContract.ts",
+    "src/projectView.ts",
+    "src/eventsContract.ts",
+    "src/studioWatch.ts",
+    "src/boardContract.ts",
+    "src/boardView.ts",
+    "src/skillContract.ts",
+    "src/skillView.ts",
+    "src/server.ts",
+    "src/serve.ts"
+  ]
+}

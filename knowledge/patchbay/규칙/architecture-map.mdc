@@ -1,0 +1,16 @@
+---
+description: 패키지·API·탭·스튜디오 파일이 바뀌면 아키텍처 맵을 같이 고친다
+globs: workspace/records/patchbay/기획/아키텍처.json, workspace/records/patchbay/기획/아키텍처.md, app/apps/flow/src/**/*.ts, app/apps/flow/src/**/*.tsx, app/packages/**/*.ts
+alwaysApply: false
+---
+
+# 아키텍처 맵
+
+구조(탭, HTTP, CLI, MCP, 패키지, 사이드카, 기획 beat, studio 파일, PortId)를 바꾸면 같은 작업에서 맵도 맞춘다.
+
+1. `workspace/records/patchbay/기획/아키텍처.json` — 노드·엣지·detail. 이게 소스 오브 트루스다.
+2. `workspace/records/patchbay/기획/아키텍처.md` — 사람용 표.
+3. 콘솔이 떠 있으면 `POST /api/board/architecture` `{ "alias": "<프로젝트>" }` 또는 배치도 「아키텍처 구조 채우기」. 배치도 kind는 `port`, id는 `arch:`.
+4. Cursor canvas `patchbay-architecture.canvas.tsx`가 같은 사실을 말하면 같이 고친다.
+
+하지 않음: 다섯 번째 탭, 자작 워크플로 엔진, 커널의 모델 호출, P9.

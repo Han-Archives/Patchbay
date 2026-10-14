@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patchbay — localhost 통합 콘솔</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    :root {
+      --ink: #16202B;
+      --ink-soft: #4A5A66;
+      --steel: #DEE3E4;
+      --panel: #F3F5F5;
+      --panel-2: #FFFFFF;
+      --line: #C1C9CB;
+      --copper: #B85C25;
+      --copper-bg: #F2E0D0;
+      --green: #2F7A4E;
+      --green-bg: #E3F1E7;
+      --amber: #A47819;
+      --amber-bg: #F5EBD1;
+      --teal: #1C7877;
+      --teal-bg: #DBEFEE;
+      --sidebar: 232px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #E8ECED;
+        --ink-soft: #9FADB4;
+        --steel: #0F1519;
+        --panel: #171F24;
+        --panel-2: #1D262C;
+        --line: #2B363C;
+        --copper: #E79A5C;
+        --copper-bg: #3A2716;
+        --green: #5FC088;
+        --green-bg: #153224;
+        --amber: #E7BA5E;
+        --amber-bg: #3A2E14;
+        --teal: #5FD9D6;
+        --teal-bg: #11302F;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      color: var(--ink);
+      background: var(--steel);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    code { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+    .shell {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 48px 1fr;
+      grid-template-columns: var(--sidebar) 1fr;
+      grid-template-areas: "top top" "side main";
+    }
+    .top {
+      grid-area: top;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 16px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+    }
+    .url {
+      color: var(--ink-soft);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+    }
+    .top-spacer { flex: 1; }
+    .proj-select {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 6px 10px;
+      border-radius: 6px;
+      min-width: 160px;
+    }
+    .side {
+      grid-area: side;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      padding: 12px 10px;
+      gap: 4px;
+    }
+    .nav-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding: 8px 10px 6px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      padding: 9px 10px;
+      border-radius: 6px;
+      color: var(--ink);
+    }
+    .nav-btn[aria-current="page"] {
+      background: var(--copper-bg);
+      color: var(--ink);
+      box-shadow: inset 3px 0 0 var(--copper);
+    }
+    .nav-btn:hover { background: var(--panel-2); }
+    .nav-btn[aria-current="page"]:hover { background: var(--copper-bg); }
+    .side-foot {
+      margin-top: auto;
+      padding: 10px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .health {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+    }
+    .dot.off { background: var(--amber); }
+    .main {
+      grid-area: main;
+      overflow: auto;
+      background: var(--steel);
+    }
+    .pane { display: none; min-height: 100%; }
+    .pane.is-on { display: grid; }
+    .pane-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+    .pane-head h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .pane-head p {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+    .pane-body { padding: 18px 22px 28px; }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; grid-template-areas: "top" "main"; }
+      .side { display: none; }
+      .split { grid-template-columns: 1fr; }
+    }
+    .board {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 420px;
+      position: relative;
+      overflow: hidden;
+    }
+    .inspector {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .inspector h2 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .kv { display: grid; gap: 8px; }
+    .kv div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+    .kv span { color: var(--ink-soft); }
+    .list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .list li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .list li:last-child { border-bottom: 0; }
+    .muted { color: var(--ink-soft); }
+    .chip {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .chip.warn { background: var(--amber-bg); border-color: transparent; }
+    .chip.ok { background: var(--green-bg); border-color: transparent; }
+    .chip.flow { background: var(--teal-bg); border-color: transparent; }
+    .primary {
+      width: 100%;
+      margin-top: 12px;
+      border: 0;
+      background: var(--copper);
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .ghost {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      background: transparent;
+      padding: 8px 10px;
+      border-radius: 6px;
+    }
+    .search {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .toast {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      background: var(--ink);
+      color: var(--panel-2);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
+    }
+    .toast.show { display: block; }
+    .lg-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      height: 420px;
+      padding: 24px;
+      flex-wrap: wrap;
+    }
+    .lg-node {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-width: 108px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .lg-node small { display: block; color: var(--ink-soft); margin-top: 4px; }
+    .lg-node.now {
+      border-color: var(--copper);
+      background: var(--copper-bg);
+    }
+    .lg-edge {
+      width: 28px;
+      height: 1px;
+      background: var(--line);
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .stat b { display: block; font-size: 20px; font-weight: 600; }
+    .stat span { color: var(--ink-soft); font-size: 12px; }
+    .canvas-stage { height: 460px; }
+    .c-card {
+      position: absolute;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      width: 200px;
+      font-size: 12px;
+    }
+    .c-card strong { display: block; margin-bottom: 4px; }
+    .c-card[data-kind="step"] { border-color: var(--copper); }
+    .c-card[data-kind="doc"] { border-color: var(--teal); }
+    .note {
+      margin: 0 22px 18px;
+      padding: 10px 12px;
+      background: var(--amber-bg);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">Patchbay</div>
+      <div class="url">localhost:4317</div>
+      <div class="top-spacer"></div>
+      <label class="muted" for="proj">프로젝트</label>
+      <select id="proj" class="proj-select" aria-label="등록된 프로젝트">
+        <option>field-notes</option>
+        <option>patchbay</option>
+      </select>
+    </header>
+
+    <nav class="side" aria-label="콘솔 섹션">
+      <div class="nav-label">워크스페이스</div>
+      <button class="nav-btn" type="button" data-pane="project" aria-current="page">프로젝트</button>
+      <button class="nav-btn" type="button" data-pane="flow">흐름</button>
+      <button class="nav-btn" type="button" data-pane="kg">지식</button>
+      <button class="nav-btn" type="button" data-pane="canvas">캔버스</button>
+      <div class="side-foot">
+        <div class="health"><span>LangGraph</span><span><i class="dot" aria-hidden="true"></i> 연결됨</span></div>
+        <div class="health"><span>Neo4j</span><span><i class="dot" aria-hidden="true"></i> 연결됨</span></div>
+      </div>
+    </nav>
+
+    <main class="main">
+      <p class="note">화면 안의 프로젝트명·런·문서는 콘솔이 열렸을 때의 모습 예시입니다. 실행은 LangGraph, 검색은 Neo4j, 이 창은 둘을 고르는 셸입니다.</p>
+
+      <section class="pane is-on" id="pane-project" aria-label="프로젝트">
+        <div class="pane-head">
+          <div>
+            <h1>프로젝트</h1>
+            <p>등록, 구조 지도, 진행. Patchbay 커널이 담당합니다.</p>
+          </div>
+          <span class="chip">scan 12분 전</span>
+        </div>
+        <div class="pane-body">
+          <div class="cards">
+            <div class="stat"><b>4</b><span>라벨 없는 잭</span></div>
+            <div class="stat"><b>2</b><span>패치된 스킬</span></div>
+            <div class="stat"><b>진행 중</b><span>propose-ontology · 3/5</span></div>
+            <div class="stat"><b>100</b><span>clarity (등록 당시)</span></div>
+          </div>
+          <div class="split">
+            <div class="inspector">
+              <h2>Atlas</h2>
+              <ul class="list">
+                <li><code>skill:map-project</code><span class="chip ok">패치됨</span></li>
+                <li><code>source:README.md</code><span class="chip">라벨됨</span></li>
+                <li><code>source:CLAUDE.md</code><span class="chip warn">라벨 없음</span></li>
+                <li><code>source:.cursor/rules/style.mdc</code><span class="chip warn">라벨 없음</span></li>
+              </ul>
+            </div>
+            <div class="inspector">
+              <h2>이 탭에서 하는 일</h2>
+              <p class="muted">폴더 등록, 스캔, 스킬 패치, progress. LangGraph 런이나 Neo4j 검색은 옆 항목입니다.</p>
+              <button class="ghost" type="button" data-go="flow">흐름 보기로</button>
+              <button class="ghost" type="button" data-go="kg">지식 보기로</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="pane-flow" aria-label="흐름">
+        <div class="pane-head">
+          <div>
+            <h1>흐름</h1>
+            <p>LangGraph 런. Patchbay는 목록과 현재 노드를 보여 줍니다.</p>
+          </div>
+          <span class="chip flow">thread_08c2 · running</span>
+        </div>
+        <div class="pane-body">
+          <div class="split">
+            <div class="board" aria-label="LangGraph 그래프">
+              <div class="lg-row">
+                <div class="lg-node">intake<small>done</small></div>
+                <div class="lg-edge"></div>
+                <div class="lg-node">retrieve<small>done</small></div>
+                <div class="lg-edge"></div>
+                <div class="lg-node now">draft<small>current</small></div>
+                <div class="lg-edge"></div>
+                <div class="lg-node">review<small>queued</small></div>
+                <div class="lg-edge"></div>
+                <div class="lg-node">write_skill<small>queued</small></div>
+              </div>
+            </div>
+            <div class="inspector">
+              <h2>draft</h2>
+              <div class="kv">
+                <div><span>그래프</span><code>research_flow</code></div>
+                <div><span>체크포인트</span><code>1f9a</code></div>
+                <div><span>원문</span><span>프롬프트 2,140자</span></div>
+                <div><span>정리</span><span>초안 섹션 4개</span></div>
+              </div>
+              <button class="primary" type="button" data-place="step">캔버스에 올리기</button>
+              <button class="ghost" type="button">런 재개</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="pane-kg" aria-label="지식">
+        <div class="pane-head">
+          <div>
+            <h1>지식</h1>
+            <p>Neo4j에 올린 파일 그래프. 검색과 이웃 탐색.</p>
+          </div>
+          <span class="chip">128 nodes</span>
+        </div>
+        <div class="pane-body">
+          <input class="search" type="search" placeholder="노드 또는 파일 이름" aria-label="지식 검색">
+          <div class="split">
+            <div class="board" aria-label="Neo4j 그래프">
+              <svg viewBox="0 0 640 420" width="100%" height="420" role="img" aria-labelledby="kgTitle">
+                <title id="kgTitle">field-notes 파일 지식그래프</title>
+                <line x1="320" y1="200" x2="140" y2="90" stroke="currentColor" opacity=".25"/>
+                <line x1="320" y1="200" x2="500" y2="90" stroke="currentColor" opacity=".25"/>
+                <line x1="320" y1="200" x2="120" y2="320" stroke="currentColor" opacity=".25"/>
+                <line x1="320" y1="200" x2="520" y2="330" stroke="currentColor" opacity=".25"/>
+                <line x1="140" y1="90" x2="500" y2="90" stroke="currentColor" opacity=".15"/>
+                <g fill="var(--panel-2)" stroke="var(--line)" stroke-width="1.5">
+                  <circle cx="140" cy="90" r="36"/>
+                  <circle cx="500" cy="90" r="36"/>
+                  <circle cx="120" cy="320" r="36"/>
+                  <circle cx="520" cy="330" r="36"/>
+                  <circle cx="320" cy="200" r="48" stroke="var(--copper)" stroke-width="2.5"/>
+                </g>
+                <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle" fill="var(--ink)">
+                  <text x="140" y="94">docs/</text>
+                  <text x="500" y="94">src/</text>
+                  <text x="120" y="324">SKILL.md</text>
+                  <text x="520" y="334">ontology</text>
+                  <text x="320" y="204">README.md</text>
+                </g>
+              </svg>
+            </div>
+            <div class="inspector">
+              <h2>README.md</h2>
+              <div class="kv">
+                <div><span>라벨</span><span>프로젝트 소개</span></div>
+                <div><span>이웃</span><span>4</span></div>
+                <div><span>종류</span><code>File</code></div>
+              </div>
+              <button class="primary" type="button" data-place="doc">캔버스에 올리기</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="pane-canvas" aria-label="캔버스">
+        <div class="pane-head">
+          <div>
+            <h1>캔버스</h1>
+            <p>흐름 단계와 지식 문서를 같은 판에 올려 연결합니다.</p>
+          </div>
+        </div>
+        <div class="pane-body">
+          <div class="board canvas-stage" id="canvas-board">
+            <div class="c-card" data-kind="step" style="left:48px;top:70px">
+              <strong>LangGraph · draft</strong>
+              원문 2,140자 · 정리: 초안 4섹션
+            </div>
+            <div class="c-card" data-kind="doc" style="left:300px;top:160px">
+              <strong>Neo4j · README.md</strong>
+              프로젝트 소개 · 이웃 4
+            </div>
+            <svg class="canvas-wires" viewBox="0 0 640 460" width="100%" height="460" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
+              <line x1="248" y1="110" x2="300" y2="180" stroke="var(--copper)" stroke-width="1.5"/>
+            </svg>
+            <div class="toast" id="toast">캔버스에 올렸습니다. 캔버스 항목에서 확인하세요.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const buttons = document.querySelectorAll(".nav-btn[data-pane]");
+    const panes = {
+      project: document.getElementById("pane-project"),
+      flow: document.getElementById("pane-flow"),
+      kg: document.getElementById("pane-kg"),
+      canvas: document.getElementById("pane-canvas"),
+    };
+    function show(id) {
+      Object.entries(panes).forEach(([key, el]) => {
+        el.classList.toggle("is-on", key === id);
+      });
+      buttons.forEach((btn) => {
+        btn.setAttribute("aria-current", btn.dataset.pane === id ? "page" : "false");
+      });
+    }
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => show(btn.dataset.pane));
+    });
+    document.querySelectorAll("[data-go]").forEach((btn) => {
+      btn.addEventListener("click", () => show(btn.dataset.go));
+    });
+    const toast = document.getElementById("toast");
+    document.querySelectorAll("[data-place]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        show("canvas");
+        toast.classList.add("show");
+        window.setTimeout(() => toast.classList.remove("show"), 2200);
+      });
+    });
+  </script>
+</body>
+</html>

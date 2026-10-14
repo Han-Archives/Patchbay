@@ -1,0 +1,21 @@
+{
+  "_주석": "실행 기록 고정 자료 — 명세 20260929a §5.2. 손으로 쓴 것이고 살아 있는 런타임에서 받아오지 않는다. 공급자 응답과의 대조는 M6 어댑터의 일이다.",
+  "runId": "run-fixture-0001",
+  "graphId": "triage",
+  "irVersion": 1,
+  "status": "success",
+  "nodeId": "pick",
+  "startedAt": "2026-09-29T09:00:00.000Z",
+  "endedAt": "2026-09-29T09:00:03.120Z",
+  "modelCalls": [
+    { "nodeId": "explain", "model": "claude-opus-5", "provider": "anthropic", "status": "success", "ms": 1840, "tokensIn": 420, "tokensOut": 96 }
+  ],
+  "toolCalls": [
+    { "nodeId": "pick", "tool": "write-draft", "caps": ["cap:draft"], "status": "success" }
+  ],
+  "documentCalls": [
+    { "nodeId": "pick", "path": "guides/bug.md", "level": 1, "via": "kind=bug → D1" }
+  ],
+  "usage": { "inputTokens": 420, "outputTokens": 96, "costUsd": 0.0031 },
+  "error": null
+}

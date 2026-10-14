@@ -1,0 +1,17 @@
+{
+  "name": "@patchbay/mcp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@patchbay/core": "workspace:*",
+    "zod": "^4.6.2"
+  }
+}

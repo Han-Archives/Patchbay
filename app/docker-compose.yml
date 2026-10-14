@@ -1,0 +1,62 @@
+# Sidecars for the Patchbay console (spec 4.2).
+# From this directory: `docker compose --profile sidecars up -d`
+#   Bolt  bolt://127.0.0.1:7687   user neo4j  password patchbay
+#
+# The console, the CLI and the MCP server stay on the host: studio.yaml holds
+# absolute host paths, the host launcher spawns Cursor/Claude Code, and
+# chokidar's inotify does not cross a bind mount. Only the replica moves.
+#
+# LangGraph is deliberately NOT here. `langgraph dev` serves whichever project
+# owns the `langgraph.json` (a registered project's), so it belongs to that
+# repo, not to Patchbay's compose -- Patchbay only points
+# PATCHBAY_LANGGRAPH_URL (default http://127.0.0.1:2024) at wherever it runs.
+#
+# Ports bind to the loopback on purpose. Published as "7687:7687" they listen
+# on every interface, which on a Tailscale network means a password-`patchbay`
+# database reachable from the whole tailnet.
+#
+# No vector plugin -- v1 search is path/name CONTAINS only.
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    profiles: ["sidecars"]
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/patchbay
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p patchbay 'RETURN 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # The spec fixes a Knowledge node's identity as (alias, path); without an
+  # index behind it every search is a full :Knowledge label scan. The console
+  # creates this too (neo4jAdapter's ensureSchema) -- doing it here as well
+  # means a replica populated by anything else is still indexed.
+  neo4j-init:
+    image: neo4j:5.26-community
+    profiles: ["sidecars"]
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: "no"
+    entrypoint:
+      - cypher-shell
+      - -a
+      - bolt://neo4j:7687
+      - -u
+      - neo4j
+      - -p
+      - patchbay
+      - >
+        CREATE CONSTRAINT knowledge_alias_path IF NOT EXISTS
+        FOR (n:Knowledge) REQUIRE (n.alias, n.path) IS UNIQUE
+
+volumes:
+  neo4j_data:

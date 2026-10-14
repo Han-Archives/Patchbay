@@ -1,0 +1,203 @@
+# 고정 시험 자료. 실물 프로젝트가 아니다 — 검사 26개가 무엇을 보는지 한 파일로 보여 주는 것이 목적이다.
+schemaVersion: 3
+version: 1
+project: fixture-agent
+graph: triage
+
+# 0.0 온톨로지 — 다른 칸이 낱말을 고르는 바닥.
+concepts:
+  - { id: input,  label: 기록,      kind: input }
+  - { id: kind,   label: 갈래,      kind: enum, values: [bug, request, question] }
+  - { id: reason, label: 근거,      kind: output }
+  - { id: guide,  label: 안내 문서, kind: resource }
+relations:
+  - { from: input, to: kind,   kind: has,    cardinality: one }
+  - { from: kind,  to: guide,  kind: points, cardinality: one }
+  - { from: input, to: reason, kind: derives, cardinality: optional }
+competencyQuestions:
+  - { id: Q1, text: 이 기록의 갈래는 무엇인가?, from: input, to: kind }
+  - { id: Q2, text: 이 갈래에는 어떤 안내 문서를 주는가?, from: kind, to: guide }
+rules:
+  - { id: O1, text: 기록 하나는 갈래를 정확히 하나 가진다, source: relation }
+  - { id: O2, text: 안내 문서는 실제로 있는 파일이다, source: resource }
+
+why:
+  alternative: 갈래 나누기(버그·요청·질문)는 키워드 표로 충분하다.
+  modelNeed: 왜 그 갈래로 골랐는지 근거 문장 한 줄을 쓰는 것. 표로는 안 된다.
+  verdict: 갈래는 표가 정하고, 고른 이유만 모델이 쓴다.
+  needsModel: true
+
+goal: 기록 한 건을 넣으면 갈래 하나와 그 근거 한 줄, 다음에 볼 안내 문서 한 개가 나온다.
+stakeholders:
+  - { id: S1, role: 기록을 정리하는 사람, need: 갈래와 다음에 볼 문서를 바로 안다 }
+metrics:
+  - { id: M1, what: 갈래 정확도, target: 시험 예의 90% 이상이 맞다 }
+nonGoals:
+  - 안내 문서를 고치지 않는다
+constraints:
+  - 결과는 한국어로 쓴다
+assumptions:
+  - 기록 하나는 한 문단 안이다
+jobStory: 새 기록이 들어오면, 갈래와 안내 문서를 바로 받아서, 담당자에게 넘길 수 있게
+alternatives:
+  - { what: 키워드 표만으로, whyNot: 왜 그 갈래인지 근거를 쓸 수 없다 }
+riskLevel: medium
+autonomy: approve
+memory: none
+# 3판 (명세 20261006a §3.9) — 환경 1.2 · 사용 화면 1.7 · 자격 증명 1.3
+environment:
+  language: typescript
+  runtime: node 22
+  location: local
+  libraries: ["@langchain/langgraph"]
+interface:
+  entry: [console]
+  output: 갈래 · 근거 한 줄 · 안내 문서 경로를 한 묶음으로 보인다
+  review: 담당자가 초안 파일을 보고 넘긴다
+credentials:
+  - { id: model-key, what: 모델 공급자 API, storedAt: env }
+done:
+  - 안내 문서 경로가 실제로 존재하는 파일이다
+  - 근거 한 줄이 입력 문장 중 하나를 인용한다
+  - 갈래가 세 값 중 하나로 정해진다
+
+caps:
+  - id: cap:read
+    scope: inbox/** 와 guides/** 를 읽는다
+    undo: 아무것도 바꾸지 않는다
+    humanApproval: false
+  - id: cap:draft
+    scope: out/triage.md 에 초안을 쓴다
+    undo: 지우면 된다
+    humanApproval: false
+  - id: cap:pr
+    scope: guides/** 를 고친다
+    undo: 번거롭다 — 커밋을 되돌려야 한다
+    humanApproval: true
+  - id: cap:external
+    scope: 입력 문장을 모델 공급자에게 보낸다
+    undo: 되돌릴 수 없다 — 보낸 것은 회수하지 못한다
+    humanApproval: false
+
+tools:
+  - id: write-draft
+    caps: [cap:draft]
+    what: out/triage.md 에 결과를 적는다
+    irreversible: false
+  - id: edit-guide
+    caps: [cap:pr]
+    what: 안내 문서를 고친다
+    irreversible: true
+
+models:
+  - id: claude-opus-5
+    provider: anthropic
+    caps: [cap:external]
+    usedBy: [explain]
+    timeoutMs: 20000
+
+reads:
+  - { path: inbox/**, level: 2 }
+  - { path: guides/**, level: 1 }
+emits:
+  - what: 입력 기록의 원문을 모델에 보낸다
+    level: 2
+    to: external
+    reason: 작업 등급이라 비밀은 아니지만 밖으로 나가므로 cap:external 이다
+
+state:
+  - { field: messages, type: "BaseMessage[]", reducer: append,    default: "[]" }
+  - { field: input,    type: string,          reducer: lastWrite, default: '""', concept: input }
+  - { field: kind,     type: string,          reducer: lastWrite, default: '""', concept: kind }
+  - { field: reason,   type: string,          reducer: lastWrite, default: '""', concept: reason }
+  - { field: guide,    type: string,          reducer: lastWrite, default: '""', concept: guide }
+
+nodes:
+  - { id: intake,   label: 받아적기,        reads: [messages],      writes: [input] }
+  - { id: classify, label: 갈래 정하기,      reads: [input],         writes: [kind] }
+  - { id: explain,  label: 고른 이유 쓰기,   reads: [input, kind],   writes: [reason], models: [claude-opus-5] }
+  - { id: pick,     label: 안내 문서 고르기, reads: [input, kind, reason], writes: [guide, messages],
+      tools: [write-draft], documents: [D1, D2, D3, D4] }
+edges:
+  - { from: __start__, to: intake }
+  - { from: intake,    to: classify }
+  - { from: classify,  to: explain }
+  - { from: classify,  to: pick, when: 모델 호출이 거절되거나 20초를 넘기면 근거 없이 안내 문서만 준다 }
+  - { from: explain,   to: pick }
+  - { from: pick,      to: __end__ }
+
+documents:
+  - { id: D1, node: pick, path: guides/bug.md,      level: 1, when: 갈래가 버그 }
+  - { id: D2, node: pick, path: guides/request.md,  level: 1, when: 갈래가 요청 }
+  - { id: D3, node: pick, path: guides/question.md, level: 1, when: 갈래가 질문 }
+  - { id: D4, node: pick, path: guides/unknown.md,  level: 1, when: 갈래를 못 정했을 때 }
+
+# EARS 문장에는 쉼표가 들어간다. flow 표기(`{ }`)에서 쉼표는 항목 구분자라 문장이 쪼개진다 —
+# 요구사항과 평가는 블록 표기로 적는다.
+requirements:
+  - id: R1
+    pattern: ubiquitous
+    text: 시스템은 기록 하나마다 안내 문서 경로를 하나 준다.
+  - id: R2
+    pattern: event
+    text: When 새 기록이 들어오면, 시스템은 갈래를 다시 정한다.
+  - id: R3
+    pattern: state
+    text: While kind 가 비어 있으면, 시스템은 안내 문서를 고르지 않는다.
+  - id: R4
+    pattern: unwanted
+    text: If input 이 비어 있으면, 시스템은 안내 문서를 고르지 말고 "입력이 비었다"고 답한다.
+  - id: R5
+    pattern: unwanted
+    text: If 고른 안내 문서가 실제로 없으면, 시스템은 없다고 답하고 다른 문서를 고르지 않는다.
+  - id: R6
+    pattern: unwanted
+    text: If 모델이 근거 쓰기를 거절하거나 20초를 넘기면, 시스템은 갈래와 문서만 주고 근거는 비워 둔다.
+
+  - id: R7
+    pattern: ubiquitous
+    kind: quality
+    priority: should
+    text: 시스템은 기록 하나에 30초 안에 답한다.
+    fit: 시험 예의 95%가 30초 안에 끝난다
+evals:
+  - id: E1
+    node: pick
+    kind: deterministic
+    input: "버그 한 건 — 저장 버튼이 두 번 눌린다"
+    expect: kind 가 "bug" 이고 안내 문서 경로가 존재하는 파일이다
+  - id: E2
+    node: intake
+    kind: deterministic
+    input: 기록 하나를 덧붙인 입력
+    expect: 갈래가 새 기록 기준으로 다시 정해진다
+  - id: E3
+    node: pick
+    kind: deterministic
+    input: 'kind == ""'
+    expect: 안내 문서를 고르지 않는다
+  - id: E4
+    node: intake
+    kind: deterministic
+    input: '""'
+    expect: '"입력이 비었다"를 답하고 문서 경로가 없다'
+  - id: E5
+    node: pick
+    kind: deterministic
+    input: 존재하지 않는 문서 경로
+    expect: 없다고 답하고 다른 문서를 고르지 않는다
+  - id: E6
+    node: explain
+    kind: model
+    input: 고정 응답 어댑터의 거절 응답과 20초 초과 응답
+    scoring: 근거 한 줄이 입력 문장을 인용했는지 사람이 1~5로 채점한다
+    expect: reason 이 빈 문자열이고 guide 는 정상으로 채워진다
+
+requirementLinks:
+  - { requirement: R7, node: pick, eval: E1 }
+  - { requirement: R1, node: pick,     eval: E1 }
+  - { requirement: R2, node: intake,   eval: E2 }
+  - { requirement: R3, node: pick,     eval: E3 }
+  - { requirement: R4, node: intake,   eval: E4 }
+  - { requirement: R5, node: pick,     eval: E5 }
+  - { requirement: R6, node: explain,  eval: E6 }

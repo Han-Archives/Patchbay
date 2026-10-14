@@ -1,0 +1,47 @@
+---
+description: 파일은 저장구조.md가 정한 층과 경로에만 저장한다. 저장 구조가 바뀌면 같은 작업에서 저장구조.md를 고친다
+alwaysApply: true
+---
+
+# 저장 구조
+
+**원본: `knowledge/patchbay/기획/저장구조.md`.** 새 파일이나 폴더를 만들기 전, 옮기기 전에 읽는다.
+경로가 헷갈리면 추측하지 말고 그 문서의 1 · 3 · 5절을 본다.
+
+## 어디에 저장하나
+
+| 무엇 | 어디 |
+| --- | --- |
+| 코드 | `app/` |
+| 다른 프로젝트 내용이 한 줄이라도 들어가는 문서 · 기록 | **비공개 기록층 `workspace/records/patchbay/`** (공개 레포에 넣지 않는다, 사용자 결정 2026-10-14) |
+| Patchbay 기획서 · 명세 · 기억 · 대화 · 목표 · 방향 · 실행 · 아키텍처 · 용어 | `workspace/records/patchbay/` 아래 같은 폴더 (기획 파일은 콘솔이 등록부 `docs` 칸으로 읽는다) |
+| 저장 구조 원본 | `knowledge/patchbay/기획/저장구조.md` (공개) |
+| 작업 한 번의 기록 | Patchbay 구성만 다루면 `knowledge/patchbay/절차/`, 다른 프로젝트가 나오면 `workspace/records/patchbay/절차/`. 이름 `<주제>_<날짜>_v<n>.md`, 첨부는 같은 이름 폴더 |
+| 일지 — 큰 변경 한 줄 | `workspace/records/log.md`(비공개) 맨 위에 `## [날짜] 종류 \| 제목` + 한두 줄 (개편 · 결정 · 정리 · 기능). "무엇을 진행했나"는 여기서 답한다 |
+| 디자인 · 사용설명서 | `knowledge/patchbay/<종류>/` 에 한 판. 명세 · 구현계획 · 진행은 `workspace/records/patchbay/<종류>/` |
+| 옛 판 | 살아 있던 층의 보관 폴더(`archive/docs/` 또는 `workspace/records/archive/docs/`) (`doc-versions.mdc`) |
+| 설계(IR) · 대화 · 실행 · 할 일 · 스캔 원문 | 작업 공간(`PATCHBAY_HOME`) `projects/<alias>/` — **커널의 저장 함수 · CLI · MCP로만 쓴다** |
+| 지울 것 | `.trash/<날짜>/` 로 옮기고 `MANIFEST.md`에 원래 위치 · 이유 · 되돌리는 명령. 운영에 문제가 없으면 사용자 확인 뒤 지운다 |
+| 파생 인덱스 | `.index/` (언제든 다시 만들 수 있어야 한다) |
+| 작업 공간 백업 | `patchbay backup` (작업 공간 안 git → 비공개 레포). 큰 작업을 끝냈을 때 부른다 |
+| 접근 등급 기본값 | 루트 `access.yaml` — 새 층 · 새 원문 폴더를 만들면 등급 줄을 더한다 |
+| 작업 중 임시 산출물(시안 · 검증 스크립트) | 세션 스크래치패드. 남길 것이면 절차 기록의 첨부 폴더로 |
+
+레포 루트에 새 폴더를 만들지 않는다. 층이 더 필요하면 저장구조.md 1절을 고치는 결정을 먼저 받는다.
+
+## 코드에서 경로를 얻는 법
+
+작업 공간은 `resolveStudioHome()` · `projectStudioDir()`, 프로젝트 문서 폴더는 `projectDocs()`,
+기획 · 절차 · 아키텍처 파일은 `planPaths()` · `procedureDir()` · `architectureRel()`로만 얻는다.
+`"docs/..."` · `"~/.patchbay"` 같은 문자열을 새로 박지 않는다 — 문서 폴더는 프로젝트마다 다르다(등록부 `docs` 칸).
+
+## 저장 구조가 바뀌면 (같은 작업에서)
+
+1. 저장구조.md의 해당 절을 고치고 「바뀐 기록」에 날짜와 한 줄을 남긴다. 프런트매터 `updated`도 고친다.
+2. `아키텍처.json` · `.md` (`architecture-map.mdc`).
+3. 스캔 제외 목록(`fileWalker.ts`)과 `.gitignore`가 새 층과 맞는지.
+4. 새 이름이면 `용어.md` (`terms.mdc`).
+5. 저장구조.md 8절의 확인 목록을 지난다.
+
+하지 않음: 저장구조.md에 없는 자리에 파일 두기. 작업 공간 원문을 손으로 만들거나 고치기.
+구조를 바꾸고 저장구조.md를 그대로 두기. 지울 것을 `.trash` 없이 바로 지우기.

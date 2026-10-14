@@ -1,0 +1,23 @@
+# Patchbay
+
+> LLM 애플리케이션의 설계(IR)와 실물을 대조하는 localhost 워크스페이스. 묻는 질문은 하나 — "지금 돌고 있는 이 그래프가 내가 설계한 그 그래프인가". 문서는 한국어다.
+
+레포는 코드 `app/`와 공개 위키 `knowledge/`로 되어 있다. 작업 공간 `workspace/`(원문과 비공개 기록)는 공개 레포에 없다.
+
+## 먼저 읽을 것
+
+- [위키 목록](knowledge/index.md): 무엇이 어디에 있는지 한 줄씩
+- [저장구조](knowledge/patchbay/기획/저장구조.md): 폴더 · 파일 · 경로 규칙
+
+## 에이전트 규칙
+
+- [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md): 규칙 원본은 knowledge/patchbay/규칙/
+
+## 쓰는 법
+
+- [사용설명서](knowledge/patchbay/사용설명서/Patchbay_사용설명서_20260918a.md)
+- [세부매뉴얼](knowledge/patchbay/사용설명서/Patchbay_세부매뉴얼_20260918a.md)
+
+## Optional
+
+- [절차 기록](knowledge/patchbay/절차/): 작업 한 번마다의 기록

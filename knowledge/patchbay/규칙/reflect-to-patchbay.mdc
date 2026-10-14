@@ -1,0 +1,19 @@
+---
+description: 어떤 프로젝트든 프로세스·단계가 끝나면 같은 작업에서 Patchbay에 반영한다
+alwaysApply: true
+---
+
+# 끝나면 Patchbay에 반영
+
+등록된 프로젝트에서 프로세스·beat·단계·한 일이 끝나면, 채팅만으로 끝내지 않는다. **같은 작업에서** Patchbay가 읽는 칸에 남긴다.
+
+1. 프로젝트 문서 폴더의 `기획/` — 문서 폴더는 등록부 `docs` 칸(기본 `docs/`, Patchbay 자신은 비공개 기록층 `workspace/records/patchbay/`). 해당 beat 파일(`목표.md` / `방향.md` / `실행.md`), `기억.md`, `대화.md`. 사용자가 그 beat를 끝냈다고 한 뒤에만 `host.json` `completed`에 넣는다.
+2. 같은 문서 폴더의 `절차/` — 번호 파일을 하나 추가한다.
+3. 스튜디오 — `patchbay progress write --project <alias> --summary "…" --skill … --step …`
+   사용자의 요구에서 시작한 일이면 `--asked "<사용자가 말한 것>" --did "<실제로 나간 것>"` 을 같이 넘긴다. 대화를 가진 건 너다 — 커널은 트랜스크립트를 읽지 않는다. MCP `progress_write`도 같은 두 필드를 받는다.
+4. 연결이 바뀌면 overlay `wires`·`decisions`, 파일 목록이 바뀌면 `patchbay scan --project <alias>`
+5. 실행 순서가 바뀌면 `실행.md`와 overlay `process.steps`가 같아야 한다.
+
+콘솔이 떠 있으면 프로젝트 탭에서 같은 사실이 보이는지 확인한다.
+
+하지 않음: 사용자가 끝내지 않은 beat를 `completed`에 넣기. Patchbay 제품 `workspace/records/patchbay/기획/아키텍처`에 학습 프로젝트 내용을 섞기.

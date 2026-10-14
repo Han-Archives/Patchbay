@@ -1,0 +1,101 @@
+/* 셸 시안 공통 — 다크 유지 + 상태 색 (사용자 결정 2026-10-05). 색은 상태에만 쓴다. */
+:root {
+  color-scheme: dark;
+  --bg: #121313;
+  --chrome: #191b1b;
+  --elevated: #212424;
+  --fill: #2a2d2d;
+  --stroke: #323636;
+  --text: #f0f2f1;
+  --muted: #9aa19e;
+  --faint: #6b726f;
+  /* 상태 — 통과 · 지금 할 일 · 실패 · 잠김 */
+  --ok: #52c493;      --ok-fill: #16302a;
+  --now: #e3a35a;     --now-fill: #33261a;
+  --bad: #ef7b6e;     --bad-fill: #3a1e1a;
+  --lock: #5b615e;
+  --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { overflow-x: hidden; font-family: var(--sans); font-size: 14px; line-height: 1.55; color: var(--text); background: var(--bg); }
+button { font: inherit; color: inherit; }
+code { font-family: var(--mono); font-size: .9em; }
+
+/* 단계 띠 — 0~5. 상태는 이 한 곳에만 */
+.band { display: flex; align-items: stretch; gap: 0; min-width: 0; }
+.st { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px 10px 30px; border: 0; background: none; text-align: left; cursor: pointer; border-bottom: 2px solid transparent; }
+.st::before { content: ""; position: absolute; left: 12px; top: 15px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--lock); }
+.st::after { content: ""; position: absolute; left: 26px; right: -4px; top: 20px; height: 0; border-top: 1px dashed var(--stroke); z-index: 0; display: none; }
+.st b { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.st b i { font-style: normal; font-family: var(--mono); color: var(--faint); margin-right: 6px; font-weight: 500; }
+.st small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st.ok::before { background: var(--ok); border-color: var(--ok); }
+.st.now::before { border-color: var(--now); box-shadow: 0 0 0 3px var(--now-fill); }
+.st.now small { color: var(--now); }
+.st.lock { cursor: default; }
+.st.lock b, .st.lock small { color: var(--faint); }
+.st.lock::before { border-style: dashed; }
+.st[aria-current="page"] { border-bottom-color: var(--text); }
+.st[aria-current="page"] b { color: var(--text); }
+.st:not(.lock):hover { background: var(--elevated); }
+.sep { align-self: center; color: var(--faint); font-size: 12px; }
+
+/* 콘텐츠 — 1 설계 화면 샘플 */
+.head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.head h2 { margin: 0; font-size: 18px; }
+.head .crumb { color: var(--muted); font-size: 13px; }
+.pill { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.pill.ok { background: var(--ok-fill); color: var(--ok); }
+.pill.now { background: var(--now-fill); color: var(--now); }
+.pill.bad { background: var(--bad-fill); color: var(--bad); }
+.pill.lock { background: var(--fill); color: var(--muted); }
+.grow { flex: 1; }
+.btn { border: 1px solid var(--stroke); background: var(--elevated); border-radius: 6px; padding: 7px 14px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ok); border-color: var(--ok); color: #0d1f18; font-weight: 700; }
+.btn.ghost { background: none; }
+
+.design { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.phases { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--stroke); border-radius: 8px; background: var(--chrome); overflow: hidden; }
+.phases li { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-top: 1px solid var(--stroke); cursor: pointer; }
+.phases li:first-child { border-top: 0; }
+.phases li:hover { background: var(--elevated); }
+.phases li[aria-current="true"] { background: var(--elevated); box-shadow: inset 2px 0 0 var(--text); }
+.phases .dot { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-family: var(--mono); background: var(--ok-fill); color: var(--ok); }
+.phases .dot.now { background: var(--now-fill); color: var(--now); }
+.phases b { font-size: 13px; font-weight: 600; display: block; }
+.phases small { font-size: 11.5px; color: var(--muted); }
+.phases .tick { font-size: 11.5px; color: var(--ok); }
+
+.win { border: 1px solid var(--stroke); border-radius: 8px; background: var(--chrome); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.win h3 { margin: 0; font-size: 15px; }
+.win p { margin: 0; color: var(--muted); }
+.row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--stroke); font-size: 13px; }
+.row span:first-child { color: var(--muted); }
+.term { font-size: 12px; color: var(--faint); }
+.term b { color: var(--muted); font-weight: 600; }
+.mini { display: flex; gap: 22px; align-items: center; padding: 18px 8px 8px; overflow-x: auto; }
+.node { border: 1px solid var(--stroke); background: var(--elevated); border-radius: 6px; padding: 7px 12px; font-size: 12.5px; white-space: nowrap; }
+.node.mid { border-color: var(--ok); }
+.edge { flex: 0 0 34px; height: 1px; background: var(--muted); position: relative; }
+.edge::after { content: ""; position: absolute; right: -1px; top: -3px; border: 3.5px solid transparent; border-left: 5px solid var(--muted); }
+
+.side { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.side::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lock); }
+.side.on::before { background: var(--ok); }
+
+select { font: inherit; color: var(--text); background: var(--elevated); border: 1px solid var(--stroke); border-radius: 6px; padding: 6px 10px; }
+
+/* 폰 — 띠는 가로로 밀고, 설계는 한 칸 */
+@media (max-width: 720px) {
+  .design { grid-template-columns: 1fr; }
+  .band { overflow-x: auto; scrollbar-width: none; }
+  .st { flex: 0 0 auto; }
+  .st small { max-width: 120px; }
+  .row { grid-template-columns: 96px 1fr; }
+  .head .btn.ghost { display: none; }
+  .head .grow { display: none; }
+  .head .btn.primary { width: 100%; }
+}

@@ -1,0 +1,203 @@
+# 칸별 실패 고정 자료 — 명세 20261006a §8.
+#
+# 검사마다 IR 전체를 복사해 두지 않는다. 26개 사본은 서로 드리프트하고, 사본을 볼 때
+# 「이 검사가 무엇 때문에 깨지는지」가 파일 전체에 묻힌다. 대신 valid.ir.yaml 하나에
+# **최소 변형**만 적는다 — 그러면 자료가 검사의 뜻 그 자체가 된다.
+#
+# 검증: node docs/절차/고정자료-검증_20260929_v1.mjs
+#   각 건이 지목한 검사를 실제로 깨뜨리는지, 그리고 valid가 26/26인지 확인한다.
+#
+# ops 문법: { set: "<경로>", to: <값> } · { delete: "<경로>" } · { append: "<경로>", item: <값> }
+#   경로는 `a.b[0].c`. 값은 그대로 들어간다.
+
+cases:
+  - check: 0.0/input-output
+    why: 받는 것이 없는 세계에서는 에이전트가 무엇을 다루는지 말할 수 없다
+    ops: [{ set: "concepts[0].kind", to: "internal" }]
+
+  - check: 0.0/concept-unique
+    why: 같은 이름의 개념 둘은 뒤의 칸이 어느 쪽을 골랐는지 모르게 한다
+    ops: [{ append: "concepts", item: { id: input, label: 또 기록, kind: internal } }]
+
+  - check: 0.0/enum-values
+    why: 값이 하나뿐인 「정해진 값」은 고를 것이 없다
+    ops: [{ set: "concepts[1].values", to: ["bug"] }]
+
+  - check: 0.0/relation-ends
+    why: 없는 개념을 잇는 관계는 바닥에 없는 낱말이다
+    ops: [{ set: "relations[0].to", to: "ticket" }]
+
+  - check: 0.0/cq-answerable
+    why: 0층에 관계가 없으면 그 질문에 답할 길이 없다 — 온톨로지의 구멍이다
+    ops: [{ set: "competencyQuestions[0].to", to: "guide" }]
+
+  - check: 1.0/verdict
+    why: 결론 한 문장이 없으면 1.0은 판정할 것이 없다
+    ops: [{ set: "why.verdict", to: "" }]
+
+  - check: 1.1/done-judgeable
+    why: 완료 조건이 없으면 무엇이 끝인지 아무도 모른다
+    ops: [{ set: "done", to: [] }]
+
+  - check: 1.1/metric-target
+    why: 목표치 없는 지표는 잴 수 없다 — 지표가 아니라 바람이다
+    ops: [{ set: "metrics[0].target", to: "" }]
+
+  - check: 1.2/tool-caps
+    why: 권한 없는 툴은 무엇을 할 수 있는지 선언되지 않은 행위자다
+    ops: [{ set: "tools[0].caps", to: [] }]
+
+  - check: 1.2/model-declared
+    why: 1.0이 모델을 요구하는데 부를 모델이 없다 — 시험 DRC가 툴 개수로 잘못 검사하던 자리
+    ops: [{ set: "models", to: [] }]
+
+  - check: 1.2/model-caps
+    why: 모델이 요구하는 능력이 caps[]에 없으면 선언 밖의 호출이다
+    ops: [{ set: "models[0].caps", to: ["cap:missing"] }]
+
+  - check: 1.2/irreversible-approval
+    why: 되돌릴 수 없는 툴에 사람 확인이 없다
+    ops: [{ set: "caps[2].humanApproval", to: false }]
+
+  - check: 1.2/oversight
+    why: 틀리면 사람이 다치는 일을 사람 확인 없이 끝까지 하지 않는다 (EU AI Act 사람 감독)
+    ops:
+      - { set: "riskLevel", to: high }
+      - { set: "autonomy", to: full }
+
+  - check: 1.2/caps-known
+    why: 다섯 번째 능력 등급을 만들지 않는다 — 되돌림 × 외부 영향으로 자르면 넷이다
+    ops: [{ set: "caps[0].id", to: "cap:admin" }]
+
+  - check: 1.3/read-level
+    why: 등급 없는 읽기는 민감도 게이트가 판정할 수 없다
+    ops: [{ delete: "reads[0].level" }]
+
+  - check: 1.3/no-l4
+    why: 비밀 등급은 설계에 끌어오지 않는다
+    ops: [{ set: "reads[0].level", to: 4 }]
+
+  - check: 1.2/env-language
+    why: 2 구현 생성기는 아직 TypeScript만 낸다 — 다른 언어면 설계와 뼈대가 어긋난다
+    ops: [{ set: "environment.language", to: python }]
+
+  - check: 1.2/remote-tunnel
+    why: 원격 그래프는 콘솔 쪽 터널 주소로만 닿는다. 주소가 없으면 2 · 5단계가 붙지 못한다
+    ops:
+      - { set: "environment.location", to: remote }
+      - { set: "environment.remote", to: { host: gpu-box, tunnel: "" } }
+
+  - check: 1.2/model-used
+    why: 선언만 하고 아무 노드도 부르지 않는 모델 — 2.4가 어댑터를 꽂을 자리를 모른다
+    ops:
+      - { set: "models[0].usedBy", to: [] }
+      - { set: "nodes[2].models", to: [] }
+
+  - check: 1.3/external-cap
+    why: 밖으로 나가는데 cap:external이 없다. 모델 능력도 같이 낮춰 이 검사만 남긴다
+    ops:
+      - { set: "models[0].caps", to: ["cap:read"] }
+      - { delete: "caps[3]" }
+
+  - check: 1.3/db-cap
+    why: 프로젝트 DB에 쓰는데 어디에 쓰는지가 없다
+    ops: [{ append: "emits", item: { what: 갈래 결과, level: 2, to: db, reason: 집계하려고 } }]
+
+  - check: 1.3/external-credential
+    why: 밖으로 보내는 MCP 도구가 있는데 무엇으로 열리는지(자리)가 없다
+    ops:
+      - { set: "credentials", to: [] }
+      - { append: "tools", item: { id: send-mail, caps: [cap:external], what: 담당자에게 메일을 보낸다, via: mcp, server: mail } }
+
+  - check: 1.4/reducer-default
+    why: 기본값 없는 State 칸은 생성기가 코드로 못 옮긴다
+    ops: [{ delete: "state[1].default" }]
+
+  - check: 1.4/custom-ref
+    why: custom reducer인데 구현이 어디 있는지 없다
+    ops: [{ set: "state[1].reducer", to: custom }]
+
+  - check: 1.4/concept-known
+    why: 값이 0층에 없는 개념을 가리키면 칸끼리 다른 낱말을 쓰는 것이다
+    ops: [{ set: "state[1].concept", to: "note" }]
+
+  - check: 1.4/input-field
+    why: 받는 것을 담는 칸이 없으면 2.3 시험이 입력을 넣을 곳이 없다
+    ops: [{ delete: "state[1].concept" }]
+
+  - check: 1.5/known-fields
+    why: 없는 State 칸에 쓰는 노드 — 넷리스트에 없는 선을 잇는 것과 같다
+    ops: [{ set: "nodes[0].writes", to: [nope] }]
+
+  - check: 1.5/no-orphan-field
+    why: 아무도 읽지도 쓰지도 않는 칸은 설계에 남은 죽은 선이다
+    ops: [{ append: "state", item: { field: dangling, type: string, reducer: lastWrite, default: '""' } }]
+
+  - check: 1.5/node-reads
+    why: 아무것도 읽지 않는 노드는 앞 단계와 끊겨 있다 — 2.4가 무엇을 받아 일하는지 모른다
+    ops: [{ set: "nodes[0].reads", to: [] }]
+
+  - check: 1.5/reachable
+    why: 시작에서 닿지 않는 노드. 끝으로는 갈 수 있게 두어 can-end와 구분한다
+    ops:
+      - { append: "nodes", item: { id: ghost, label: 아무도 부르지 않는 노드, reads: [], writes: [] } }
+      - { append: "edges", item: { from: ghost, to: __end__ } }
+
+  - check: 1.5/can-end
+    why: 들어갈 수는 있는데 끝으로 못 가는 노드 — 막다른 길
+    ops:
+      - { append: "nodes", item: { id: sink, label: 끝으로 못 가는 노드, reads: [], writes: [] } }
+      - { append: "edges", item: { from: classify, to: sink } }
+
+  - check: 1.6/node-exists
+    why: 지운 노드를 가리키는 문서 의존
+    ops: [{ set: "documents[0].node", to: nope }]
+
+  - check: 1.6/doc-ref-exists
+    why: 노드가 없는 문서 id를 가리킨다
+    ops: [{ set: "nodes[3].documents", to: [D9] }]
+
+  - check: 1.6/doc-exists
+    why: 경로 오타 — 실행 시점에 없는 파일을 고른다
+    ops: [{ set: "documents[0].path", to: guides/missing.md }]
+
+  - check: 1.6/doc-coverage
+    why: 후보는 여섯인데 하나만 쓴다 — 4단계가 대체할 하드코딩된 라우팅의 모양
+    ops:
+      - { set: "documents", to: [{ id: D1, node: pick, path: guides/bug.md, level: 1, when: 갈래가 버그 }] }
+      - { set: "nodes[3].documents", to: [D1] }
+
+  - check: 1.7/ears-pattern
+    why: EARS 다섯 패턴 밖의 문장
+    ops: [{ set: "requirements[0].pattern", to: 기타 }]
+
+  - check: 1.7/unwanted
+    why: 거절·타임아웃·빈 입력을 적지 않은 설계. LLM 에이전트에서 가장 많이 빠지는 칸이다
+    ops:
+      - { set: "requirements[3].pattern", to: optional }
+      - { set: "requirements[4].pattern", to: optional }
+      - { set: "requirements[5].pattern", to: optional }
+
+  - check: 1.7/no-vague-terms
+    why: 「적절히」는 무엇이 통과인지 정하지 못한다 (요구사항 냄새)
+    ops: [{ set: "requirements[0].text", to: 시스템은 기록 하나마다 적절한 안내 문서를 준다. }]
+
+  - check: 1.7/quality-fit
+    why: 「빨라야 한다」는 적합 기준 없이는 시험할 수 없다 (Volere)
+    ops: [{ delete: "requirements[6].fit" }]
+
+  - check: 1.8/rtm-complete
+    why: 추적 표에 빈 칸 — 무엇이 무효가 됐는지 답할 수 없게 된다
+    ops: [{ delete: "requirementLinks[0]" }]
+
+  - check: 1.8/eval-node-exists
+    why: 없는 노드를 가리키는 평가
+    ops: [{ set: "evals[0].node", to: nope }]
+
+  - check: 1.8/link-integrity
+    why: 추적 표가 없는 평가 id를 가리킨다
+    ops: [{ set: "requirementLinks[1].eval", to: E9 }]
+
+  - check: 1.8/eval-scoring
+    why: 모델 채점인데 채점법이 없다 — 점수가 사람마다 달라진다
+    ops: [{ delete: "evals[5].scoring" }]

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>셸 시안 다 · 띠가 현황</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* 다 — 「현황」 화면을 없애고 띠가 그 일을 한다. 띠 아래 한 줄이 「다음 할 일」. 도구는 프로젝트 메뉴 안 */
+  .shell { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+  .hero { background: var(--chrome); border-bottom: 1px solid var(--stroke); padding: 12px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+  .line1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .pjbtn { display: flex; align-items: center; gap: 8px; border: 1px solid var(--stroke); background: var(--elevated); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .pjbtn b { font-size: 15px; } .pjbtn span { color: var(--muted); }
+  .next { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: var(--now-fill); color: var(--now); font-size: 13px; }
+  .next b { color: var(--text); font-weight: 600; }
+  .hero .band { margin: 0 -8px; }
+  .hero .st { padding-top: 12px; padding-bottom: 12px; }
+  main { overflow: auto; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 720px) {
+    .hero { padding: 10px 12px 0; }
+    .line1 .sides { display: none; }
+    .next { width: 100%; }
+    main { padding: 14px 12px 32px; }
+  }
+  .sides { display: flex; gap: 12px; }
+  @media (max-width: 720px) { .sides { display: none; } }
+</style></head>
+<body>
+<div class="shell">
+  <header class="hero">
+    <div class="line1">
+      <button class="pjbtn"><b>practice</b><span>▾ 프로젝트 · 기획 · 배치도</span></button>
+      <div class="next"><span style="white-space:nowrap">다음 할 일</span> <b>검사가 다 통과했다 — 초안을 채택하면 2 구현이 열린다</b></div>
+      <span class="grow"></span>
+      <span class="sides"><span class="side">LangGraph</span><span class="side">Neo4j</span></span>
+    </div>
+    <div class="band" data-band></div>
+  </header>
+  <main data-design></main>
+</div>
+<script src="content.js"></script>
+</body></html>

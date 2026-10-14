@@ -1,0 +1,21 @@
+{
+  "_주석": "모델이 거절한 실행. R6(Unwanted)이 요구하는 상태 — 갈래와 문서는 나오고 근거만 빈다.",
+  "runId": "run-fixture-0002",
+  "graphId": "triage",
+  "irVersion": 1,
+  "status": "refused",
+  "nodeId": "explain",
+  "startedAt": "2026-09-29T09:05:00.000Z",
+  "endedAt": "2026-09-29T09:05:00.940Z",
+  "modelCalls": [
+    { "nodeId": "explain", "model": "claude-opus-5", "provider": "anthropic", "status": "refused", "ms": 780, "tokensIn": 388, "tokensOut": 0 }
+  ],
+  "toolCalls": [
+    { "nodeId": "pick", "tool": "write-draft", "caps": ["cap:draft"], "status": "success" }
+  ],
+  "documentCalls": [
+    { "nodeId": "pick", "path": "guides/question.md", "level": 1, "via": "kind=question → D3" }
+  ],
+  "usage": { "inputTokens": 388, "outputTokens": 0, "costUsd": 0.0012 },
+  "error": { "kind": "refusal", "message": "모델이 근거 작성을 거절했다", "nodeId": "explain" }
+}

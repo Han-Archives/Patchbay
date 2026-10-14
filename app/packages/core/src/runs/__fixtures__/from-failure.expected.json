@@ -1,0 +1,27 @@
+{
+  "_주석": "실패 실행 기록 → evals[] 초안. 명세 §5.4 — 초안은 ir.proposed.yaml 에만 쓰고 승인 전에는 원본을 바꾸지 않는다. covers(요구사항 연결)는 비워 두고 사람이 채운다: 런타임은 요구사항을 모른다. expect 는 같은 노드에 이미 있는 평가(E6)의 문장을 그대로 옮긴 것이다 — 초안이 기대값을 새로 쓰면 생성기가 요구사항을 발명하는 것이 된다 (M6, 2026-09-30에 초안을 다시 적었다).",
+  "from": ["run-fixture-0002", "run-fixture-0003"],
+  "irVersion": 1,
+  "draftEvals": [
+    {
+      "id": "E7",
+      "node": "explain",
+      "kind": "deterministic",
+      "input": "고정 응답 어댑터: refused (run-fixture-0002 재현)",
+      "expect": "reason 이 빈 문자열이고 guide 는 정상으로 채워진다",
+      "_근거": "run-fixture-0002 · error.kind=refusal · nodeId=explain"
+    },
+    {
+      "id": "E8",
+      "node": "explain",
+      "kind": "deterministic",
+      "input": "고정 응답 어댑터: 20000ms 초과 (run-fixture-0003 재현)",
+      "expect": "reason 이 빈 문자열이고 guide 는 정상으로 채워진다",
+      "_근거": "run-fixture-0003 · error.kind=timeout · modelCalls[0].ms=20000"
+    }
+  ],
+  "requirementLinksToFill": [
+    { "requirement": null, "node": "explain", "eval": "E7" },
+    { "requirement": null, "node": "explain", "eval": "E8" }
+  ]
+}

@@ -1,0 +1,380 @@
+<title>Patchbay 프로젝트 개요</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ink:#16202B; --ink-soft:#4A5A66; --steel:#DEE3E4; --panel:#F3F5F5; --panel-2:#FFFFFF;
+    --line:#C1C9CB; --shadow:rgba(22,32,43,.10);
+    --copper:#B85C25; --copper-bg:#F2E0D0;
+    --green:#2F7A4E; --green-bg:#E3F1E7;
+    --amber:#A47819; --amber-bg:#F5EBD1;
+    --teal:#1C7877; --teal-bg:#DBEFEE;
+    --violet:#6852A0; --violet-bg:#EAE5F5;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#E8ECED; --ink-soft:#9FADB4; --steel:#0F1519; --panel:#171F24; --panel-2:#1D262C;
+      --line:#2B363C; --shadow:rgba(0,0,0,.5);
+      --copper:#E79A5C; --copper-bg:#3A2716;
+      --green:#5FC088; --green-bg:#153224;
+      --amber:#E7BA5E; --amber-bg:#3A2E14;
+      --teal:#5FD9D6; --teal-bg:#11302F;
+      --violet:#B9A6EA; --violet-bg:#291f40;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#E8ECED; --ink-soft:#9FADB4; --steel:#0F1519; --panel:#171F24; --panel-2:#1D262C;
+    --line:#2B363C; --shadow:rgba(0,0,0,.5);
+    --copper:#E79A5C; --copper-bg:#3A2716;
+    --green:#5FC088; --green-bg:#153224;
+    --amber:#E7BA5E; --amber-bg:#3A2E14;
+    --teal:#5FD9D6; --teal-bg:#11302F;
+    --violet:#B9A6EA; --violet-bg:#291f40;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body{ margin:0; background:var(--steel); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; line-height:1.62; }
+  h1,h2,h3,h4{ font-family:'Big Shoulders Display',sans-serif; font-weight:800; text-transform:uppercase; letter-spacing:.02em; text-wrap:balance; margin:0; color:var(--ink); }
+  code,.mono{ font-family:'IBM Plex Mono',monospace; }
+  p{ margin:0; }
+  a{ color:var(--copper); }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 28px; }
+
+  .jacknav{ position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--steel) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .jacknav-inner{ max-width:920px; margin:0 auto; padding:10px 28px; display:flex; gap:6px; overflow-x:auto; }
+  .navchip{ flex:none; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; padding:6px 10px; border-radius:6px; color:var(--ink-soft); text-decoration:none; white-space:nowrap; }
+  .navchip:hover{ color:var(--ink); background:var(--panel); }
+
+  .page-head{ padding:52px 0 8px; }
+  .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--copper); margin:0 0 14px; display:flex; align-items:center; gap:10px; }
+  .eyebrow::before{ content:""; width:22px; height:2px; background:var(--copper); display:inline-block; }
+  .page-head h1{ font-size:clamp(38px,6vw,64px); line-height:.98; }
+  .lede{ max-width:60ch; color:var(--ink-soft); font-size:17px; margin:18px 0 0; }
+
+  .draft-badge{
+    display:inline-flex; align-items:center; gap:8px; margin-top:22px; padding:5px 12px;
+    border:1px dashed var(--ink-soft); border-radius:999px; font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  .draft-badge::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--amber); }
+
+  section{ padding:44px 0; border-top:1px solid var(--line); }
+  section:first-of-type{ border-top:none; }
+  .section-tag{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); letter-spacing:.08em; text-transform:uppercase; margin:0 0 8px; }
+  h2.section-title{ font-size:clamp(22px,3vw,30px); margin-bottom:16px; }
+  .prose{ font-size:15.5px; color:var(--ink); max-width:66ch; }
+  .prose + .prose{ margin-top:12px; }
+  .prose b{ color:var(--ink); }
+
+  .rule-quote{
+    margin:30px 0; padding:22px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    text-align:center; font-family:'Big Shoulders Display',sans-serif; font-weight:700; text-transform:none;
+    font-size:clamp(20px,3vw,28px); color:var(--copper); letter-spacing:0;
+  }
+
+  .hero-svgbox{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 12px 8px; overflow-x:auto; margin:20px 0 8px; }
+  .hero-svgbox svg{ display:block; min-width:640px; width:100%; height:auto; color:var(--ink-soft); }
+  figure{ margin:0; }
+  figcaption.cap{ font-size:13.5px; color:var(--ink-soft); margin-top:12px; max-width:68ch; }
+
+  .diagram-frame{
+    margin:18px 0 8px; border:1px solid var(--line); border-radius:8px; background-color:var(--panel-2);
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 23px, color-mix(in srgb, var(--line) 55%, transparent) 23px 24px),
+      repeating-linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--line) 30%, transparent) 23px 24px);
+    padding:14px 16px 10px; overflow-x:auto;
+  }
+  .diagram-frame .mermaid{ margin:0 auto; }
+  figcaption.diagram-cap{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); padding:8px 4px 0; }
+
+  .no-box{
+    border:1px solid var(--line); border-left:4px solid var(--violet); border-radius:8px; background:var(--panel);
+    padding:20px 22px; margin:20px 0;
+  }
+  .no-box h4{ font-family:'IBM Plex Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--violet); margin-bottom:12px; font-weight:600; }
+  .no-box ul{ margin:0; padding-left:0; list-style:none; display:grid; gap:9px; }
+  .no-box li{ font-size:14px; color:var(--ink); display:flex; gap:10px; }
+  .no-box li::before{ content:"✕"; color:var(--violet); font-family:'IBM Plex Mono',monospace; font-weight:600; flex:none; }
+
+  .principle-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; margin:18px 0 6px; }
+  .principle{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:13px; color:var(--ink-soft); display:flex; gap:10px; }
+  .principle .pn{ font-family:'IBM Plex Mono',monospace; color:var(--copper); font-weight:600; flex:none; }
+
+  .scenario-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:20px 0 6px; }
+  .scenario{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 18px 16px; }
+  .scenario .letter{ font-family:'Big Shoulders Display',sans-serif; font-weight:800; font-size:26px; color:var(--ink-soft); }
+  .scenario h4{ font-size:15px; margin:4px 0 8px; text-transform:none; letter-spacing:0; }
+  .scenario p{ font-size:13.5px; color:var(--ink-soft); }
+
+  .roadmap-strip{ display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 6px; }
+  .rchip{ display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:999px; background:var(--panel); border:1px solid var(--line); font-size:12px; }
+  .rchip .dot{ width:6px; height:6px; border-radius:50%; }
+  .rchip.gate{ border-color:var(--violet); } .rchip.gate .dot{ background:var(--violet); }
+  .rchip.cond{ border-style:dashed; border-color:var(--violet); } .rchip.cond .dot{ background:var(--violet); }
+  .rchip.new{ border-color:var(--copper); } .rchip.new .dot{ background:var(--copper); }
+  .rchip.auto .dot{ background:var(--green); }
+  .rchip.manual .dot{ background:var(--amber); }
+  .rchip.mixed .dot{ background:var(--teal); }
+
+  .callout-link{
+    display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px;
+    padding:16px 20px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2);
+  }
+  .callout-link .t{ font-size:14px; color:var(--ink); }
+  .callout-link .t b{ display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--copper); text-transform:uppercase; letter-spacing:.06em; margin-bottom:3px; }
+  .callout-link a{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; white-space:nowrap; text-decoration:none; border:1px solid var(--copper); border-radius:6px; padding:7px 12px; }
+
+  .tablewrap{ overflow-x:auto; border:1px solid var(--line); border-radius:10px; margin-top:16px; }
+  table{ width:100%; border-collapse:collapse; min-width:560px; background:var(--panel); }
+  th,td{ text-align:left; padding:10px 15px; font-size:13px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); background:var(--panel-2); }
+  tr:last-child td{ border-bottom:none; }
+  td.mono{ white-space:nowrap; color:var(--ink-soft); }
+  .tag-latest{ display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--green); background:var(--green-bg); border-radius:4px; padding:1px 6px; margin-left:6px; letter-spacing:.04em; }
+
+  footer{ padding:34px 0 60px; color:var(--ink-soft); font-size:12.5px; }
+</style>
+
+<div class="jacknav">
+  <div class="jacknav-inner">
+    <a class="navchip" href="#concept">개념</a>
+    <a class="navchip" href="#architecture">아키텍처</a>
+    <a class="navchip" href="#principles">원칙</a>
+    <a class="navchip" href="#scenarios">온보딩</a>
+    <a class="navchip" href="#roadmap">로드맵</a>
+    <a class="navchip" href="#docmap">문서 지도</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="page-head">
+    <p class="eyebrow">Patchbay · Project Overview</p>
+    <h1>프로젝트를 잭과 와이어로 다루는 스튜디오 커널</h1>
+    <p class="lede">Patchbay는 여러 프로젝트를 오가며 일할 때 흩어지는 것들 — 스킬, 규칙, 진행 상황, 미완의 연결 —
+      을 물리적인 패치베이처럼 한곳에서 조망하고 이어주는 로컬 커널이다. Cursor·Claude Code·터미널·(신규) 텔레그램,
+      어떤 호스트에서 접근하든 같은 온톨로지와 같은 파일을 본다.</p>
+    <span class="draft-badge">Draft · 구현 착수 전 (Phase 0 시작 전)</span>
+  </header>
+
+  <section id="concept">
+    <p class="section-tag">01 — 왜 만드는가</p>
+    <h2 class="section-title">문제: 프로젝트마다 컨텍스트가 따로 논다</h2>
+    <p class="prose">여러 레포를 오가다 보면 어떤 프로젝트에 어떤 스킬을 심어뒀는지, 어떤 규칙을 정했는지,
+      지금 뭘 하다 멈췄는지가 각 레포 안에 흩어진다. 포트폴리오 전체를 한눈에 보는 곳이 없고,
+      "이 스킬을 저 프로젝트에도 연결했던가"를 매번 다시 확인해야 한다.</p>
+    <p class="prose" style="margin-top:14px">Patchbay는 이 상태를 오디오 패치베이의 언어로 옮긴다. 프로젝트의 스킬·소스·산출물은
+      <b>잭(Jack)</b>이고, 스킬을 프로젝트에 심는 행위는 <b>패치(Patch)</b>이며, 실제로 코드에서 그 연결이 쓰이고 있다는
+      증거가 발견되면 <b>와이어(Wire)</b>가 된다. 심었지만 안 쓰이는 패치, 심지 않았는데 발견되는 와이어 —
+      이 어긋남 자체가 신호다.</p>
+
+    <div class="diagram-frame">
+      <pre class="mermaid">
+flowchart TB
+  subgraph meta [StudioOntology]
+    Project --> Skill
+    Project --> Agent
+    Agent --> Skill
+    Skill --> Source
+    Artifact --> Project
+    Patch --> Project
+    Wire --> Project
+  end
+  subgraph domain [DomainOntology]
+    Concept
+    Decision
+    Signal
+    View
+  end
+  Wire -.->|optional match| Patch
+  Project --> Concept
+  View --> Signal
+  Decision --> Concept
+      </pre>
+      <figcaption class="diagram-cap">온톨로지 관계 — Wire는 Patch의 자식이 아니다. Patch 없이 발견된 연동도 있을 수 있다.</figcaption>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <p class="section-tag">02 — 어떻게 동작하는가</p>
+    <h2 class="section-title">호스트는 여럿, 커널은 하나</h2>
+    <p class="prose">Cursor·Claude Code·터미널·텔레그램은 모두 <b>호스트</b>다. 호스트마다 다른 LLM, 다른 화면을
+      쓰지만, 프로젝트 상태를 읽고 쓰는 통로는 하나로 좁힌다 — MCP 아니면 CLI, 그리고 그 둘은 반드시 Core를 거친다.
+      Core 자신은 LLM을 부르지 않는다. 결정은 항상 호스트 쪽 LLM이 내리고, Core는 결정적인 파일 I/O만 한다.</p>
+
+    <figure>
+      <div class="hero-svgbox">
+        <svg viewBox="0 0 1100 440" role="img" aria-label="아키텍처 다이어그램. 왼쪽의 Cursor, Claude Code, 터미널, 텔레그램 봇 네 개의 호스트가 각각 케이블로 가운데의 Core 커널에 연결되고, Core는 다시 오른쪽의 ATLAS.md, FLOW.md, PROGRESS.md, ontology yaml 같은 스튜디오 파일로 연결된다. 텔레그램에서 파일로 직접 이어지는 점선은 X 표시로 금지되어 있다 — 모든 호스트는 반드시 Core를 거쳐야 한다.">
+          <defs>
+            <marker id="ov-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-soft)"></path>
+            </marker>
+            <marker id="ov-arrow-copper" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--copper)"></path>
+            </marker>
+          </defs>
+
+          <!-- host to core cables -->
+          <path d="M170,70 C300,70 300,150 400,150"  stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M170,170 C300,170 320,190 400,195" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M170,270 C300,270 320,250 400,245" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M170,370 C300,370 300,290 400,290" stroke="var(--copper)" stroke-width="3" fill="none" marker-end="url(#ov-arrow-copper)"></path>
+
+          <!-- core to files cables -->
+          <path d="M700,150 C800,150 800,70 930,70" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M700,195 C800,195 800,170 930,170" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M700,245 C800,245 800,270 930,270" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+          <path d="M700,290 C800,290 800,370 930,370" stroke="var(--ink-soft)" stroke-width="2.5" fill="none" marker-end="url(#ov-arrow)"></path>
+
+          <!-- forbidden direct path -->
+          <path d="M170,378 C450,430 750,430 930,378" stroke="var(--violet)" stroke-width="2" stroke-dasharray="5 5" fill="none"></path>
+          <circle cx="550" cy="415" r="12" fill="var(--panel)" stroke="var(--violet)" stroke-width="2"></circle>
+          <text x="550" y="420" text-anchor="middle" font-family="IBM Plex Mono" font-weight="600" font-size="14" fill="var(--violet)">✕</text>
+          <text x="550" y="440" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="var(--violet)">금지 · Core 우회</text>
+
+          <!-- host nodes -->
+          <rect x="30" y="50" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="100" y="75" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" fill="var(--ink)">Cursor</text>
+
+          <rect x="30" y="150" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="100" y="175" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" fill="var(--ink)">Claude Code</text>
+
+          <rect x="30" y="250" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="100" y="275" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" fill="var(--ink)">Terminal</text>
+
+          <rect x="30" y="350" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--copper)" stroke-width="2.5"></rect>
+          <text x="100" y="375" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" fill="var(--ink)">Telegram Bot</text>
+          <text x="100" y="404" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--copper)">NEW · 읽기전용</text>
+
+          <!-- core block -->
+          <rect x="400" y="130" width="300" height="140" rx="10" fill="var(--panel-2)" stroke="var(--ink)" stroke-width="2.5"></rect>
+          <text x="550" y="195" text-anchor="middle" font-family="Big Shoulders Display" font-weight="800" font-size="26" fill="var(--ink)">CORE</text>
+          <text x="550" y="216" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="var(--ink-soft)">결정적 파일 I/O · LLM 없음</text>
+          <text x="550" y="248" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="var(--ink-soft)">MCP / CLI만 통과</text>
+
+          <!-- file nodes -->
+          <rect x="930" y="50" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="1000" y="75" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5" fill="var(--ink)">ATLAS.md</text>
+
+          <rect x="930" y="150" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="1000" y="175" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5" fill="var(--ink)">FLOW.md</text>
+
+          <rect x="930" y="250" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="1000" y="275" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5" fill="var(--ink)">PROGRESS.md</text>
+
+          <rect x="930" y="350" width="140" height="40" rx="8" fill="var(--panel-2)" stroke="var(--ink-soft)" stroke-width="2"></rect>
+          <text x="1000" y="375" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5" fill="var(--ink)">ontology/*.yaml</text>
+        </svg>
+      </div>
+      <figcaption class="cap">호스트가 몇 개든 통로는 하나 — 전부 Core를 거쳐야 studio 파일에 닿는다.
+        텔레그램 호스트(구리색)는 이번에 새로 추가됐고, v1은 읽기 전용 5종 MCP 툴만 쓴다.</figcaption>
+    </figure>
+
+    <p class="rule-quote">"MCP와 CLI는 반드시 Core를 거친다."</p>
+
+    <p class="prose">이 규칙은 세션이 여러 개로 늘어나도 그대로다. 한 프로젝트를 여러 LLM 세션이 나눠 맡는
+      <b>멀티 에이전트 역할 분담</b>(신규, Phase 12)도 Patchbay가 세션 사이를 직접 잇지 않는다 — 리더 세션이
+      역할을 <code>assignments.yaml</code>에 쓰면, 워커 세션이 그 파일을 읽고 작업한 뒤 산출물을 다시 파일로
+      남긴다. 자동 호출도, 폴링도, 알림도 없다. 오케스트레이션 엔진이 아니라 <b>공유 파일을 통한 비동기 협업</b>이다.</p>
+  </section>
+
+  <section id="principles">
+    <p class="section-tag">03 — 지키는 것과 안 하는 것</p>
+    <h2 class="section-title">Patchbay가 아닌 것</h2>
+    <div class="no-box">
+      <h4>다섯 가지 금지선</h4>
+      <ul>
+        <li>호스트를 대체하는 새 UI가 아니다 — Cursor·Claude Code·터미널·텔레그램을 그대로 쓴다</li>
+        <li>커널이 LLM을 부르지 않는다 — 결정은 항상 호스트 쪽 LLM이 내린다</li>
+        <li>SQLite나 클라우드 DB를 기본값으로 깔지 않는다 — 상태는 사람이 읽는 마크다운·YAML 파일이다</li>
+        <li>n8n류 실행 그래프 도구가 아니다 — 자동 실행을 오케스트레이션하지 않는다</li>
+        <li>상시 워치·서버가 몰래 켜지지 않는다 — 텔레그램 호스트조차 수동 기동만 허용한다</li>
+      </ul>
+    </div>
+    <p class="prose">실제로는 이보다 세밀한 14개 원칙 자가 점검 목록을 구현 내내 열어두고 확인한다 (명세 2절). 그중 자주 걸리는 것들:</p>
+    <div class="principle-grid">
+      <div class="principle"><span class="pn">07</span>라벨 없는 잭이 방치되고 있지는 않은가</div>
+      <div class="principle"><span class="pn">08</span>Patch와 Wire를 같은 것으로 취급하고 있지는 않은가</div>
+      <div class="principle"><span class="pn">09</span>L1이 L2 텍스트를 잘라 만든 것은 아닌가</div>
+      <div class="principle"><span class="pn">13</span>생성 파일을 지키려 스캔을 건너뛰고 있지는 않은가</div>
+      <div class="principle"><span class="pn">14</span>텔레그램이 읽기 이외의 툴을 노출하고 있지는 않은가</div>
+    </div>
+  </section>
+
+  <section id="scenarios">
+    <p class="section-tag">04 — 프로젝트를 스튜디오에 들이는 법</p>
+    <h2 class="section-title">세 가지 온보딩 시나리오</h2>
+    <p class="prose">지금 상태가 빈 캔버스인지, 정리된 기존 코드인지, 엉망진창인지에 따라 진입 경로가 다르다.
+      정리(C)는 종착점이 아니다 — 정리를 마치면 반드시 A나 B로 합류한다.</p>
+    <div class="scenario-row">
+      <div class="scenario"><span class="letter">A</span><h4>new-project</h4><p>빈 캔버스. 대화형 설계 인터뷰로 처음부터 정의한다.</p></div>
+      <div class="scenario"><span class="letter">B</span><h4>adopt-project</h4><p>정리된 기존 코드. 발굴 후 사용자 확인을 거쳐 이어받는다.</p></div>
+      <div class="scenario"><span class="letter">C</span><h4>triage-project</h4><p>엉망진창. 클러스터 가설을 제시하고 <code>_archive/</code>·<code>_needs-review/</code>로만 정리한 뒤 A/B로 보낸다.</p></div>
+    </div>
+    <div class="diagram-frame">
+      <pre class="mermaid">
+flowchart LR
+  Start[프로젝트를 스튜디오에 들인다]
+  Start --> QA{지금 상태는}
+  QA -->|빈 캔버스| A[A. new-project]
+  QA -->|정리된 기존 코드| B[B. adopt-project]
+  QA -->|엉망진창| C[C. triage-project]
+  C --> Choice{정리 후 사용자가 선택}
+  Choice -->|처음부터 설계| A
+  Choice -->|발견된 의도 이어가기| B
+  A --> Common[공통 루프: scan to propose to patch]
+  B --> Common
+      </pre>
+      <figcaption class="diagram-cap">명세 1.3절 · v1 triage는 파일을 archive/needs-review 밖으로 옮기지 않는다</figcaption>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <p class="section-tag">05 — 지금부터 어디까지</p>
+    <h2 class="section-title">12개 Phase, 세 갈래로</h2>
+    <p class="prose">0→1→2→3까지 순서대로 만들고, 3에서 한 번 멈춰 며칠 실사용한다. 그 뒤 온보딩 스킬 라인(8→9→10),
+      텔레그램 라인(11), 멀티 에이전트 역할 분담 라인(12)이 각각 병렬로 갈라져 진행된다.</p>
+    <div class="roadmap-strip">
+      <span class="rchip auto">00 부트스트랩</span>
+      <span class="rchip auto">01 스키마</span>
+      <span class="rchip auto">02 스캐너</span>
+      <span class="rchip gate">03 CLI+Atlas · 게이트</span>
+      <span class="rchip auto">04 레이어</span>
+      <span class="rchip manual">05 Patch/Wire</span>
+      <span class="rchip manual">06 MCP</span>
+      <span class="rchip mixed">07 Progress</span>
+      <span class="rchip manual">08 내장 스킬</span>
+      <span class="rchip manual">09 온보딩</span>
+      <span class="rchip cond">10 XYFlow · 조건부</span>
+      <span class="rchip new">11 Telegram · NEW</span>
+      <span class="rchip new">12 멀티 에이전트 · NEW</span>
+    </div>
+    <div class="callout-link">
+      <span class="t"><b>자세한 진행 흐름</b>12개 Phase 각각의 내부 진행 다이어그램과 의존 관계 배선도</span>
+      <a href="https://claude.ai/code/artifact/b2b0afb5-a7cc-47bc-8494-105369ea6fdc" target="_blank" rel="noopener">로드맵 문서 →</a>
+    </div>
+  </section>
+
+  <section id="docmap">
+    <p class="section-tag">06 — 문서 지도</p>
+    <h2 class="section-title">지금까지 쌓인 문서들</h2>
+    <p class="prose">기획→명세→구현계획은 버전이 계속 갱신됐다. 아래는 최신판만 보면 되는 것과, 이번에 새로 생긴 문서다.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>파일</th><th>역할</th><th>한 줄</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">기획/Patchbay_기획_20260913a.md<span class="tag-latest">최신</span></td><td>기획</td><td>무엇을 만들지 — 비전·온톨로지·아키텍처 (멀티 에이전트 역할 분담 포함)</td></tr>
+          <tr><td class="mono">구현계획/Patchbay_구현계획_20260913a.md<span class="tag-latest">최신</span></td><td>구현계획</td><td>어떤 순서·태스크·완료조건으로 만들지 (Phase 12까지)</td></tr>
+          <tr><td class="mono">명세/Patchbay_명세_20260913a.md<span class="tag-latest">최신</span></td><td>명세</td><td>지금 맞게 가고 있는지 점검 — 체크리스트 + 임시 채택값</td></tr>
+          <tr><td class="mono">디자인/Patchbay_로드맵_20260913a.html<span class="tag-latest">최신</span></td><td>로드맵(디자인)</td><td>13개 Phase 의존 관계 · 내부 진행 흐름 시각화</td></tr>
+          <tr><td class="mono">디자인/Patchbay_프로젝트개요_20260913a.html<span class="tag-latest">최신</span></td><td>개요서(이 문서)</td><td>처음 보는 사람에게 프로젝트를 설명하는 요약</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p class="mono">Draft v1 · 2026-09-13 갱신 · Patchbay_기획_20260913a / 명세_20260913a / 구현계획_20260913a 종합</p>
+  </footer>
+
+</div>

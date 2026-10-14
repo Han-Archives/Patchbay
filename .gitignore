@@ -1,0 +1,29 @@
+node_modules/
+dist/
+dist-client/
+dist-server/
+*.tsbuildinfo
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+.patchbay-local/
+
+# 저장 구조의 층 (knowledge/patchbay/기획/저장구조.md) — 원문 · 파생 · 임시 보관은 레포에 넣지 않는다
+workspace/
+.index/
+.trash/
+# 비공개 기록층을 가리키는 Cursor 규칙 링크 — 공개 레포에서는 대상이 없다
+.cursor/rules/portfolio-deck.mdc
+
+# Exception: the scanner's ignore-list test fixture deliberately needs real
+# node_modules/dist directories on disk (fileWalker.test.ts asserts they get
+# skipped) — without this, the two patterns above silently drop them and the
+# "skips ignored directories" test passes vacuously (nothing to find, rather
+# than something correctly filtered out).
+!app/packages/core/src/scan/__fixtures__/sample-project/dist/
+!app/packages/core/src/scan/__fixtures__/sample-project/dist/**
+!app/packages/core/src/scan/__fixtures__/sample-project/node_modules/
+!app/packages/core/src/scan/__fixtures__/sample-project/node_modules/**

@@ -1,0 +1,54 @@
+# 접근 등급 기본값 — LLM · 에이전트가 이 레포의 파일에 닿을 때 Patchbay가 할 일
+# (사용자 결정 2026-10-14 (가): 사람에게 보이는 축은 이것 하나. 원본 설명 knowledge/patchbay/기획/저장구조.md)
+#
+# 등급: 자유(묻지 않음) · 기록(접근을 남김) · 허가(사용자 허가 뒤에만 본문 · 명령) · 차단(인덱스에도 넣지 않음)
+# 읽는 법: 위에서 아래로 처음 맞는 규칙. 경로는 레포 뿌리 기준 glob.
+# 비밀은 여기서 낮출 수 없다 — 민감도 L4(core/src/sensitivity, .env · 키 · secrets/ 등)는 언제나 차단이다.
+#
+# 지금은 기록용이다. 집행(판정 함수 · 검색 거르기 · 사람 전용 승인)은 B 단계에서 이 파일을 읽어 시작한다.
+
+version: 1
+rules:
+  - path: "workspace/projects/*/rooms/**"
+    tier: 허가
+    why: 대화방 원문 — 사용자 대화가 그대로 있다
+  - path: "workspace/projects/*/consult/**"
+    tier: 허가
+    why: 상담 원문
+  - path: "workspace/projects/*/threads/**"
+    tier: 허가
+    why: 실행 스레드 원문
+  - path: "workspace/projects/*/runs/**"
+    tier: 허가
+    why: 실행 기록 원문
+  - path: "workspace/projects/*/refs/**"
+    tier: 허가
+    why: 외부 자료 원본
+  - path: "workspace/projects/*/todo-history/*/conversations/**"
+    tier: 허가
+    why: 완료한 할 일에 붙은 대화 사본
+  - path: "workspace/records/**"
+    tier: 허가
+    why: 비공개 기록층 — 다른 프로젝트 내용 · 기획 대화 원문 · 결정 기록
+  - path: "workspace/room-mirror/**"
+    tier: 기록
+    why: 세션 ↔ 방 연결과 옮긴 위치
+  - path: "workspace/**"
+    tier: 기록
+    why: 설계(IR) · 스캔 · 진행 · 할 일 — 작업 파일
+  - path: "archive/**"
+    tier: 기록
+    why: 옛 판 — 검색 인덱스에서 뺀다
+    index: false
+  - path: ".trash/**"
+    tier: 차단
+    why: 지우기 전 임시 보관
+  - path: "knowledge/**"
+    tier: 자유
+    why: 위키층 — 공개 문서
+  - path: "app/**"
+    tier: 자유
+    why: 공개 코드
+  - path: "*"
+    tier: 자유
+    why: 루트 안내 파일(CLAUDE.md · AGENTS.md · llms.txt 등)

@@ -1,0 +1,67 @@
+---
+description: 문서의 새 판을 쓰면 같은 작업에서 옛 판을 보관 폴더로 옮긴다. 살아 있는 폴더에는 한 판만 남는다
+alwaysApply: true
+---
+
+# 문서는 한 판만 살아 있다
+
+**새 판을 쓰면 같은 작업에서 옛 판을 보관으로 옮긴다.** 그래서 살아 있는 폴더에는 같은 문서의
+판이 **언제나 하나**뿐이고, 「어느 것이 최신인가」를 판단할 일 자체가 없어진다 — 거기 있는
+것이 최신이다.
+
+옛 판을 지우지는 않는다 (원칙 16 — 삭제 대신 보관). 혹시 모를 때를 위한 보관물이지 참고
+자료가 아니다.
+
+## 쓸 때
+
+```
+mv workspace/records/patchbay/명세/Patchbay_명세_20261010a.md workspace/records/archive/docs/명세/
+#  새 판을 workspace/records/patchbay/명세/Patchbay_명세_20261014a.md 로 쓴다
+```
+
+- 보관 자리는 살아 있던 층을 따른다 — 공개 문서는 `archive/docs/<같은 폴더>/`(`git mv`), 비공개 기록층 문서는 `workspace/records/archive/docs/<같은 폴더>/`. 새 보관 폴더를 만들지 않는다.
+- **`git mv` 로 옮긴다** — 히스토리가 따라가서 나중에 판끼리 대조할 수 있다.
+- **문서 이름이 바뀌어도 성격이 같으면 옛 이름 판은 보관으로 간다.** `구현계획` → `구현준비` 가
+  그 경우였다.
+- 판 표기는 날짜 + 글자다: `_20260929a`. 같은 날 다시 쓰면 `b`, `c`.
+
+## 오늘 기준 (2026-10-14 실측)
+
+| 문서 | 살아 있는 폴더 | 판 | 보관 |
+| --- | --- | --- | --- |
+| 기획서 | `workspace/records/patchbay/기획/` | 1 (`20261010a`) | `workspace/records/archive/docs/기획/` · `archive/docs/기획/` |
+| 명세서 | `workspace/records/patchbay/명세/` | 1 (`20261014a`) | `workspace/records/archive/docs/명세/` · `archive/docs/명세/` |
+| 구현계획 | `workspace/records/patchbay/구현계획/` | 1 (`20260928a`) | `archive/docs/구현계획/` 5 |
+| 디자인 | `knowledge/patchbay/디자인/` | 1 (`20260919a`) | `archive/docs/디자인/` 3 |
+
+숫자는 그날의 사실이다. **불변인 것은 「살아 있는 폴더에 한 판」이다.**
+
+## 읽을 때
+
+살아 있는 폴더의 것을 읽는다. 보관 폴더(`archive/docs/` · `workspace/records/archive/`)는 **사용자가 지목했을 때만** 연다.
+
+**파일 하나를 열 때보다 훑을 때 사고가 난다.** 보관된 옛 판이 같이 끌려오면 거기서 나온 문장이
+지금 계약처럼 보인다. 2026-10-14부터 보관 판은 위키층 밖(`archive/docs/`)에 있어서 `knowledge/`를
+훑으면 딸려오지 않는다. 레포 전체를 훑을 때만 조심한다 (저장구조.md).
+
+```
+grep -rn "<말>" knowledge/                        # 이렇게
+grep -rn "<말>" . --exclude-dir=archive --exclude-dir=workspace --exclude-dir=node_modules   # 레포 전체면
+```
+
+## 판이 아닌 것
+
+**날짜가 붙었다고 다 판이 아니다.** 다음은 옮기지 않고, 최신 하나만 보지도 않는다.
+
+- `knowledge/patchbay/절차/` · `workspace/records/patchbay/절차/` — `<주제>_<날짜>_v<n>.md`. 한 문서의 여러 판이 아니라 **한 번씩의 기록**이다
+- `workspace/records/patchbay/기획/` 의 `목표.md` · `방향.md` · `실행.md` · `기억.md` · `대화.md` — 판이 없는,
+  계속 고쳐 쓰는 문서다
+
+## 인용할 때
+
+판단의 근거로 문서를 부를 때는 **날짜까지 적는다** (「명세 20260929a §5.2」). 잘못 집었을 때
+사용자가 바로 보라고. 이 레포의 문서들이 이미 그렇게 서로를 부른다.
+
+하지 않음: 새 판을 쓰고 옛 판을 살아 있는 폴더에 남겨 두기. 옛 판을 지우기.
+`archive/docs/` 를 지목 없이 읽기. 레포 전체를 `archive` 제외 없이 훑기.
+날짜 없이 「기획서에 따르면」이라고 쓰기.
