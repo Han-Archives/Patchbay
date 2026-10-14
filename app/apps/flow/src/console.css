@@ -6058,7 +6058,8 @@ textarea.cell-input {
 .project-process-diagram img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
 .project-process-diagram a { flex: none; margin-bottom: 8px; text-decoration: none; }
 .pane:has(.project-architecture-page) { overflow: hidden; }
-.rail > .project-tools { margin-top: auto; padding: 4px; border: 0; background: none; }
+.rail-divider { flex: none; width: 28px; height: 1px; margin-top: auto; background: var(--stroke); }
+.rail > .project-tools { padding: 4px; border: 0; background: none; }
 .rail .project-tools > nav { grid-template-columns: 1fr; gap: 2px; }
 .rail .project-more-tools { top: auto; bottom: 0; left: calc(100% + 12px); right: auto; }
 .workspace-side { gap: 0; }
@@ -6399,6 +6400,7 @@ textarea.cell-input {
 .rail .rail-pj { border-radius: 12px; }
 .rail .rail-pj.is-add { display: grid; place-items: center; }
 @media (max-width: 720px) {
+  .rail-divider { width: 1px; height: 28px; margin: 0; }
   .rail .project-tools > nav { gap: 2px; }
   .rail .project-tools > nav > button { width: 100%; min-width: 0; padding: 6px; }
 }

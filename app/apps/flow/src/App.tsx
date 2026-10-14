@@ -204,7 +204,6 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
       {/* 레일 — 셸 시안 나 (사용자 결정 2026-10-05). 프로젝트를 한 번에 바꾸고, 기획 · 배치도로 간다. */}
       <nav className="rail" aria-label="프로젝트와 도구">
         <PatchbayMark />
-        <button type="button" className="rail-tool dashboard-entry" aria-label="대시보드" title="대시보드" aria-pressed={place === "dashboard"} onClick={() => setPlace("dashboard")}><SidebarIcon name="dashboard" /></button>
         <div className="rail-projects">
           {visibleProjects.map((item) => {
             const name = item.name ?? item.alias;
@@ -268,7 +267,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           </div>
         ) : null}
         {hasProjects ? (
-          <ProjectTools place={place} onNavigate={setPlace} />
+          <><div className="rail-divider" aria-hidden="true" /><ProjectTools place={place} onNavigate={setPlace} /></>
         ) : null}
         <div className="rail-foot">
           <RailTool
