@@ -6,6 +6,7 @@
 
 ## 먼저 읽을 것
 
+- [README](README.md): 프로젝트 개요 — 단계 · 구조 · 파일 구조 · 시작하기
 - [위키 목록](knowledge/index.md): 무엇이 어디에 있는지 한 줄씩
 - [저장구조](knowledge/patchbay/기획/저장구조.md): 폴더 · 파일 · 경로 규칙
 
