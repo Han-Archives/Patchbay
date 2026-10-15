@@ -12,11 +12,12 @@ import {
   readProgress,
   readPassedNodes,
   readStudio,
+  TEST_STAGE_DIR_NAME,
   type Ir,
 } from "@patchbay/core";
-import type { DashboardMetric, DashboardView, EvalOutcome } from "./opsContract.js";
+import type { DashboardMetric, DashboardView, EvalOutcome } from "./testContract.js";
 
-export type { DashboardMetric, DashboardView, EvalOutcome } from "./opsContract.js";
+export type { DashboardMetric, DashboardView, EvalOutcome } from "./testContract.js";
 
 /**
  * 0 대시보드 (사용자 결정 2026-10-08 — 「구조」 창이 큰 대시보드이길 바랐다).
@@ -53,7 +54,7 @@ export function metricsFrom(ir: Ir, values: Record<string, unknown>): DashboardM
 }
 
 const RESULTS_FILE = "eval-results.json";
-const resultsPath = (studioHome: string, alias: string) => path.join(projectStudioDir(studioHome, alias), "ops", RESULTS_FILE);
+const resultsPath = (studioHome: string, alias: string) => path.join(projectStudioDir(studioHome, alias), TEST_STAGE_DIR_NAME, RESULTS_FILE);
 
 async function readTests(studioHome: string, alias: string): Promise<DashboardView["tests"]> {
   try {

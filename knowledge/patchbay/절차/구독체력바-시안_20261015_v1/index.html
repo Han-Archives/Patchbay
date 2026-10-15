@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Patchbay · LLM 구독제 체력바 디자인 시안</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --chrome: #1a1a1a;
+      --elevated: #222222;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --stroke: #333333;
+      --fill: #2a2a2a;
+      --ok: #a78bfa;
+      --ok-fill: #2a2342;
+      --warn: #e3a35a;
+      --warn-fill: #33261a;
+      --bad: #ef7b6e;
+      --bad-fill: #3a1e1a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0b0b0b;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+
+    .page {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 26px 24px 44px;
+    }
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.3px;
+      color: var(--ok);
+    }
+    .page-head h1 {
+      margin: 4px 0 6px;
+      font-size: 22px;
+      letter-spacing: -0.4px;
+    }
+    .page-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .head-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .head-badge {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--chrome);
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .head-badge b { color: var(--text); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 520px 390px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 1220px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .col-title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .col-sub {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* =========================================================
+       패널 1: 실제 왼쪽 64px 레일 + 왼쪽 하단 체력바 & 팝오버
+       ========================================================= */
+    .shell-stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      height: 740px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .rail {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 0 10px;
+      background: var(--chrome);
+      border-right: 1px solid var(--stroke);
+      z-index: 2;
+    }
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      margin-bottom: 2px;
+    }
+    .rail-pj {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+    .rail-pj.is-current {
+      border-color: var(--text);
+      background: var(--fill);
+    }
+    .rail-pj.is-current::before {
+      content: "";
+      position: absolute;
+      left: -13px;
+      top: 10px;
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background: var(--text);
+    }
+    .rail-pj.is-add {
+      border-style: dashed;
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 18px;
+    }
+    .rail-dot {
+      position: absolute;
+      right: -3px;
+      bottom: -3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--chrome);
+      background: var(--warn);
+    }
+
+    .rail-divider {
+      width: 28px;
+      height: 1px;
+      margin-top: auto;
+      background: var(--stroke);
+    }
+    .rail-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+      padding: 0 6px;
+    }
+    .rail-icon-btn {
+      width: 52px;
+      height: 34px;
+      border: 0;
+      border-radius: 8px;
+      background: none;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+    }
+    .rail-icon-btn.is-on {
+      background: var(--fill);
+      color: var(--text);
+    }
+    .rail-icon-btn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .rail-foot {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 5px 0;
+      border-top: 1px solid var(--stroke);
+    }
+
+    /* 상시 노출되는 왼쪽 하단 미니 체력바 묶음 */
+    .rail-hp-group {
+      width: 54px;
+      padding: 5px 5px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .rail-hp-group:hover,
+    .rail-hp-group.is-open {
+      border-color: var(--text);
+      background: var(--fill);
+    }
+    .rail-hp-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .rail-hp-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 9px;
+      line-height: 1;
+      letter-spacing: -0.2px;
+    }
+    .rail-hp-head b {
+      color: var(--text);
+      font-weight: 700;
+    }
+    .rail-hp-head span {
+      color: var(--muted);
+    }
+    .rail-hp-row.is-ok .rail-hp-head span { color: var(--ok); }
+    .rail-hp-row.is-warn .rail-hp-head span { color: var(--warn); }
+    .rail-hp-row.is-bad .rail-hp-head span { color: var(--bad); font-weight: 700; }
+
+    /* 체력바 트랙 (칸 눈금이 있는 HP 게이지) */
+    .hp-track {
+      position: relative;
+      height: 6px;
+      border-radius: 3px;
+      background: #111111;
+      border: 1px solid #383838;
+      overflow: hidden;
+    }
+    .hp-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.25s ease;
+    }
+    .hp-fill.is-ok { background: var(--ok); }
+    .hp-fill.is-warn { background: var(--warn); }
+    .hp-fill.is-bad { background: var(--bad); }
+    /* 체력바 눈금 (4칸 분할선) */
+    .hp-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        to right,
+        transparent 0,
+        transparent calc(25% - 1px),
+        rgba(18, 18, 18, 0.75) calc(25% - 1px),
+        rgba(18, 18, 18, 0.75) 25%
+      );
+      pointer-events: none;
+    }
+
+    .rail-side-row {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .rail-side {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 4px;
+      border-radius: 5px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 9.5px;
+    }
+    .rail-side i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      display: inline-block;
+    }
+
+    /* 배경 캔버스 + 왼쪽 하단 팝오버 창 */
+    .stage-body {
+      position: relative;
+      padding: 18px;
+      background:
+        radial-gradient(circle at 1px 1px, #242424 1px, transparent 0) 0 0 / 20px 20px,
+        var(--bg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .stage-top-hint {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: rgba(26, 26, 26, 0.9);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .stage-top-hint b { color: var(--text); }
+
+    /* 왼쪽 하단에서 열리는 체력 상세 팝오버 */
+    .hp-popover {
+      width: 412px;
+      max-width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--chrome);
+      overflow: hidden;
+      margin-top: auto;
+    }
+    .hp-pop-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--stroke);
+      background: var(--elevated);
+    }
+    .hp-pop-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .hp-pop-title b {
+      font-size: 13px;
+    }
+    .hp-pop-title small {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .hp-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 7px;
+      background: var(--bg);
+      border: 1px solid var(--stroke);
+    }
+    .hp-tabs button {
+      border: 0;
+      background: none;
+      padding: 4px 9px;
+      border-radius: 5px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .hp-tabs button.is-on {
+      background: var(--fill);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .hp-pop-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hp-card {
+      padding: 11px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hp-card.is-exhausted {
+      border-color: var(--bad);
+      background: rgba(58, 30, 26, 0.35);
+    }
+    .hp-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .hp-provider {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .hp-badge-code {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+    }
+    .hp-badge-code.is-ok { color: var(--ok); border-color: #54447a; background: var(--ok-fill); }
+    .hp-badge-code.is-warn { color: var(--warn); border-color: #6b4c2b; background: var(--warn-fill); }
+    .hp-badge-code.is-bad { color: var(--bad); border-color: #6e3630; background: var(--bad-fill); }
+
+    .hp-provider-name b {
+      display: block;
+      font-size: 12.5px;
+    }
+    .hp-provider-name small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .hp-status-pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--stroke);
+    }
+    .hp-status-pill.is-ok { color: var(--ok); background: var(--ok-fill); border-color: #54447a; }
+    .hp-status-pill.is-warn { color: var(--warn); background: var(--warn-fill); border-color: #6b4c2b; }
+    .hp-status-pill.is-bad { color: var(--bad); background: var(--bad-fill); border-color: #6e3630; }
+
+    /* 상세 창 안의 10칸 체력바 */
+    .hp-meter {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .hp-meter-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .hp-meter-label span { color: var(--muted); }
+    .hp-meter-label b {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+    }
+    .hp-bar-lg {
+      position: relative;
+      height: 10px;
+      border-radius: 4px;
+      background: #161616;
+      border: 1px solid #353535;
+      overflow: hidden;
+    }
+    .hp-bar-lg .hp-fill {
+      height: 100%;
+    }
+    .hp-bar-lg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        to right,
+        transparent 0,
+        transparent calc(10% - 1px),
+        rgba(18, 18, 18, 0.8) calc(10% - 1px),
+        rgba(18, 18, 18, 0.8) 10%
+      );
+      pointer-events: none;
+    }
+
+    .hp-exhaust-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--bad-fill);
+      border: 1px solid #6e3630;
+      color: var(--bad);
+      font-size: 11px;
+    }
+    .hp-exhaust-banner button {
+      border: 1px solid #6e3630;
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 10.5px;
+    }
+
+    .hp-pop-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-top: 1px solid var(--stroke);
+      background: var(--elevated);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* =========================================================
+       패널 2 & 3: 확대 시안 및 설정 화면
+       ========================================================= */
+    .card-box {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--chrome);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card-box + .card-box {
+      margin-top: 16px;
+    }
+    .card-box h3 {
+      margin: 0;
+      font-size: 13.5px;
+    }
+    .card-box p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .zoom-showcase {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--bg);
+    }
+    .zoom-rail-mock {
+      width: 68px;
+      margin: 0 auto;
+      padding: 10px 6px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--chrome);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+    .zoom-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .zoom-legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      margin-top: 4px;
+      flex: none;
+    }
+    .swatch.is-ok { background: var(--ok); }
+    .swatch.is-warn { background: var(--warn); }
+    .swatch.is-bad { background: var(--bad); }
+    .swatch.is-off { border: 1px dashed var(--muted); }
+
+    /* 프리셋 설정 폼 */
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .preset-btn {
+      padding: 7px 6px;
+      border-radius: 7px;
+      border: 1px solid var(--stroke);
+      background: var(--bg);
+      text-align: center;
+      font-size: 11.5px;
+    }
+    .preset-btn b { display: block; font-size: 12px; }
+    .preset-btn small { color: var(--muted); font-size: 10px; }
+    .preset-btn.is-on {
+      border-color: var(--ok);
+      background: var(--ok-fill);
+      color: var(--text);
+    }
+    .preset-btn.is-on small { color: #d6c8ff; }
+
+    .cap-table {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cap-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--stroke);
+      background: var(--bg);
+      font-size: 11.5px;
+    }
+    .cap-field label {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .cap-field input {
+      width: 100%;
+      padding: 5px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--stroke);
+      background: var(--chrome);
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11.5px;
+    }
+
+    .rule-list {
+      margin: 0;
+      padding-left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .rule-list b { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">PATCHBAY UI DESIGN · LEFT-BOTTOM LLM HP BAR</div>
+        <h1>LLM 구독제 토큰 체력바 (왼쪽 하단 레일 + 상세 창)</h1>
+        <p>왼쪽 64px 레일 하단에 공급자별(Claude · Codex · Grok) 미니 체력바를 상시 표시하고, 누르면 5시간 세션 · 7일 주간 잔여 체력과 리셋 시각을 보여줍니다.</p>
+      </div>
+      <div class="head-badges">
+        <span class="head-badge">위치: <b>왼쪽 하단 (.rail-foot)</b></span>
+        <span class="head-badge">표시: <b>상시 멀티 체력바 + 클릭 팝오버</b></span>
+        <span class="head-badge">계산: <b>5시간 / 7일 누적 차감 + 한도 도달 즉시 0%</b></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- ==================== 1열: 실제 셸 레일 + 팝오버 ==================== -->
+      <section>
+        <h2 class="col-title">1. 왼쪽 레일 하단 상시 체력바 + 클릭 시 상세 창</h2>
+        <p class="col-sub">레일 하단 대화 아이콘 아래에 CL · CX · GK 미니 체력바가 상시 놓이며, 클릭 시 오른쪽으로 상태 창이 열립니다.</p>
+
+        <div class="shell-stage">
+          <nav class="rail" aria-label="프로젝트와 도구">
+            <svg class="brand-mark" viewBox="0 0 32 32" aria-label="Patchbay">
+              <rect width="32" height="32" rx="7.5" fill="#f2f2f2" />
+              <g fill="none" stroke="#121212" stroke-width="2.2" stroke-linecap="round">
+                <path d="M11.9 10.4C19.7 10.4 22.7 14.4 22.7 18.6" />
+                <circle cx="9.3" cy="10.4" r="2.6" />
+                <circle cx="9.3" cy="21.6" r="2.6" />
+                <circle cx="22.7" cy="21.6" r="2.6" />
+              </g>
+            </svg>
+
+            <div class="rail-pj is-current" title="Patchbay">Pa<i class="rail-dot"></i></div>
+            <div class="rail-pj" title="demo-coach">DC</div>
+            <div class="rail-pj is-add" title="새 프로젝트">+</div>
+
+            <div class="rail-divider"></div>
+
+            <div class="rail-nav">
+              <button class="rail-icon-btn is-on" title="메인 대시보드" aria-label="메인 대시보드">
+                <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1z"/></svg>
+              </button>
+              <button class="rail-icon-btn" title="1 설계" aria-label="1 설계">
+                <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+              </button>
+              <button class="rail-icon-btn" title="2 구현" aria-label="2 구현">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="4" width="7" height="6" rx="1.5"/><rect x="8.5" y="14" width="7" height="6" rx="1.5"/><path d="M6.5 10v2.5h11V10M12 12.5V14"/></svg>
+              </button>
+              <button class="rail-icon-btn" title="3 테스트" aria-label="3 테스트">
+                <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              </button>
+            </div>
+
+            <!-- 왼쪽 하단 푸터 (.rail-foot) -->
+            <div class="rail-foot">
+              <button class="rail-icon-btn is-on" title="대화" aria-label="대화">
+                <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l3-3a8 8 0 1 1 14-5z"/></svg>
+              </button>
+
+              <!-- 새로 들어가는 상시 미니 체력바 묶음 -->
+              <div class="rail-hp-group is-open" id="railHpBtn" title="LLM 구독 체력 상태 (클릭하여 상세 보기)">
+                <div class="rail-hp-row is-ok">
+                  <div class="rail-hp-head"><b>CL</b><span>72%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-ok" style="width: 72%"></div></div>
+                </div>
+                <div class="rail-hp-row is-warn">
+                  <div class="rail-hp-head"><b>CX</b><span>28%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-warn" style="width: 28%"></div></div>
+                </div>
+                <div class="rail-hp-row is-bad">
+                  <div class="rail-hp-head"><b>GK</b><span>0%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-bad" style="width: 0%"></div></div>
+                </div>
+              </div>
+
+              <div class="rail-side-row">
+                <span class="rail-side" title="LangGraph 연결됨"><i></i>LG</span>
+                <span class="rail-side" title="Neo4j 연결됨"><i></i>N4</span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="stage-body">
+            <div class="stage-top-hint">
+              <span><b>Patchbay</b> · 대시보드</span>
+              <span>왼쪽 하단 체력바 클릭 → 상세 창 열림</span>
+            </div>
+
+            <!-- 왼쪽 하단 팝오버 상세 창 -->
+            <aside class="hp-popover" role="dialog" aria-label="LLM 구독 체력 상태">
+              <div class="hp-pop-head">
+                <div class="hp-pop-title">
+                  <b>LLM 구독 체력</b>
+                  <small>5시간 세션 · 7일 주간 잔여량</small>
+                </div>
+                <div class="hp-tabs" role="tablist">
+                  <button type="button" class="is-on" id="tabStatusBtn">체력 상태</button>
+                  <button type="button" id="tabConfigBtn">체력통 설정</button>
+                </div>
+              </div>
+
+              <div class="hp-pop-body" id="popStatusView">
+                <!-- Claude Code -->
+                <article class="hp-card">
+                  <div class="hp-card-top">
+                    <div class="hp-provider">
+                      <span class="hp-badge-code is-ok">CL</span>
+                      <div class="hp-provider-name">
+                        <b>Claude Code</b>
+                        <small>Max 5x 기준 · opus / sonnet</small>
+                      </div>
+                    </div>
+                    <span class="hp-status-pill is-ok">HP 72% · 양호</span>
+                  </div>
+                  <div class="hp-meter">
+                    <div class="hp-meter-label">
+                      <span>5시간 세션 체력 (3시간 12분 뒤 회복)</span>
+                      <b>72% · 158k / 220k</b>
+                    </div>
+                    <div class="hp-bar-lg"><div class="hp-fill is-ok" style="width: 72%"></div></div>
+                  </div>
+                  <div class="hp-meter">
+                    <div class="hp-meter-label">
+                      <span>7일 주간 체력 (금 09:00 리셋)</span>
+                      <b>84% · 1.68M / 2.0M</b>
+                    </div>
+                    <div class="hp-bar-lg"><div class="hp-fill is-ok" style="width: 84%"></div></div>
+                  </div>
+                </article>
+
+                <!-- Codex -->
+                <article class="hp-card">
+                  <div class="hp-card-top">
+                    <div class="hp-provider">
+                      <span class="hp-badge-code is-warn">CX</span>
+                      <div class="hp-provider-name">
+                        <b>Codex CLI</b>
+                        <small>Plus 구독 · gpt-5.4 / o3</small>
+                      </div>
+                    </div>
+                    <span class="hp-status-pill is-warn">HP 28% · 주의</span>
+                  </div>
+                  <div class="hp-meter">
+                    <div class="hp-meter-label">
+                      <span>5시간 세션 체력 (1시간 05분 뒤 회복)</span>
+                      <b>64% · 96k / 150k</b>
+                    </div>
+                    <div class="hp-bar-lg"><div class="hp-fill is-ok" style="width: 64%"></div></div>
+                  </div>
+                  <div class="hp-meter">
+                    <div class="hp-meter-label">
+                      <span>7일 주간 체력 (목 00:00 리셋)</span>
+                      <b style="color: var(--warn)">28% · 280k / 1.0M</b>
+                    </div>
+                    <div class="hp-bar-lg"><div class="hp-fill is-warn" style="width: 28%"></div></div>
+                  </div>
+                </article>
+
+                <!-- Grok -->
+                <article class="hp-card is-exhausted">
+                  <div class="hp-card-top">
+                    <div class="hp-provider">
+                      <span class="hp-badge-code is-bad">GK</span>
+                      <div class="hp-provider-name">
+                        <b>Grok Build</b>
+                        <small>구독 한도 감지됨</small>
+                      </div>
+                    </div>
+                    <span class="hp-status-pill is-bad">HP 0% · 고갈</span>
+                  </div>
+                  <div class="hp-meter">
+                    <div class="hp-meter-label">
+                      <span>5시간 세션 체력</span>
+                      <b style="color: var(--bad)">0% (한도 도달)</b>
+                    </div>
+                    <div class="hp-bar-lg"><div class="hp-fill is-bad" style="width: 0%"></div></div>
+                  </div>
+                  <div class="hp-exhaust-banner">
+                    <span>호스트 한도 도달 · <b>오늘 14:00</b> 자동 회복</span>
+                    <button type="button">수동 회복</button>
+                  </div>
+                </article>
+              </div>
+
+              <div class="hp-pop-foot">
+                <span>세션·주간 중 더 낮은 비율을 레일 대표 체력으로 표시</span>
+                <span>최근 갱신: 방금</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 2열: 미니 체력바 확대 & 상태 규칙 ==================== -->
+      <section>
+        <h2 class="col-title">2. 레일 하단 미니 체력바 상세 규격</h2>
+        <p class="col-sub">64px 폭 레일 안에서 글자가 잘리지 않고 한눈에 잔여 체력이 읽히도록 설계했습니다.</p>
+
+        <div class="card-box">
+          <h3>레일 푸터(54px 폭) 확대 모습</h3>
+          <div class="zoom-showcase">
+            <div class="zoom-rail-mock">
+              <div class="rail-hp-group" style="width: 56px;">
+                <div class="rail-hp-row is-ok">
+                  <div class="rail-hp-head"><b>CL</b><span>72%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-ok" style="width: 72%"></div></div>
+                </div>
+                <div class="rail-hp-row is-warn">
+                  <div class="rail-hp-head"><b>CX</b><span>28%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-warn" style="width: 28%"></div></div>
+                </div>
+                <div class="rail-hp-row is-bad">
+                  <div class="rail-hp-head"><b>GK</b><span>0%</span></div>
+                  <div class="hp-track"><div class="hp-fill is-bad" style="width: 0%"></div></div>
+                </div>
+              </div>
+              <div class="rail-side-row">
+                <span class="rail-side"><i></i>LG</span>
+                <span class="rail-side"><i></i>N4</span>
+              </div>
+            </div>
+
+            <div class="zoom-legend">
+              <div class="zoom-legend-item">
+                <span class="swatch is-ok"></span>
+                <div><b>양호 (31% ~ 100%)</b><br><span style="color:var(--muted)">보라색(`--ok`) 게이지. 4칸 눈금으로 대략적인 잔여량 직관 파악</span></div>
+              </div>
+              <div class="zoom-legend-item">
+                <span class="swatch is-warn"></span>
+                <div><b>주의 (1% ~ 30%)</b><br><span style="color:var(--muted)">주황색(`--warn`) 게이지. 세션 또는 주간 한도가 임박했음을 경고</span></div>
+              </div>
+              <div class="zoom-legend-item">
+                <span class="swatch is-bad"></span>
+                <div><b>고갈 / 한도 도달 (0%)</b><br><span style="color:var(--muted)">빨간색(`--bad`) `0%` 표시. CLI 한도 문구 감지 시 즉시 전환</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <h3>체력(HP) 차감 및 회복 동작 원리</h3>
+          <ol class="rule-list">
+            <li><b>대표 체력 = min(5시간 세션 잔여%, 7일 주간 잔여%)</b><br>세션 체력이 64% 남았어도 주간 체력이 28% 남았으면 레일에는 더 급한 <b>28%(주황)</b>를 표시합니다.</li>
+            <li><b>Patchbay 전 경로 토큰 합산</b><br>대화방(`rooms/*.jsonl`)과 설계 상담(`consult/*.jsonl`)에서 발생한 입력+출력 토큰을 공급자별로 실시간 합산합니다.</li>
+            <li><b>슬라이딩 윈도우 자연 회복</b><br>5시간이 지난 호출 기록은 세션 창에서 빠지면서 시간이 흐르면 체력바가 자연스럽게 차오릅니다.</li>
+            <li><b>CLI 한도 도달 즉시 0% 고정</b><br>호스트가 `usage limit` / `weekly limit` / `resets 2pm`을 반환하면 계산값과 무관하게 즉시 <b>0% (고갈)</b>로 잠그고, 해제 시각이 지나면 풀립니다.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ==================== 3열: 체력통 설정 탭 시안 ==================== -->
+      <section>
+        <h2 class="col-title">3. 「체력통 설정」 탭 전환 시 화면</h2>
+        <p class="col-sub">구독 등급(Pro / Max 5x / Max 20x) 프리셋을 고르거나 내 체감 한도에 맞춰 최대 토큰 크기를 직접 조절합니다.</p>
+
+        <div class="card-box">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>구독 플랜 프리셋 · 체력통 크기</h3>
+            <span style="font-size:11px; color:var(--ok);">저장 위치: ~/.patchbay/llm-quota.json</span>
+          </div>
+
+          <div class="preset-row">
+            <button type="button" class="preset-btn">
+              <b>Pro / Plus</b>
+              <small>기본 구독</small>
+            </button>
+            <button type="button" class="preset-btn is-on">
+              <b>Max 5x</b>
+              <small>권장 기본값</small>
+            </button>
+            <button type="button" class="preset-btn">
+              <b>Max 20x</b>
+              <small>대용량 구독</small>
+            </button>
+            <button type="button" class="preset-btn">
+              <b>직접 입력</b>
+              <small>사용자 지정</small>
+            </button>
+          </div>
+
+          <div class="cap-table">
+            <div class="cap-row">
+              <div>
+                <b>Claude Code</b>
+                <div style="font-size:10px; color:var(--muted);">claude</div>
+              </div>
+              <div class="cap-field">
+                <label>5시간 세션 체력통 (토큰)</label>
+                <input type="text" value="220,000" readonly />
+              </div>
+              <div class="cap-field">
+                <label>7일 주간 체력통 (토큰)</label>
+                <input type="text" value="2,000,000" readonly />
+              </div>
+            </div>
+
+            <div class="cap-row">
+              <div>
+                <b>Codex CLI</b>
+                <div style="font-size:10px; color:var(--muted);">codex</div>
+              </div>
+              <div class="cap-field">
+                <label>5시간 세션 체력통 (토큰)</label>
+                <input type="text" value="150,000" readonly />
+              </div>
+              <div class="cap-field">
+                <label>7일 주간 체력통 (토큰)</label>
+                <input type="text" value="1,000,000" readonly />
+              </div>
+            </div>
+
+            <div class="cap-row">
+              <div>
+                <b>Grok Build</b>
+                <div style="font-size:10px; color:var(--muted);">grok</div>
+              </div>
+              <div class="cap-field">
+                <label>5시간 세션 체력통 (토큰)</label>
+                <input type="text" value="100,000" readonly />
+              </div>
+              <div class="cap-field">
+                <label>7일 주간 체력통 (토큰)</label>
+                <input type="text" value="700,000" readonly />
+              </div>
+            </div>
+          </div>
+
+          <p>
+            • 한도에 걸렸을 때 그때까지 쓴 누적 토큰이 설정된 체력통보다 작으면, <b>「방금 한도 도달 값으로 체력통 맞추기」</b> 버튼이 나타나 내 실제 구독 한도에 맞게 보정할 수 있습니다.
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

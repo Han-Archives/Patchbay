@@ -1,9 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { projectStudioDir } from "../studio/studioStore.js";
+import { TEST_STAGE_DIR_NAME } from "./store.js";
 
 /**
- * 실제로 일한 노드 — 운영에서 그래프가 돌 때, 값을 바꾼 노드(건너뛰지 않은 노드)를 처음 지난 시각과 함께 쌓는다
+ * 실제로 일한 노드 — 테스트에서 그래프가 돌 때, 값을 바꾼 노드(건너뛰지 않은 노드)를 처음 지난 시각과 함께 쌓는다
  * (사용자 결정 2026-10-08: 4 지식 그래프 · 5 문서 호출은 설계의 노드를 모두 한 번 이상 지난 뒤 연다).
  *
  * §5.2 실행 기록과는 다르다 — 그것은 모델 · 도구 · 문서 호출까지 채워야 쓰이고, 못 채우면 쓰지 않는다.
@@ -18,9 +19,9 @@ export interface PassedNodes {
   readAt: string | null;
 }
 
-/** `runs/` 가 아니라 `ops/` 에 둔다 — `runs/*.json` 은 모두 실행 기록으로 읽힌다. */
+/** `test-runs/` 가 아니라 `test/` 에 둔다 — `test-runs/*.json` 은 모두 실행 기록으로 읽힌다. */
 function file(studioHome: string, alias: string): string {
-  return path.join(projectStudioDir(studioHome, alias), "ops", PASSED_NODES_FILE);
+  return path.join(projectStudioDir(studioHome, alias), TEST_STAGE_DIR_NAME, PASSED_NODES_FILE);
 }
 
 export async function readPassedNodes(studioHome: string, alias: string): Promise<PassedNodes> {

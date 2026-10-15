@@ -66,7 +66,7 @@
 - 커널의 직접 모델 호출
 - 채팅 트랜스크립트 자동 수집 (단계는 MCP 또는 LangGraph state로만)
 
-원격 명령이 필요하면 Patchbay 자체 기능이 아니라 **Claude Code의 Remote Control**(모바일 앱 ↔ Anthropic 서버 ↔ 로컬 세션, 아웃바운드 전용)을 쓴다. 20260922a판에서 텔레그램 릴레이(`@patchbay/telegram-bot`, `patchbay bot start`)를 한 번 만들어 봤으나, 운영 환경의 Tailscale이 `api.telegram.org`로 가는 아웃바운드 연결을 막아 상시 사용이 불가능했고, 같은 목적을 이미 있는 Remote Control이 인프라 없이 더 잘 채워서 걷어냈다. 코드는 git 이력에 남아 있다 (커밋 전이면 `docs/_archive/기획/Patchbay_기획_20260922a.md` 시점 기준).
+원격 명령이 필요하면 Patchbay 자체 기능이 아니라 **Claude Code의 Remote Control**(모바일 앱 ↔ Anthropic 서버 ↔ 로컬 세션, 아웃바운드 전용)을 쓴다. 20260922a판에서 텔레그램 릴레이(`@patchbay/telegram-bot`, `patchbay bot start`)를 한 번 만들어 봤으나, 테스트 환경의 Tailscale이 `api.telegram.org`로 가는 아웃바운드 연결을 막아 상시 사용이 불가능했고, 같은 목적을 이미 있는 Remote Control이 인프라 없이 더 잘 채워서 걷어냈다. 코드는 git 이력에 남아 있다 (커밋 전이면 `docs/_archive/기획/Patchbay_기획_20260922a.md` 시점 기준).
 
 ---
 

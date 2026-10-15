@@ -44,8 +44,8 @@ export const DESIGN_LABELS = [
 ] as const satisfies readonly KnowledgeLabel[];
 
 /**
- * The third family (기획 20261008a — 지식 그래프는 운영 뒤): a `Run` is one run read from the project's graph
- * server in 3 운영, and only `ops/activity.json` can produce it.
+ * The third family (기획 20261008a — 지식 그래프는 테스트 뒤): a `Run` is one run read from the project's graph
+ * server in 3 테스트, and only `test/activity.json` can produce it.
  */
 export const RUN_LABELS = ["Run"] as const satisfies readonly KnowledgeLabel[];
 
@@ -153,8 +153,8 @@ export const RELATION_ORIGINS: Record<KnowledgeRelation, RelationOrigin> = {
   RAN: {
     from: ["Run"],
     to: ["AgentNode"],
-    source: "ops/activity.json · runs[].worked",
-    rebuild: "3 운영에서 실행 기록을 읽으면 다시 쓴다 (그래프 서버의 체크포인트에서)",
+    source: "test/activity.json · runs[].worked",
+    rebuild: "3 테스트에서 실행 기록을 읽으면 다시 쓴다 (그래프 서버의 체크포인트에서)",
     means: "이 실행에서 그 노드가 실제로 일했다",
   },
 };
@@ -169,7 +169,7 @@ export const LABEL_MEANS: Record<KnowledgeLabel, string> = {
   Eval: "평가 — 무엇을 넣고 무엇을 기대하나",
   AgentNode: "에이전트 노드 — 그래프의 한 칸",
   Document: "문서 의존 — 어떤 입력일 때 이 문서인가",
-  Run: "실행 — 운영에서 그래프가 한 번 돈 것",
+  Run: "실행 — 테스트에서 그래프가 한 번 돈 것",
 };
 
 /**

@@ -20,13 +20,36 @@ export const ROOM_SPEAKER_LABEL: Record<RoomSpeaker, string> = {
   local: "로컬 모델",
 };
 
-const base = { seq: z.number().int().nonnegative(), at: z.string() };
+/**
+ * `at` 은 방에 적은 시각. `sourceAt` 은 말이 실제로 나온 시각 — 미러가 세션 기록에서 늦게 옮긴 말에만 있다
+ * (Log가 그날로 묶을 때 쓴다, 사용자 결정 2026-10-15 D7).
+ */
+const base = { seq: z.number().int().nonnegative(), at: z.string(), sourceAt: z.string().datetime({ offset: true }).optional() };
 
 /**
  * 대화방 밖에서 옮겨 적은 말의 출처. `claude-session` 은 Claude Code 세션(폰 Remote Control 포함)의
  * 대화를 훅이 그대로 옮긴 것이다 (`patchbay room mirror`). 비어 있으면 콘솔에서 쓴 말이다.
  */
 export const ROOM_VIA = ["claude-session"] as const;
+
+export const ROOM_MODE_ICONS = ["discuss", "report", "planning", "design", "study", "coding", "debug"] as const;
+export type RoomModeIcon = (typeof ROOM_MODE_ICONS)[number];
+
+export const ROOM_MODE_EXECUTIONS = ["read", "edit", "apply"] as const;
+export type RoomModeExecution = (typeof ROOM_MODE_EXECUTIONS)[number];
+
+export const roomModeSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(80),
+  icon: z.enum(ROOM_MODE_ICONS).optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  image: z.string().max(300_000).regex(/^(https?:\/\/|data:image\/)/).optional(),
+  iconHtml: z.string().max(100_000).optional(),
+  execution: z.enum(ROOM_MODE_EXECUTIONS).default("read"),
+  prompt: z.string().max(10_000),
+  agentIds: z.array(z.string().min(1)).optional(),
+});
+export type RoomMode = z.infer<typeof roomModeSchema>;
 
 export const roomUserSchema = z.object({
   ...base,
@@ -36,6 +59,11 @@ export const roomUserSchema = z.object({
   /** 예전 기록만 채운다. 지금은 방의 사람들에게 같이 남긴다. */
   to: z.enum(ROOM_SPEAKERS).optional(),
   model: z.string().optional(),
+  /** 이 말을 보낼 때 켜져 있던 모드. 대화창에는 문구 대신 아이콘 배지로 보인다. */
+  modeId: z.string().min(1).optional(),
+  modeName: z.string().min(1).optional(),
+  modeIcon: z.enum(ROOM_MODE_ICONS).optional(),
+  modeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 });
 
 export const roomMemberSchema = z.object({

@@ -1,0 +1,161 @@
+<title>흐름도 세부 작업표 4안</title>
+<style>
+/* 레이아웃: 위에 요구사항 정리 · 버전 탭, 아래는 [흐름도 + 세부 표 | 할일] 두 칸 (좁으면 한 칸) */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--user:#7fc8a0;--user-fill:#1b3027;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button,input{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.wrap{max-width:1240px;margin:auto;padding:28px 16px 48px;display:grid;gap:18px}
+h1{font-size:21px;margin:4px 0 0;text-wrap:balance}h2{font-size:15px;margin:0}small,.muted{color:var(--muted);font-size:12px}
+.tag{color:var(--ok-text);background:var(--ok-fill);border:1px solid var(--ok-line);padding:5px 10px;border-radius:6px;font-size:12px;white-space:nowrap}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.req{background:var(--chrome);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:12px}
+.req ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.req li{background:var(--elevated);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;color:var(--sub)}.req li b{display:block;color:var(--text);font-size:12px;margin-bottom:3px}
+.req p{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{background:var(--elevated);border:1px solid var(--stroke);border-radius:8px;padding:8px 12px;font-size:13px}.tabs button[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+.vdesc{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6}.vdesc b{color:var(--text)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.panel{background:var(--chrome);border:1px solid var(--line);border-radius:10px;min-width:0}
+.phead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}.phead .sp{flex:1}
+/* 흐름도 */
+.flow{display:flex;align-items:stretch;gap:0;padding:18px 16px;overflow-x:auto}
+.node{flex:1 1 0;min-width:120px;text-align:left;background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:12px;display:grid;gap:6px}
+.node:hover{border-color:#555}.node[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+.node b{font-size:14px}.node small{font-variant-numeric:tabular-nums}.arrow{align-self:center;color:#555;padding:0 8px;font-size:15px}
+.bar{height:4px;background:var(--fill);border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.hint{font-size:11.5px;color:var(--muted);padding:0 16px 14px}
+/* 표 공통 */
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;min-width:600px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;line-height:1.5}
+thead th{font-size:11.5px;font-weight:500;color:var(--muted);background:#1d1d1d;white-space:nowrap}
+.num{color:var(--muted);font-variant-numeric:tabular-nums;width:40px}.tn{font-variant-numeric:tabular-nums}
+.toggle{background:none;border:0;padding:2px 0;text-align:left;font-weight:600;display:flex;gap:8px;align-items:center}.toggle .car{display:inline-block;width:12px;color:var(--muted);transition:transform .15s}.toggle[aria-expanded=true] .car{transform:rotate(90deg);color:var(--ok-text)}
+tr.task:hover{background:#1f1f1f}tr.task.is-open{background:#1f1d26}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;white-space:nowrap;color:var(--sub)}.pill i{width:8px;height:8px;border-radius:50%;background:#666}.pill.now{color:var(--ok-text)}.pill.now i{background:var(--ok);box-shadow:0 0 7px var(--ok)}.pill.done i{background:#7a7a7a}
+.src{font-size:10.5px;padding:2px 6px;border-radius:4px;white-space:nowrap;border:1px solid transparent}.src.llm{color:var(--ok-text);background:var(--ok-fill);border-color:var(--ok-line)}.src.user{color:var(--user);background:var(--user-fill);border-color:#2f5442}
+.item-text{font-size:12.5px;color:var(--sub)}.item-text.done{color:#777;text-decoration:line-through}
+.ck{width:15px;height:15px;accent-color:var(--ok);margin:0;flex:none}
+.ctrl{display:inline-flex;gap:6px;align-items:center;justify-content:flex-end}
+.play{width:28px;height:28px;border-radius:50%;border:1px solid var(--ok-line);background:var(--ok-fill);color:var(--ok-text);font-size:10px;display:inline-grid;place-items:center;padding:0 0 0 2px}.play:hover{background:#3a2f5c}
+.minus{width:24px;height:24px;border-radius:6px;border:1px solid var(--stroke);background:transparent;color:var(--muted);padding:0;font-size:14px;line-height:1}.minus:hover{color:var(--bad);border-color:var(--bad)}
+.sent{font-size:11px;color:var(--ok-text);white-space:nowrap}
+.addbtn{background:none;border:1px dashed var(--stroke);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted)}.addbtn:hover{color:var(--text);border-color:#666}
+.addform{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.addform input{flex:1;min-width:160px;background:var(--bg);border:1px solid var(--stroke);border-radius:6px;padding:6px 9px;font-size:12.5px}
+.btn{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:6px 10px;font-size:12px}.btn.pri{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+/* 할일 */
+.todo ol{list-style:none;margin:0;padding:6px 0;counter-reset:t}.todo li{display:grid;grid-template-columns:20px 1fr 24px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:start;counter-increment:t}
+.todo li:before{content:counter(t);font-size:11px;color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}.todo li.fresh{animation:in .5s ease}.todo .tt{font-size:12.5px;line-height:1.5}.todo small{display:block;font-size:11px;margin-top:2px}
+.todo .x{background:none;border:0;color:var(--muted);padding:0;font-size:15px}.todo .x:hover{color:var(--bad)}
+.empty{padding:22px 16px;font-size:12px;color:var(--muted);line-height:1.6}
+@keyframes in{from{background:var(--ok-fill)}to{background:transparent}}
+/* 1안 트리 표 */
+tr.sub td{background:#181818;padding-top:7px;padding-bottom:7px}tr.sub .indent{display:flex;gap:9px;align-items:center;padding-left:22px;border-left:1px solid var(--ok-line);margin-left:5px}
+/* 2안 펼침 상세 */
+.detail td{background:#17161b;padding:14px 16px}.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.dgrid section{display:grid;gap:4px;align-content:start}.dgrid h5{margin:0 0 4px;font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.drow{display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:6px;background:var(--elevated)}.drow .item-text{flex:1;min-width:0}.dfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.minibar{display:flex;gap:8px;align-items:center}.minibar .bar{width:80px}
+/* 3안 아웃라이너 */
+.outline{padding:8px 6px 14px}.orow{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;min-height:40px}.orow:hover{background:#202020}.orow.task{font-weight:600}.orow.child{margin-left:28px;position:relative}.orow.child:before{content:"";position:absolute;left:-14px;top:-4px;bottom:50%;border-left:1px solid var(--stroke);border-bottom:1px solid var(--stroke);width:10px;border-bottom-left-radius:5px}
+.orow .grow{flex:1;min-width:0}.orow .hov{opacity:.35;transition:opacity .15s}.orow:hover .hov,.orow:focus-within .hov{opacity:1}
+.orow.pending{border:1px dashed var(--ok-line);background:transparent}.orow.pending .item-text{color:var(--ok-text);font-style:italic}
+.count{font-size:11px;color:var(--muted);font-weight:400}
+@media(hover:none){.orow .hov{opacity:1}}
+/* 4안 주간표형 */
+.nest{margin:4px 0 2px;border:1px solid var(--line);border-radius:8px;overflow:hidden}.nest table{min-width:0;font-size:12.5px}.nest th{background:#1a1a1a}.nest td{background:#171717;padding:7px 10px}tr.nest-row>td{padding:4px 12px 12px;background:#1f1d26}
+@media(max-width:900px){.stage{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+<header class="top"><div><small>PATCHBAY / 대시보드 / 흐름도</small><h1>흐름도 세부 작업표 · 4가지 버전</h1></div><span class="tag">승인 전 시안 · 예시 데이터</span></header>
+
+<section class="req" aria-label="요구사항 정리">
+<h2>요구사항 정리</h2>
+<ol>
+<li><b>1 · 큰 칸을 누르면</b>설계 · 구현 · 테스트 · 검토 중 누른 칸의 작업 사항이 흐름도 바로 아래 표에 나온다.</li>
+<li><b>2 · 작업을 누르면</b>그 행 아래로 세부 항목이 펼쳐진다. 다시 누르면 접힌다.</li>
+<li><b>3 · 세부 항목은 두 출처</b>LLM이 계획해 넣은 것과 사용자가 + 로 넣은 것. − 로 뺀다. 출처를 칩으로 구분해 무엇을 할지 바로 알게 한다.</li>
+<li><b>4 · ▶ 를 누르면</b>그 세부 항목이 오른쪽 할일 목록 맨 아래에 올라간다. 이미 올라간 항목은 「할일에 있음」으로 바뀌어 두 번 올라가지 않는다.</li>
+</ol>
+<p>정한 것: 할일에서 × 로 빼면 다시 ▶ 할 수 있다. 체크는 「끝냄」 표시이고 할일 등록과는 따로다. 네 버전 모두 이 동작은 같고, 표를 펼치는 모양과 LLM 계획을 보여 주는 방식이 다르다.</p>
+</section>
+
+<nav class="tabs" id="tabs" aria-label="버전 고르기"></nav>
+<p class="vdesc" id="vdesc"></p>
+<div class="stage" id="app"></div>
+</div>
+<script>
+const STAGES=[["design","설계"],["build","구현"],["run","테스트"],["review","검토"]];
+let uid=0;const T=(name,items)=>({id:"t"+(++uid),name,items:items.map(([text,src,done,pending])=>({id:"i"+(++uid),text,src,done:!!done,pending:!!pending}))});
+const BASE={
+ design:[T("목표 · 범위 정리",[["사용자 문제를 한 줄로 쓰기","llm",1],["이번에 빼는 기능 적기","llm",1],["성공 기준 3개 정하기","user",1]]),
+  T("사용자 흐름",[["첫 실행 흐름 그리기","llm",1],["오류가 났을 때 흐름 그리기","llm"],["화면 전환 목록 만들기","user"],["빈 화면일 때 안내 정하기","llm",0,1]]),
+  T("데이터 구조",[["저장할 항목 목록","llm"],["저장 위치 정하기","llm"],["옛 데이터 옮기는 방법","llm",0,1]]),
+  T("PRD 검토",[["열린 질문 정리","llm"],["빠진 요구사항 확인","llm"]])],
+ build:[T("저장소 모듈",[["읽기 · 쓰기 함수","llm"],["단위 시험 작성","llm"]]),
+  T("화면 연결",[["흐름도 칸 클릭 연결","llm"],["세부 표 그리기","llm"],["할일로 보내기 버튼","user"]]),
+  T("API",[["목록 조회 경로","llm"],["추가 · 삭제 경로","llm",0,1]])],
+ run:[T("실행 점검",[["서버가 뜨는지 확인","llm"],["노드별 실행 결과 확인","llm"]]),T("기록",[["실행 로그 저장","llm"]])],
+ review:[T("달라진 점",[["설계와 구현의 차이 목록","llm"],["다음 주기에 넣을 항목","user"]])]};
+const VERS=[
+ {name:"1안 · 트리 표",desc:"<b>표 안에서 바로 펼친다.</b> 작업 행 아래로 세부 항목이 들여쓴 줄로 붙는다. 열이 그대로 이어져 작업과 세부가 한 표로 읽힌다. 가장 단순하다."},
+ {name:"2안 · 펼침 상세",desc:"<b>작업 행 아래로 상세 칸이 열린다.</b> 「LLM 계획」과 「직접 추가」를 두 칸으로 나눠 누가 넣었는지 위치로 보인다. 「모두 할일로」로 한 번에 올릴 수 있다."},
+ {name:"3안 · 아웃라이너",desc:"<b>표 머리 없이 들여쓰기 목록으로.</b> 노션 토글처럼 가볍다. LLM이 새로 계획한 항목은 점선 「제안」으로 들어오고, 사용자가 수락해야 정식 항목이 된다. 「LLM에게 계획 요청」 예시 버튼 포함."},
+ {name:"4안 · 주간표형",desc:"<b>작업 행에 요약 열을 둔다.</b> 세부 진척 · 다음 할 일 · 할일에 올린 수를 접힌 채로 본다. 펼치면 세부 항목이 작은 표로 열린다. 앞서 본 주간 업무 보고서 형식에 가깝다."}];
+const S=VERS.map(()=>{const data=JSON.parse(JSON.stringify(BASE));return{stage:"design",open:new Set([data.design[1].id]),adding:null,data,todo:[data.design[1].items[1].id],fresh:null}});
+let v=0;
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const st=()=>S[v];
+function find(s,id){for(const[k]of STAGES)for(const t of s.data[k]){if(t.id===id)return{task:t,stage:k};const it=t.items.find(i=>i.id===id);if(it)return{item:it,task:t,stage:k}}}
+const real=t=>v===2?t.items.filter(i=>!i.pending):t.items;
+const prog=items=>{const d=items.filter(i=>i.done).length;return{d,n:items.length}};
+function state(t){const{d,n}=prog(real(t));return d===n&&n?"done":d?"now":"next"}
+const LABEL={done:"완료",now:"진행 중",next:"예정"};
+const pill=t=>{const s=state(t);return`<span class="pill ${s}"><i></i>${LABEL[s]}</span>`};
+const src=i=>i.src==="llm"?`<span class="src llm">LLM 계획</span>`:`<span class="src user">직접 추가</span>`;
+const ck=i=>`<input type="checkbox" class="ck" data-act="check" data-id="${i.id}" ${i.done?"checked":""} aria-label="${esc(i.text)} 끝냄">`;
+const txt=i=>`<span class="item-text${i.done?" done":""}">${esc(i.text)}</span>`;
+const play=i=>st().todo.includes(i.id)?`<span class="sent">할일에 있음 ✓</span>`:`<button class="play" data-act="play" data-id="${i.id}" aria-label="${esc(i.text)} 할일로 보내기" title="할일로 보내기">▶</button>`;
+const minus=i=>`<button class="minus" data-act="del" data-id="${i.id}" aria-label="${esc(i.text)} 빼기" title="빼기">−</button>`;
+const ctrl=i=>`<span class="ctrl">${play(i)}${minus(i)}</span>`;
+const toggle=t=>`<button class="toggle" data-act="toggle" data-id="${t.id}" aria-expanded="${st().open.has(t.id)}"><span class="car">▸</span>${esc(t.name)}</button>`;
+function add(t){return st().adding===t.id?`<form class="addform" data-task="${t.id}"><input id="add-${v}-${t.id}" placeholder="세부 항목 입력 후 Enter" maxlength="80" aria-label="새 세부 항목"><button class="btn pri">추가</button><button type="button" class="btn" data-act="cancel">취소</button></form>`:`<button class="addbtn" data-act="add" data-id="${t.id}">+ 세부 항목 추가</button>`}
+
+function flow(){const s=st();return`<div class="flow" role="group" aria-label="흐름도">${STAGES.map(([k,name],i)=>{const items=s.data[k].flatMap(real);const{d,n}=prog(items);return`${i?'<span class="arrow" aria-hidden="true">→</span>':""}<button class="node" data-act="stage" data-id="${k}" aria-pressed="${s.stage===k}"><b>${name}</b><small>작업 ${s.data[k].length} · 세부 ${d}/${n}</small><span class="bar"><i style="width:${n?d/n*100:0}%"></i></span></button>`}).join("")}</div><div class="hint">칸을 누르면 아래에 그 단계의 작업 사항이 나옵니다.</div>`}
+
+const R=[
+// 1안 트리 표
+s=>`<div class="tbl"><table><thead><tr><th>작업 / 세부 항목</th><th>출처 · 상태</th><th class="tn">세부</th><th style="text-align:right">할일 · 빼기</th></tr></thead><tbody>${s.data[s.stage].map(t=>{const{d,n}=prog(t.items),o=s.open.has(t.id);return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td>${pill(t)}</td><td class="tn muted">${d}/${n}</td><td></td></tr>${o?t.items.map(i=>`<tr class="sub"><td><div class="indent">${ck(i)}${txt(i)}</div></td><td>${src(i)}</td><td></td><td style="text-align:right">${ctrl(i)}</td></tr>`).join("")+`<tr class="sub"><td colspan="4"><div class="indent">${add(t)}</div></td></tr>`:""}`}).join("")}</tbody></table></div>`,
+// 2안 펼침 상세
+s=>`<div class="tbl"><table><thead><tr><th class="num">#</th><th>작업</th><th>진척</th><th>다음 할 항목</th><th>상태</th></tr></thead><tbody>${s.data[s.stage].map((t,x)=>{const{d,n}=prog(t.items),o=s.open.has(t.id),nx=t.items.find(i=>!i.done);const row=i=>`<div class="drow">${ck(i)}${txt(i)}${ctrl(i)}</div>`;const llm=t.items.filter(i=>i.src==="llm"),usr=t.items.filter(i=>i.src==="user");const left=t.items.filter(i=>!i.done&&!s.todo.includes(i.id)).length;return`<tr class="task${o?" is-open":""}"><td class="num">${String(x+1).padStart(2,"0")}</td><td>${toggle(t)}</td><td><span class="minibar"><span class="bar"><i style="width:${n?d/n*100:0}%"></i></span><small class="tn">${d}/${n}</small></span></td><td class="muted">${nx?esc(nx.text):"—"}</td><td>${pill(t)}</td></tr>${o?`<tr class="detail"><td colspan="5"><div class="dgrid"><section><h5>LLM 계획 · ${llm.length}</h5>${llm.map(row).join("")||'<small>아직 없음</small>'}</section><section><h5>직접 추가 · ${usr.length}</h5>${usr.map(row).join("")}${add(t)}</section></div><div class="dfoot"><small>▶ 는 하나씩, 오른쪽 버튼은 끝나지 않은 항목 모두를 할일로 보냅니다.</small><button class="btn pri" data-act="playall" data-id="${t.id}" ${left?"":"disabled"}>모두 할일로 ▶ ${left}</button></div></td></tr>`:""}`}).join("")}</tbody></table></div>`,
+// 3안 아웃라이너
+s=>`<div class="outline">${s.data[s.stage].map(t=>{const o=s.open.has(t.id),{d,n}=prog(real(t)),pend=t.items.filter(i=>i.pending).length;return`<div class="orow task">${toggle(t)}<span class="count">${d}/${n}${pend?` · 제안 ${pend}`:""}</span><span class="grow"></span>${pill(t)}</div>${o?t.items.map(i=>i.pending?`<div class="orow child pending"><span class="src llm">LLM 제안</span><span class="grow">${txt(i)}</span><button class="btn pri" data-act="accept" data-id="${i.id}">수락</button><button class="btn" data-act="del" data-id="${i.id}">버리기</button></div>`:`<div class="orow child">${ck(i)}<span class="grow">${txt(i)}</span><span class="hov">${src(i)}</span><span class="hov ctrl">${minus(i)}</span>${play(i)}</div>`).join("")+`<div class="orow child">${add(t)}<button class="addbtn" data-act="plan" data-id="${t.id}">✦ LLM에게 계획 요청</button></div>`:""}`}).join("")}</div>`,
+// 4안 주간표형
+s=>`<div class="tbl"><table><thead><tr><th>작업</th><th>세부 진척</th><th>다음 할 일</th><th class="tn">할일에 올림</th><th>상태</th></tr></thead><tbody>${s.data[s.stage].map(t=>{const{d,n}=prog(t.items),o=s.open.has(t.id),nx=t.items.find(i=>!i.done),up=t.items.filter(i=>s.todo.includes(i.id)).length;return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td><span class="minibar"><span class="bar"><i style="width:${n?d/n*100:0}%"></i></span><small class="tn">${d}/${n}</small></span></td><td class="muted">${nx?esc(nx.text):"—"}</td><td class="tn">${up?`<span class="sent">${up}개</span>`:'<span class="muted">0</span>'}</td><td>${pill(t)}</td></tr>${o?`<tr class="nest-row"><td colspan="5"><div class="nest"><table><thead><tr><th style="width:36px"></th><th>세부 항목</th><th>출처</th><th style="text-align:right">할일 · 빼기</th></tr></thead><tbody>${t.items.map(i=>`<tr><td>${ck(i)}</td><td>${txt(i)}</td><td>${src(i)}</td><td style="text-align:right">${ctrl(i)}</td></tr>`).join("")}<tr><td></td><td colspan="3">${add(t)}</td></tr></tbody></table></div></td></tr>`:""}`}).join("")}</tbody></table></div>`];
+
+function todo(){const s=st();return`<aside class="panel todo" aria-label="할일"><div class="phead"><h2>할일</h2><small>${s.todo.length}건</small><span class="sp"></span><small>▶ 로 올린 순서</small></div>${s.todo.length?`<ol>${s.todo.map(id=>{const f=find(s,id);return`<li class="${s.fresh===id?"fresh":""}"><div><div class="tt${f.item.done?" item-text done":""}">${esc(f.item.text)}</div><small>${STAGES.find(x=>x[0]===f.stage)[1]} › ${esc(f.task.name)}</small></div><button class="x" data-act="untodo" data-id="${id}" aria-label="할일에서 빼기">×</button></li>`}).join("")}</ol>`:'<p class="empty">세부 항목 옆 ▶ 를 누르면 여기에 올라옵니다.</p>'}</aside>`}
+
+function draw(){const s=st(),name=STAGES.find(x=>x[0]===s.stage)[1];
+ document.getElementById("tabs").innerHTML=VERS.map((x,i)=>`<button data-v="${i}" aria-pressed="${i===v}">${x.name}</button>`).join("");
+ document.getElementById("vdesc").innerHTML=VERS[v].desc;
+ document.getElementById("app").innerHTML=`<section class="panel"><div class="phead"><h2>흐름도</h2><span class="sp"></span><small>예시 프로젝트</small></div>${flow()}<div class="phead" style="border-top:1px solid var(--line)"><h2>${name} · 작업 사항</h2><small>${s.data[s.stage].length}개 작업 · 작업을 누르면 세부 항목이 펼쳐집니다</small></div>${R[v](s)}</section>${todo()}`;
+ if(s.adding){const el=document.getElementById(`add-${v}-${s.adding}`);el&&el.focus()}s.fresh=null}
+
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-v]");if(b){v=+b.dataset.v;draw()}});
+const app=document.getElementById("app");
+app.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const s=st(),id=b.dataset.id,a=b.dataset.act,f=id&&find(s,id);
+ if(a==="stage"){s.stage=id;s.adding=null}
+ else if(a==="toggle"){s.open.has(id)?s.open.delete(id):s.open.add(id)}
+ else if(a==="check"){f.item.done=b.checked}
+ else if(a==="play"){if(!s.todo.includes(id)){s.todo.push(id);s.fresh=id}}
+ else if(a==="playall"){f.task.items.filter(i=>!i.done&&!s.todo.includes(i.id)).forEach(i=>{s.todo.push(i.id);s.fresh=i.id})}
+ else if(a==="untodo"){s.todo=s.todo.filter(x=>x!==id)}
+ else if(a==="del"){f.task.items=f.task.items.filter(i=>i.id!==id);s.todo=s.todo.filter(x=>x!==id)}
+ else if(a==="add"){s.adding=id}
+ else if(a==="cancel"){s.adding=null}
+ else if(a==="accept"){f.item.pending=false}
+ else if(a==="plan"){const ideas=["결과를 화면으로 확인하기","끝난 기준을 한 줄로 쓰기","관련 문서 갱신하기","막힌 점 기록하기"];const used=f.task.items.map(i=>i.text);const text=ideas.find(x=>!used.includes(x));if(text)f.task.items.push({id:"i"+(++uid),text,src:"llm",done:false,pending:true})}
+ else return;
+ draw()});
+app.addEventListener("submit",e=>{e.preventDefault();const s=st(),f=find(s,e.target.dataset.task),val=e.target.querySelector("input").value.trim();if(val){f.task.items.push({id:"i"+(++uid),text:val,src:"user",done:false,pending:false});s.adding=null;draw()}});
+app.addEventListener("keydown",e=>{if(e.key==="Escape"&&st().adding){st().adding=null;draw()}});
+draw();
+</script>

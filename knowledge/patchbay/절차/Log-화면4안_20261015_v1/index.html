@@ -1,0 +1,175 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Patchbay · Log 화면 4안</title><style>
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--el:#222;--fill:#2a2a2a;--line:#333;--text:#f2f2f2;--muted:#9a9a9a;--ok:#a78bfa;--okf:#2a2342;--warn:#e3a35a;--warnf:#33261a;--bad:#ef7b6e;
+--UI:#a78bfa;--데이터:#6fc3df;--서버:#e3a35a;--문서:#8ed8b0;--Agent:#ef7b6e;--미분류:#777}
+*{box-sizing:border-box}body{margin:0;background:#0d0d0d;color:var(--text);font:13px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;background:var(--fill);border:1px solid #414141;border-radius:7px;padding:5px 10px}button:hover{border-color:var(--ok)}button[aria-pressed=true]{background:var(--okf);border-color:#6d58b0;color:#dccfff}button.primary{background:var(--ok);color:#1a1230;border-color:var(--ok);font-weight:600}
+small,.muted{color:var(--muted)}h1,h2,h3,h4{margin:0}h1{font-size:18px}h2{font-size:14px}h3{font-size:13px}p{margin:4px 0}
+.switch{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 20px;background:#181818;border-bottom:1px solid var(--line);flex-wrap:wrap}.switch b{margin-right:auto}
+.frame{width:1440px;height:900px;margin:0 auto;display:grid;grid-template-columns:64px minmax(0,1fr) 320px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
+.rail{border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 0;color:#777;background:var(--chrome)}.rail .pj{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;color:#ddd}.rail .pj.on{border-color:#ddd}.rail .ic{width:38px;height:38px;display:grid;place-items:center;border-radius:9px;font-size:16px}.rail .ic.on{border:1px solid #ddd;color:#ddd}.rail .sp{flex:1}.rail .hp{width:48px;border:1px solid var(--line);border-radius:7px;padding:4px;font-size:9px;color:#bbb}.rail .hp i{display:block;height:4px;border-radius:2px;background:var(--ok);margin:2px 0 4px}
+.chat{border-left:1px solid var(--line);background:var(--chrome);display:flex;flex-direction:column;opacity:.55}.chat header{padding:14px;border-bottom:1px solid var(--line);font-weight:600}.chat .b{flex:1;padding:14px;color:var(--muted)}.chat .b div{background:#202020;border:1px solid var(--line);border-radius:8px;height:70px;margin-bottom:10px}.chat footer{padding:14px;border-top:1px solid var(--line)}.chat footer div{height:60px;border:1px solid var(--line);border-radius:8px}
+.main{padding:20px 24px;overflow:auto;min-width:0}.head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}.head .grow{flex:1}
+.card{background:var(--chrome);border:1px solid var(--line);border-radius:10px;padding:12px}
+.chip{display:inline-block;font-size:11px;padding:0 7px;border-radius:9px;border:1px solid;line-height:18px;margin-right:3px;white-space:nowrap}.chip.est{border-style:dashed}
+.state{font-size:11px;border-radius:5px;padding:1px 7px;border:1px solid}.state.temp{color:var(--warn);border-color:#6b4a24;background:var(--warnf)}.state.done{color:#cbbcff;border-color:#4b3d7a;background:var(--okf)}
+.kind{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 6px;white-space:nowrap}
+.note{font-size:11.5px;color:var(--muted);background:#181818;border:1px dashed #3a3a3a;border-radius:7px;padding:6px 9px}
+.warnbox{font-size:12px;color:#f0c58e;background:var(--warnf);border:1px solid #6b4a24;border-radius:7px;padding:6px 9px}
+table{border-collapse:collapse;width:100%;font-size:12px}th{color:var(--muted);font-weight:500;text-align:left;border-bottom:1px solid var(--line);padding:6px}td{padding:6px;border-bottom:1px solid #262626;vertical-align:top}
+.md{background:#161616;border:1px solid var(--line);border-radius:8px;padding:12px 16px}.md h4{font-size:13px;margin:10px 0 3px}.md ul{margin:2px 0;padding-left:18px}.md .id{color:#666;font:10.5px ui-monospace,Menlo,monospace}
+.below{width:1440px;margin:0 auto;padding:22px 24px 40px;display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px}.below pre{margin:0;font:12px/1.65 ui-monospace,Menlo,monospace;white-space:pre;color:#ddd;overflow:auto}.below h3{margin-bottom:8px}.below ul{margin:0;padding-left:18px}.below li{margin:3px 0}.pro{color:#9fe0bd}.con{color:#f0a89e}
+.v{display:none}.v.on{display:block}
+/* v1 */
+.v1grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:12px}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}.cal .dw{font-size:10px;color:var(--muted);text-align:center}.cell{aspect-ratio:1;border-radius:4px;font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid transparent;cursor:pointer;position:relative}.cell i{width:5px;height:5px;border-radius:50%;margin-top:1px}.cell.sel{border-color:#eee}.cell.cf::after{content:'✓';position:absolute;top:0;right:2px;font-size:8px;color:#bbb}
+.bar{display:grid;grid-template-columns:44px 1fr 22px;gap:6px;align-items:center;margin:5px 0;font-size:11px}.bar span{height:8px;border-radius:3px}
+/* v2 */
+.v2grid{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:14px}.daycard{border:1px solid var(--line);border-radius:10px;background:var(--chrome);margin-bottom:10px}.daycard>header{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;flex-wrap:wrap}.stack{display:flex;height:6px;border-radius:3px;overflow:hidden;width:160px}.stack i{display:block;height:100%}.daycard .sum{padding:0 12px 10px;color:#ccc}.tl{border-top:1px solid var(--line);padding:10px 12px 10px 28px;position:relative}.tl::before{content:'';position:absolute;left:16px;top:12px;bottom:12px;width:1px;background:#3a3a3a}.ev{position:relative;padding:4px 0 8px}.ev::before{content:'';position:absolute;left:-15px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--c,#888)}.daycard footer{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line)}
+/* v3 */
+.matrix{display:grid;gap:2px;font-size:10.5px}.matrix .h{color:var(--muted);text-align:center}.matrix .l{color:#ccc;padding-right:6px;display:flex;align-items:center;gap:5px}.matrix .c{height:24px;border-radius:3px;display:grid;place-items:center;color:#111;font-weight:600;cursor:pointer;border:1px solid transparent}.matrix .c.sel{border-color:#fff}
+.dayrow td{background:#1d1d1d;font-weight:600}.v3wrap{position:relative}.drawer{position:absolute;top:0;right:0;width:340px;height:100%;background:#1c1c1c;border-left:1px solid var(--line);box-shadow:-12px 0 30px #0008;padding:14px;overflow:auto}.v3main{padding-right:352px}
+/* v4 */
+.v4grid{display:grid;grid-template-columns:210px minmax(0,1fr) 260px;gap:12px;height:790px}.tree{font:12px/1.9 ui-monospace,Menlo,monospace;color:#ccc;overflow:auto}.tree .f{padding-left:var(--d);white-space:nowrap;cursor:pointer;border-radius:5px}.tree .f.sel{background:var(--okf);color:#e4dbff}.tree .f small{color:#666}.doc{overflow:auto}.human{border:1px dashed #6d58b0;background:#1f1b2b;border-radius:7px;padding:8px 10px;color:#bfb3e6;margin:4px 0}.basket{overflow:auto}.bk{display:flex;gap:7px;padding:6px 0;border-bottom:1px solid #262626;font-size:12px}.bk input{margin-top:3px}
+</style>
+<div class="switch"><b>Log 화면 4안 · 2026-10-15</b>
+<button data-v="1" aria-pressed="true">1안 달력 + 문서</button><button data-v="2">2안 하루 흐름</button><button data-v="3">3안 색인 + 태그 지도</button><button data-v="4">4안 보고서 작업대</button></div>
+
+<div class="frame"><nav class="rail"><div class="pj on">pa</div><div class="pj">de</div><div class="pj" style="border-style:dashed;color:#777">+</div><div style="height:20px"></div><div class="ic">⌂</div><div class="ic">▦</div><div class="ic">▤</div><div class="ic">✎</div><div class="ic">◎</div><div class="ic">⌕</div><div class="ic on">≡</div><div class="ic">⋯</div><div class="sp"></div><div class="hp">CL 52%<i style="width:52%"></i>CX 95%<i style="width:95%"></i></div></nav>
+<main class="main" id="main"></main>
+<aside class="chat"><header>대화 칸 (그대로)</header><div class="b"><div></div><div></div><div style="height:120px"></div></div><footer><div></div></footer></aside></div>
+
+<section class="below" id="below"></section>
+
+<script>
+const TAGS=["UI","데이터","서버","문서","Agent"];const C=t=>getComputedStyle(document.documentElement).getPropertyValue('--'+t).trim()||'#888';
+const chip=(t,est)=>`<span class="chip ${est?'est':''}" style="color:${C(t)};border-color:${C(t)}" ${est?'title="로컬 LLM 제안 — 집계에서 뺌"':''}>${t}${est?'?':''}</span>`;
+// 예시 자료 — patchbay 프로젝트 가상 기록
+const DAYS={6:{n:2,s:"done"},8:{n:5,s:"done"},9:{n:9,s:"done"},10:{n:7,s:"done"},11:{n:3,s:"done"},13:{n:4,s:"done"},14:{n:8,s:"done"},15:{n:12,s:"temp"}};
+const DT={6:{UI:1,문서:1},8:{UI:3,서버:2},9:{Agent:5,서버:3,UI:1},10:{UI:4,데이터:3},11:{문서:3},13:{문서:4},14:{UI:4,문서:3,서버:1},15:{UI:7,데이터:3,문서:2,Agent:1,서버:1}};
+const EV=[
+{id:"todo:71a:done",d:15,t:"16:05",k:"할일",ch:"완료",title:"대시보드 에이전트 칸 제거",tags:["UI"],from:"연결",src:"할일 71a"},
+{id:"todo:69c:deleted",d:15,t:"15:52",k:"할일",ch:"삭제",title:"레일 대화 버튼 색 바꾸기",tags:["UI"],from:"낱말",src:"events.jsonl"},
+{id:"progress:0640",d:15,t:"15:40",k:"진행",ch:"보고",title:"묶인 세션은 그 프로젝트 밖에 못 씀",tags:["Agent","서버"],from:"경로",src:"progress"},
+{id:"progress:0502",d:15,t:"14:02",k:"진행",ch:"보고",title:"체력바 Claude % 를 서버 사용률로",tags:["UI","데이터"],from:"경로",src:"progress"},
+{id:"room:ab12:1015:1-18",d:15,t:"13:40",k:"대화",ch:"발췌 9",title:"체력바 확인 (현재 제목)",tags:["UI"],est:["체력바"],from:"낱말",src:"방 ab12 #1–18",ex:"왼쪽 하단 토큰 사용량 확인해봐 / 얼마나 남았는지 %를 체력바로 …"},
+{id:"cycle:c3:add",d:15,t:"11:20",k:"흐름도",ch:"추가",title:"오류가 났을 때 흐름 그리기",tags:["UI"],from:"연결",src:"cycle-items"},
+{id:"progress:0102",d:15,t:"10:02",k:"진행",ch:"보고",title:"흐름도 밑 세부 항목 트리 표",tags:["UI","데이터"],from:"경로",src:"progress"},
+{id:"git:0763d6f",d:14,t:"21:10",k:"커밋",ch:"커밋",title:"사이드바 메인 아이콘 정리",tags:["UI"],from:"경로",src:"git 0763d6f",files:3},
+{id:"git:37a3ef8",d:14,t:"19:30",k:"커밋",ch:"커밋",title:"개요를 콘솔 안으로",tags:["UI","문서","서버"],from:"경로",src:"git 37a3ef8",files:9},
+{id:"room:3c9e:1014:1-40",d:14,t:"16:00",k:"대화",ch:"발췌 10 (+4)",title:"저장 구조 안3 검토",tags:["문서"],from:"낱말",src:"방 3c9e #1–40"},
+{id:"todo:5e1:add",d:14,t:"11:30",k:"할일",ch:"추가",title:"README를 개요로 옮기기",tags:[],from:"",src:"할일 5e1"},
+{id:"progress:0918",d:13,t:"18:20",k:"진행",ch:"보고",title:"문서 머리말 여섯 곳 정리",tags:["문서"],from:"경로",src:"progress"}];
+const KCOL={진행:"#a78bfa",대화:"#6fc3df",할일:"#e3a35a",흐름도:"#8ed8b0",커밋:"#ddd"};
+const tags=e=>(e.tags.length?e.tags.map(t=>chip(t)).join(""):chip("미분류"))+(e.est||[]).map(t=>chip(t,1)).join("");
+const shade=n=>!n?"#1c1c1c":n<4?"#26213a":n<7?"#3d3266":n<10?"#5f4ca3":"#8b74e0";
+function calendar(sel,range){let h="월화수목금토일".split("").map(c=>`<div class="dw">${c}</div>`).join("")+"<div></div><div></div>";
+for(let d=1;d<=31;d++){const x=DAYS[d];const top=x?Object.entries(DT[d]).sort((a,b)=>b[1]-a[1])[0][0]:null;h+=`<div class="cell ${d===sel?'sel':''} ${x&&x.s==='done'?'cf':''}" style="background:${shade(x?.n)};${range&&range.includes(d)&&d!==sel?'outline:1px solid #555':''}">${d}${top?`<i style="background:${C(top)}"></i>`:''}</div>`}return `<div class="cal">${h}</div>`}
+function tagbars(days){const s={};days.forEach(d=>{for(const[t,n]of Object.entries(DT[d]||{}))s[t]=(s[t]||0)+n});const m=Math.max(1,...Object.values(s));return TAGS.map(t=>`<div class="bar"><span style="background:none;color:#bbb;height:auto">${t}</span><span style="width:${(s[t]||0)/m*100}%;background:${C(t)}"></span><small>${s[t]||0}</small></div>`).join("")}
+function dayDoc(d){const list=EV.filter(e=>e.d===d);return `<div class="md"><small>log/…/2026-10-${d}.md</small>
+<h4>한눈에</h4><p>사건 ${list.length} · 고유 파일 41 · 가장 많이 바뀐 곳 UI 7 · 데이터 3</p>
+${["진행","대화","할일","흐름도","커밋"].map(k=>{const r=list.filter(e=>e.k===k);return r.length?`<h4>${k}</h4><ul>${r.map(e=>`<li>${e.t} <b>${e.title}</b> <span class="kind">${e.ch}</span> ${tags(e)} <span class="id">${e.id}</span>${e.ex?`<br><small>발췌: ${e.ex}</small>`:''}</li>`).join("")}</ul>`:''}).join("")}
+<h4>작업 트리 상태 <small>(조회 시점 — 오늘 변경이 아님)</small></h4><p><small>커밋 안 된 파일 41 · 15:58 기준</small></p>
+<h4>수집</h4><p><small>progress 3 · 방 1 · 할일 3 · 흐름도 1 · git 0 · <span style="color:var(--warn)">미러 지연 가능 — 확정 전 다시 정리 권장</span></small></p></div>`}
+const V={};
+V[1]={title:"달력 + 문서",main:()=>`<div class="head"><h1>Log</h1><small>patchbay · 하루마다 무엇이 바뀌었는지</small><span class="grow"></span><span class="muted" style="font-size:12px">보고서 바탕</span><button>오늘</button><button>이번 주</button><button>이번 달</button></div>
+<div class="v1grid"><div style="display:grid;gap:12px;align-content:start"><div class="card"><div style="display:flex;justify-content:space-between"><button>◀</button><h2>2026년 10월</h2><button>▶</button></div>${calendar(15)}<p style="margin-top:6px"><small>색 = 사건 수 · 점 = 가장 많은 태그 · ✓ = 확정</small></p></div><div class="card"><h3>태그 · 10/15</h3>${tagbars([15])}<p><small>사건 수 기준 · 미분류 0</small></p></div></div>
+<div class="card" style="min-width:0"><div class="head" style="margin-bottom:8px"><h2>2026-10-15 (목)</h2><span class="state temp">잠정</span><span class="grow"></span><button aria-pressed="true">기록</button><button>요약</button></div>
+<div style="display:flex;gap:6px;margin-bottom:8px"><button class="primary">이 날 확정</button><button>다시 정리</button><button>요약 만들기 · 로컬</button></div>${dayDoc(15)}</div></div>
+<div class="card" style="margin-top:12px"><div class="head" style="margin-bottom:4px"><h2>색인</h2><small>7건 · 이 날</small><span class="grow"></span>${TAGS.map(t=>`<button><span style="color:${C(t)}">●</span> ${t}</button>`).join(" ")}</div><table><tr><th>시각</th><th>종류</th><th>변경</th><th>제목</th><th>태그</th><th>출처</th></tr>${EV.filter(e=>e.d===15).map(e=>`<tr><td>${e.t}</td><td><span class="kind">${e.k}</span></td><td>${e.ch}</td><td>${e.title}</td><td>${tags(e)}</td><td><a style="color:var(--ok)">${e.src} ↗</a></td></tr>`).join("")}</table></div>`,
+folder:`workspace/projects/patchbay/log/
+├── config.yaml            태그 규칙 · 요약 모델 · 시간대
+├── events.jsonl           할일 · 흐름도 변동 (D6)
+├── days/
+│   ├── 2026-10-15.md          일일 기록 (잠정이면 다시 씀)
+│   ├── 2026-10-15.events.json 확정 때 사건 보존
+│   ├── 2026-10-15.summary.md  로컬 LLM 요약
+│   └── archive/               다시 만든 앞 판
+├── index/
+│   └── 2026-10.json       월별 색인 (사건 파일에서 다시 만듦)
+└── reports/
+    ├── day-2026-10-15.md
+    ├── week-2026-W42.md
+    └── month-2026-10.md   보고서 바탕 — 사람이 고침`,
+how:["달력에서 날짜를 고르면 오른쪽에 그날 기록 .md가 바로 보인다","요약은 같은 자리의 탭, 확정 · 다시 정리 · 요약 버튼이 문서 위에","색인은 아래에 그날(또는 고른 기간) 사건만"],
+pro:["기획 v1 시안과 같아서 설명이 필요 없다","날짜 → 문서 → 사건의 순서가 요구 R1 그대로","폴더가 평평해 코드 경로 계산이 가장 쉽다"],con:["한 화면에 한 날만 — 주간 흐름을 보려면 날짜를 여러 번 눌러야","days/ 한 폴더에 1년이면 파일 1천 개 이상"]};
+V[2]={title:"하루 흐름",main:()=>`<div class="head"><h1>Log</h1><small>patchbay · 최신 날이 위</small><span class="grow"></span>${TAGS.map(t=>`<button><span style="color:${C(t)}">●</span> ${t}</button>`).join(" ")}<input placeholder="검색" style="background:#161616;border:1px solid #414141;border-radius:7px;padding:5px 9px;color:inherit;width:120px"></div>
+<div class="v2grid"><div>${[15,14,13].map((d,i)=>{const list=EV.filter(e=>e.d===d);const tot=Object.values(DT[d]).reduce((a,b)=>a+b,0);return `<article class="daycard"><header><h2>10/${d} ${["","","","","","","","","","","","","","화","수","목"][d]}</h2><span class="state ${DAYS[d].s}">${DAYS[d].s==='temp'?'잠정':'확정'}</span><small>사건 ${list.length} · 파일 ${[0,0,0,0,0,0,0,0,0,0,0,0,0,6,12,41][d]}</small><span class="stack">${Object.entries(DT[d]).map(([t,n])=>`<i style="width:${n/tot*100}%;background:${C(t)}"></i>`).join("")}</span><span class="grow" style="flex:1"></span><small>${i===0?'▾':'▸'}</small></header>
+<p class="sum">${d===15?'<small>요약 없음 · </small><a style="color:var(--ok)">요약 만들기</a>':d===14?'개요를 콘솔 안으로 옮기고 사이드바 아이콘을 정리했다. 저장 구조 안3을 검토했다. <small>· qwen2.5-14b</small>':'문서 머리말 여섯 곳을 현행으로 고쳤다. <small>· qwen2.5-14b · <span style="color:var(--warn)">낡음</span></small>'}</p>
+${i===0?`<div class="tl">${list.map(e=>`<div class="ev" style="--c:${KCOL[e.k]}"><small>${e.t}</small> <span class="kind">${e.k} · ${e.ch}</span> <b>${e.title}</b> ${tags(e)}${e.ex?`<br><small>발췌: ${e.ex}</small>`:''}</div>`).join("")}</div><footer><button class="primary">이 날 확정</button><button>기록 .md 열기</button><button>다시 정리</button><span style="flex:1"></span><small style="align-self:center">작업 트리: 커밋 안 된 41파일 (조회 시점)</small></footer>`:''}</article>`}).join("")}<p class="muted" style="text-align:center">▾ 10/11 · 10/10 · 10/9 더 보기</p></div>
+<div style="display:grid;gap:12px;align-content:start;position:sticky;top:0"><div class="card"><h3>10월</h3>${calendar(15,[12,13,14,15,16,17,18])}</div><div class="card"><h3>이번 주 (W42)</h3>${tagbars([12,13,14,15])}<button style="width:100%;margin-top:6px">주간 보고서 바탕</button><button style="width:100%;margin-top:6px">월간 보고서 바탕</button></div></div></div>`,
+folder:`workspace/projects/patchbay/log/
+├── config.yaml
+├── events.jsonl
+├── 2026/
+│   ├── 10/
+│   │   ├── 15.md              일일 기록
+│   │   ├── 15.events.json     확정 때 보존
+│   │   ├── 15.summary.md      요약
+│   │   ├── _index.json        이 달 색인
+│   │   └── _month.md          월간 보고서 바탕
+│   └── W42.md                 주간 보고서 바탕
+└── archive/`,
+how:["날짜 카드가 위에서 아래로 — 최신 날만 펼쳐 사건 타임라인","카드 머리에 확정 상태 · 태그 비율 막대 · 요약 한 줄","오른쪽 작은 달력과 주간 태그 · 보고서 버튼이 따라 내려옴"],
+pro:["스크롤만으로 여러 날의 흐름이 읽힌다 — 주간 보고서 쓸 때 가장 자연스럽다","연 · 월 폴더라 Finder · 편집기에서 찾기 쉽고 한 폴더가 작다","요약 한 줄이 카드 머리에 있어 요약 기능의 쓸모가 바로 보인다"],con:["색인 '표'가 따로 없다 — 태그 필터가 카드 안 사건을 거르는 방식","주(W42)가 달을 걸칠 때 어느 폴더인지 규칙이 하나 더 필요","경로 계산이 1안보다 복잡"]};
+V[3]={title:"색인 + 태그 지도",main:()=>{const days=[9,10,11,12,13,14,15];const rows=[...TAGS,"미분류"];
+const mat=`<div class="matrix" style="grid-template-columns:70px repeat(7,1fr) 44px"><div></div>${days.map(d=>`<div class="h">10/${d}${DAYS[d]?.s==='temp'?' ·잠정':''}</div>`).join("")}<div class="h">합</div>${rows.map(t=>{let sum=0;const cells=days.map(d=>{const n=t==="미분류"?(d===14?1:0):(DT[d]?.[t]||0);sum+=n;return `<div class="c ${t==='UI'&&d===15?'sel':''}" style="background:${n?C(t):'#1c1c1c'};opacity:${n?Math.min(1,.35+n/7):1}">${n||''}</div>`}).join("");return `<div class="l"><span style="color:${C(t)}">●</span>${t}</div>${cells}<div class="h">${sum}</div>`}).join("")}</div>`;
+return `<div class="head"><h1>Log</h1><small>patchbay · 무엇이 주로 바뀌었나</small><span class="grow"></span><button>일</button><button aria-pressed="true">주</button><button>월</button><button>◀ W42 ▶</button><span class="muted" style="font-size:12px">보고서 바탕</span><button>이번 주</button></div>
+<div class="v3wrap"><div class="v3main"><div class="card"><div class="head" style="margin-bottom:6px"><h3>태그 지도 · 사건 수</h3><small>칸을 누르면 아래 색인이 그 날 · 태그로 걸러짐</small><span class="grow"></span><button aria-pressed="true">사건 수</button><button>고유 파일 수</button></div>${mat}</div>
+<div class="card" style="margin-top:12px"><div class="head" style="margin-bottom:4px"><h3>색인</h3><small>필터: UI · 10/15 — 5건</small><span class="grow"></span><button>종류 ▾</button><button>변경 ▾</button></div><table><tr><th>시각</th><th>종류 · 변경</th><th>제목</th><th>태그</th><th>출처</th></tr>
+<tr class="dayrow"><td colspan="5">10/15 목 <span class="state temp">잠정</span> <small>· 요약 없음 · <a style="color:var(--ok)">기록 .md</a></small></td></tr>
+${EV.filter(e=>e.d===15&&e.tags.includes("UI")).map((e,i)=>`<tr style="${i===2?'background:#2a2342':''}"><td>${e.t}</td><td><span class="kind">${e.k} · ${e.ch}</span></td><td>${e.title}</td><td>${tags(e)}</td><td><small>${e.src}</small></td></tr>`).join("")}
+<tr class="dayrow"><td colspan="5">10/14 수 <span class="state done">확정</span> <small>· 요약 있음 · <a style="color:var(--ok)">기록 .md</a></small></td></tr>
+${EV.filter(e=>e.d===14).map(e=>`<tr><td>${e.t}</td><td><span class="kind">${e.k} · ${e.ch}</span></td><td>${e.title}</td><td>${tags(e)}</td><td><small>${e.src}</small></td></tr>`).join("")}</table></div></div>
+<aside class="drawer"><div class="head" style="margin-bottom:6px"><h3>사건</h3><span class="grow"></span><button>×</button></div><p><b>체력바 확인</b> <small>(현재 제목)</small></p><p><span class="kind">대화 · 발췌 9</span> 10/15 13:40–15:10</p><p class="id" style="font:11px ui-monospace,Menlo,monospace;color:#777">room:ab12:1015:1-18</p>
+<h4 style="margin:10px 0 4px">사용자 말 발췌</h4><div class="md" style="padding:8px 10px;font-size:12px"><p>13:40 왼쪽 하단에 토큰 사용량을 표기했어. 그게 제대로 동작하는 지 …</p><p>14:10 내가 원하는 건 얼마나 남았는지 %가 알고 싶은거야 …</p><p><small>… 7개 더 · LLM 답은 넣지 않음</small></p></div>
+<h4 style="margin:10px 0 4px">태그가 붙은 까닭</h4><table><tr><td>${chip("UI")}</td><td><small>낱말 「체력바 · 레일」 (config.yaml)</small></td></tr><tr><td>${chip("체력바",1)}</td><td><small>로컬 LLM 제안 — 집계 안 함 · <a style="color:var(--ok)">이 사건에 채택</a></small></td></tr></table>
+<h4 style="margin:10px 0 4px">시각</h4><p><small>말한 시각(sourceAt) 13:40 · 방에 옮긴 시각 13:41</small></p>
+<div style="display:flex;gap:6px;margin-top:10px"><button class="primary">대화방에서 열기 (#1–18)</button><button>그날 기록</button></div></aside></div>`},
+folder:`workspace/projects/patchbay/log/
+├── config.yaml
+├── events/                 원문층 — 허가
+│   ├── changes.jsonl           할일 · 흐름도 변동 (D6)
+│   └── 2026-10-15.json         확정 때 사건 보존
+├── records/                파생층 — 다시 만들 수 있음
+│   └── 2026-10-15.md           일일 기록
+├── index/                  파생층
+│   └── 2026-10.json
+├── summaries/              LLM층 — 출처 해시 · 모델 기록
+│   └── 2026-10-15.md
+└── reports/                저작물층 — 덮지 않음
+    └── week-2026-W42.md`,
+how:["위에 태그 × 날짜 지도 — '무엇이 주로 바뀌었나'가 첫눈에","칸을 누르면 아래 색인이 걸러지고, 줄을 누르면 오른쪽 서랍에 사건 상세","서랍에서 태그 근거 · 발췌 · 말한 시각/옮긴 시각 · 원문 열기"],
+pro:["요구 R3(색인 + 태그로 파악)에 가장 정면으로 답한다","폴더를 층(원문 · 파생 · LLM · 저작물)으로 나눠 Codex 지적(3층 섞임 · 접근 등급)과 맞고, access.yaml 줄을 폴더 단위로 줄 수 있다","사건 수 / 고유 파일 수 전환으로 집계 혼동이 없다"],con:["일일 기록 .md 본문은 한 번 더 눌러야 보인다 — 읽는 문서보다 분석 도구 느낌","한 날의 파일이 네 폴더에 흩어진다"]};
+V[4]={title:"보고서 작업대",main:()=>`<div class="head"><h1>Log</h1><small>patchbay · 기록을 모아 보고서 바탕을 만든다</small><span class="grow"></span><button class="primary">+ 보고서 바탕</button><button>일</button><button aria-pressed="true">주</button><button>월</button></div>
+<div class="v4grid"><div class="card tree">${[
+["log/",0],["days/",1],["2026-10-15.md · 잠정",2],["2026-10-14.md ✓",2,1],["2026-10-13.md ✓",2],["…",2],["summaries/",1],["index/",1],["",0],["<small>문서 폴더</small>",0],["보고서/",0],["주간/",1],["2026-W42.md",2,0,1],["2026-W41.md",2],["월간/",1],["2026-09.md",2],["일간/",1]
+].map(([n,d,s,sel])=>`<div class="f ${sel?'sel':''}" style="--d:${d*14+4}px">${n}</div>`).join("")}<p class="note" style="margin-top:8px;font-family:inherit">보고서는 프로젝트 문서 폴더 — 「폴더 · 문서」와 편집기에서도 보임</p></div>
+<div class="card doc"><div class="head" style="margin-bottom:8px"><h2>주간 보고 · 2026-W42</h2><small>10/12–10/18 · 진행 중인 기간</small><span class="grow"></span><button>편집기에서 열기</button><button>내려받기</button></div>
+<div class="md"><small>보고서/주간/2026-W42.md · 바탕 10/16 09:00 · 일일 기록 4장 (확정 3 · 잠정 1)</small>
+<h4>한 줄 요약</h4><div class="human">사람이 쓰는 칸 — 아래 근거를 보고</div>
+<h4>주요 성과 <small>(진행 did → 요약 순)</small></h4><ul><li>체력바 Claude % 를 서버 사용률로 <span class="id">progress:0502</span></li><li>묶인 세션은 그 프로젝트 밖에 못 씀 <span class="id">progress:0640</span></li><li>개요를 콘솔 안으로 <span class="id">git:37a3ef8</span></li></ul>
+<h4>바뀐 영역</h4><table><tr><th>태그</th><th>사건</th><th>고유 파일</th></tr><tr><td>${chip("UI")}</td><td>12</td><td>23</td></tr><tr><td>${chip("문서")}</td><td>9</td><td>14</td></tr><tr><td>${chip("데이터")}</td><td>3</td><td>4</td></tr></table>
+<h4>끝낸 할일 · 지운 할일</h4><ul><li>대시보드 에이전트 칸 제거 (10/15 완료)</li><li><small>지움: 레일 대화 버튼 색 바꾸기 (10/15)</small></li></ul>
+<h4>막힌 것 · 남은 일</h4><div class="human">사람이 쓰는 칸</div><h4>다음 계획</h4><div class="human">사람이 쓰는 칸</div>
+<p class="warnbox" style="margin-top:8px">10/15은 잠정입니다 — 확정 뒤 「근거 다시 모으기」를 누르면 위 근거 칸만 바뀌고 사람이 쓴 칸은 그대로</p></div></div>
+<div class="card basket"><div class="head" style="margin-bottom:4px"><h3>근거 · W42</h3><span class="grow"></span><small>12건</small></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${TAGS.slice(0,4).map(t=>chip(t)).join("")}</div>
+${EV.slice(0,9).map((e,i)=>`<label class="bk"><input type="checkbox" ${[0,2,3,8].includes(i)?'checked':''}><span><small>10/${e.d} ${e.t} · ${e.k}</small><br>${e.title}<br>${tags(e)}</span></label>`).join("")}<p class="note" style="margin-top:8px">체크한 근거가 문서의 「주요 성과」에 들어감</p></div></div>`,
+folder:`workspace/projects/patchbay/log/      (기계가 만드는 것 — 비공개)
+├── config.yaml
+├── events.jsonl
+├── days/2026-10-15.md · .events.json
+├── summaries/2026-10-15.md
+└── index/2026-10.json
+
+<문서 폴더>/보고서/                     (사람이 쓰는 것)
+├── 일간/2026-10-15.md
+├── 주간/2026-W42.md
+└── 월간/2026-10.md
+  Patchbay: workspace/records/patchbay/보고서/ (비공개)
+  다른 프로젝트: 그 레포의 docs/보고서/ ← 공개 여부 확인 필요`,
+how:["왼쪽 실제 폴더 나무, 가운데 고른 문서, 오른쪽 그 기간 근거 바구니","근거를 체크하면 보고서 바탕의 근거 칸에 들어가고, 사람이 쓰는 칸은 보라 점선","일일 기록도 나무에서 열어 같은 가운데 칸에서 본다"],
+pro:["요구 R4(보고서 쓸 때 바탕)에 가장 가깝다 — 고르는 일과 쓰는 일이 한 화면","보고서가 문서 폴더에 있어 「폴더 · 문서」와 편집기에서 그대로 열린다","폴더 구조가 화면에 그대로 보여 '어디 있나'를 묻지 않는다"],con:["다른 프로젝트는 문서 폴더가 그 레포 안 — 대화 발췌가 담긴 보고서가 공개 레포로 갈 수 있다 (D4 반대 안)","태그 지도 · 달력이 없어 '무엇이 주로 바뀌었나'는 표 하나뿐","가장 많이 새로 만든다 (나무 · 바구니 · 칸 보존 갱신)"]};
+function show(n){document.getElementById('main').innerHTML=V[n].main();const v=V[n];
+document.getElementById('below').innerHTML=`<div class="card"><h3>${n}안 폴더 배치</h3><pre>${v.folder}</pre></div><div class="card"><h3>화면 구성</h3><ul>${v.how.map(x=>`<li>${x}</li>`).join("")}</ul></div><div class="card"><h3>장점 · 대가</h3><ul>${v.pro.map(x=>`<li class="pro">${x}</li>`).join("")}${v.con.map(x=>`<li class="con">${x}</li>`).join("")}</ul></div>`;
+document.querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v==n));history.replaceState(null,"","#v"+n)}
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>show(+b.dataset.v));show(+(location.hash.match(/v(\d)/)?.[1]||1));
+</script></html>

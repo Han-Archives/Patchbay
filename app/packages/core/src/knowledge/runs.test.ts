@@ -4,13 +4,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
-import { readOpsRuns, recordOpsRuns, type OpsRunEntry } from "../runs/opsRuns.js";
+import { readTestRuns, recordTestRuns, type TestRunEntry } from "../runs/testRuns.js";
 import { parseIr, type Ir } from "../types/ir.js";
 import { RELATION_ORIGINS, isRunRelation } from "./contract.js";
 import { auditReplica, knowledgeFromIr, knowledgeFromRuns, runEvidence, runPath } from "./ingest.js";
 
 /**
- * 셋째 줄기 — 3 운영의 실행 (기획 20261008a: 지식 그래프는 운영 뒤, 사용자 결정 2026-10-08).
+ * 셋째 줄기 — 3 테스트의 실행 (기획 20261008a: 지식 그래프는 테스트 뒤, 사용자 결정 2026-10-08).
  * 실행 → 일한 노드 → 요구사항 → 평가 → 문서. 고정 자료 설계(intake → classify → explain → pick, pick이 D1~D4)로.
  */
 
@@ -21,7 +21,7 @@ function loadIr(): Ir {
   return parsed.ir;
 }
 
-const run = (over: Partial<OpsRunEntry>): OpsRunEntry => ({
+const run = (over: Partial<TestRunEntry>): TestRunEntry => ({
   runId: "r1",
   threadId: "t1",
   status: "success",
@@ -49,7 +49,7 @@ describe("실행 행", () => {
       { from: "run:r1", to: "ir:node/classify", kind: "RAN" },
     ]);
     expect(isRunRelation("RAN")).toBe(true);
-    expect(RELATION_ORIGINS.RAN.source).toBe("ops/activity.json · runs[].worked");
+    expect(RELATION_ORIGINS.RAN.source).toBe("test/activity.json · runs[].worked");
   });
 
   it("근거 경로 — 실행 → 노드 → 맡은 요구사항 → 보는 평가 → 찾는 문서", () => {
@@ -67,17 +67,17 @@ describe("실행 행", () => {
     expect(auditReplica(snapshot).runEdges).toBe(1);
   });
 
-  it("ops/activity.json — 실행 id로 합치고, 같은 값이면 다시 쓰지 않는다", async () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-opsruns-"));
-    await recordOpsRuns(home, "demo", [run({ runId: "a", worked: ["intake"] })]);
-    await recordOpsRuns(home, "demo", [run({ runId: "a", worked: ["intake", "classify"] }), run({ runId: "b", startedAt: "2026-10-08T12:00:00Z" })]);
-    const runs = await readOpsRuns(home, "demo");
+  it("test/activity.json — 실행 id로 합치고, 같은 값이면 다시 쓰지 않는다", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-testruns-"));
+    await recordTestRuns(home, "demo", [run({ runId: "a", worked: ["intake"] })]);
+    await recordTestRuns(home, "demo", [run({ runId: "a", worked: ["intake", "classify"] }), run({ runId: "b", startedAt: "2026-10-08T12:00:00Z" })]);
+    const runs = await readTestRuns(home, "demo");
     expect(runs.map((r) => r.runId)).toEqual(["b", "a"]);
     expect(runs[1]!.worked).toEqual(["intake", "classify"]);
-    const file = path.join(home, "projects", "demo", "ops", "activity.json");
+    const file = path.join(home, "projects", "demo", "test", "activity.json");
     const before = fs.statSync(file).mtimeMs;
     await new Promise((r) => setTimeout(r, 15));
-    await recordOpsRuns(home, "demo", [run({ runId: "a", worked: ["intake", "classify"] })]);
+    await recordTestRuns(home, "demo", [run({ runId: "a", worked: ["intake", "classify"] })]);
     expect(fs.statSync(file).mtimeMs).toBe(before);
   });
 });

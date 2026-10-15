@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { projectStudioDir } from "./studioStore.js";
 import { readRoom, readRoomMeta } from "../rooms/store.js";
+import { appendLogChanges, todoChanges } from "../log/changes.js";
 
 /**
  * 프로젝트의 이후 할 일 — 대시보드 오른쪽 「할 일」 칸 (사용자 요청 2026-10-13).
@@ -113,7 +114,12 @@ export function updateTodos(studioHome: string, alias: string, change: (fresh: T
       return merged;
     });
     if (new Set(todos.map(row => row.id)).size !== todos.length) throw new Error("할일 ID가 중복된다.");
-    if (JSON.stringify(fresh) !== JSON.stringify(todos)) await atomicWrite(file, `${JSON.stringify({ todos }, null, 2)}\n`);
+    if (JSON.stringify(fresh) !== JSON.stringify(todos)) {
+      await atomicWrite(file, `${JSON.stringify({ todos }, null, 2)}\n`);
+      // 화면이 상태를 보고 만드는 항목(source)은 사람의 변동이 아니라서 Log에 남기지 않는다.
+      const human = (rows: TodoItem[]) => rows.filter(row => !row.source);
+      await appendLogChanges(studioHome, alias, todoChanges(human(fresh), human(todos), now.toISOString()));
+    }
     await archiveTodos(studioHome, alias, todos);
     return todos;
   });

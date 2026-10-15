@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { OpsPanel } from "./OpsPanel.js";
-import type { OpsActivity } from "./opsContract.js";
+import { TestPanel } from "./TestPanel.js";
+import type { TestActivity } from "./testContract.js";
 
 /**
- * 3 운영 — 만든 에이전트를 여기서 쓴다 (사용자 결정 2026-10-08).
+ * 3 테스트 — 만든 에이전트를 여기서 쓴다 (사용자 결정 2026-10-08).
  * 위: 사용 창(프로젝트가 만든 화면을 그대로). 아래: 「실행 기록」 버튼을 누르면 로그와 설계 견주기가 열린다.
  * 실행 기록은 열려 있지 않아도 읽는다 — 일한 노드를 쌓아 4 · 5 를 여는 사실이 되기 때문이다.
  */
@@ -22,7 +22,7 @@ export function UsePane({
   const [app, setApp] = useState<string | null | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
-  const [activity, setActivity] = useState<OpsActivity | null>(null);
+  const [activity, setActivity] = useState<TestActivity | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastPassed = useRef<number | null>(null);
@@ -45,8 +45,8 @@ export function UsePane({
   useEffect(() => {
     let cancelled = false;
     const read = () =>
-      fetch(`/api/ops/activity?alias=${encodeURIComponent(project)}`)
-        .then((res) => res.json() as Promise<OpsActivity>)
+      fetch(`/api/test/activity?alias=${encodeURIComponent(project)}`)
+        .then((res) => res.json() as Promise<TestActivity>)
         .then((body) => {
           if (cancelled) return;
           setActivity(body);
@@ -65,7 +65,7 @@ export function UsePane({
 
   async function save(url: string) {
     setError(null);
-    const res = await fetch("/api/ops/app", {
+    const res = await fetch("/api/test/app", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ alias: project, url }),
@@ -111,7 +111,7 @@ export function UsePane({
           }}
         >
           <h3>이 프로젝트의 화면 주소</h3>
-          <p className="ops-note">에이전트를 쓰는 화면은 프로젝트가 만든다. Patchbay는 그 화면을 여기에 띄우고, 아래에 실행 기록을 둔다.</p>
+          <p className="test-note">에이전트를 쓰는 화면은 프로젝트가 만든다. Patchbay는 그 화면을 여기에 띄우고, 아래에 실행 기록을 둔다.</p>
           <div className="use-setup-row">
             <input aria-label="화면 주소" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="http://localhost:5180" />
             <button type="submit" className="flow-btn primary">
@@ -141,7 +141,7 @@ export function UsePane({
         </button>
         {open ? (
           <div className="use-log">
-            {activity?.error ? <p className="ops-warn">{activity.error}</p> : null}
+            {activity?.error ? <p className="test-warn">{activity.error}</p> : null}
             {entries.length ? (
               <ol>
                 {entries.map((e) => (
@@ -161,11 +161,11 @@ export function UsePane({
                 ))}
               </ol>
             ) : (
-              <p className="ops-note">아직 실행이 없다 — 위 화면에서 써 보면 여기에 쌓인다.</p>
+              <p className="test-note">아직 실행이 없다 — 위 화면에서 써 보면 여기에 쌓인다.</p>
             )}
             <details className="use-compare">
               <summary>설계와 견주기 · 비용 · 버전</summary>
-              <OpsPanel project={project} revision={revision} onOpenStage={onOpenStage} />
+              <TestPanel project={project} revision={revision} onOpenStage={onOpenStage} />
             </details>
           </div>
         ) : null}

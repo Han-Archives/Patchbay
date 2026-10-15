@@ -4,7 +4,7 @@ import { projectStudioDir } from "../studio/studioStore.js";
 import { parseRunRecord, type RunRecord } from "./types.js";
 
 /**
- * Where run records live (명세 §5.3): `~/.patchbay/projects/<alias>/runs/<runId>.json`
+ * Where run records live (명세 §5.3): `~/.patchbay/projects/<alias>/test-runs/<runId>.json`
  * -- **one run, one file.**
  *
  * 원칙 7: the file is the original and Neo4j is an index a re-ingest rebuilds.
@@ -13,7 +13,10 @@ import { parseRunRecord, type RunRecord } from "./types.js";
  * would make the replica impossible to rebuild.
  */
 
-export const RUNS_DIR_NAME = "runs";
+/** 테스트 단계의 실행 기록 (2026-10-15 단계 이름을 테스트로 바꾸며 `runs/` 에서 옮김). */
+export const RUNS_DIR_NAME = "test-runs";
+/** 테스트 단계가 읽어 쌓는 집계 — 일한 노드 · 실행 로그 · 평가 결과 (전에는 `ops/`). */
+export const TEST_STAGE_DIR_NAME = "test";
 
 export function projectRunsDir(studioHome: string, alias: string): string {
   return path.join(projectStudioDir(studioHome, alias), RUNS_DIR_NAME);

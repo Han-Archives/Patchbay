@@ -24,6 +24,9 @@ import { runProgressWrite } from "./commands/progressWrite.js";
 import { runProjectAdd } from "./commands/projectAdd.js";
 import { runProjectNew } from "./commands/projectNew.js";
 import { runProjectTriage } from "./commands/projectTriage.js";
+import { runQuotaStatusline } from "./commands/quotaStatusline.js";
+import { runLogBuild, runLogConfirm, runLogReport, runLogShow } from "./commands/log.js";
+import { runRoomGuard } from "./commands/roomGuard.js";
 import { runRoomMirror } from "./commands/roomMirror.js";
 import { runScan } from "./commands/scan.js";
 import { runSkillAccept } from "./commands/skillAccept.js";
@@ -56,8 +59,8 @@ program.exitOverride();
 
 // 작업 공간을 여는 명령은 먼저 위치를 확인한다 — 틀리면 빈 작업 공간을 만들지 않고 멈춘다
 // (저장구조.md 3절). 새로 만드는 명령, 작업 공간을 쓰지 않는 `project triage` 는 예외이고,
-// 훅(`room mirror`)은 늘 0으로 끝나야 해서 안에서 확인한다.
-const SKIP_STUDIO_CHECK = new Set(["init", "project add", "project new", "project triage", "room mirror"]);
+// 훅(`room mirror` · `room guard`)과 상태줄(`quota statusline`)은 늘 0으로 끝나야 해서 안에서 확인한다.
+const SKIP_STUDIO_CHECK = new Set(["init", "project add", "project new", "project triage", "room mirror", "room guard", "quota statusline"]);
 program.hook("preAction", (_root, action) => {
   const names: string[] = [];
   for (let cmd: typeof action | null = action; cmd && cmd !== program; cmd = cmd.parent) names.unshift(cmd.name());
@@ -82,6 +85,50 @@ program
   .option("--json", "machine-readable output")
   .action(async (opts) => {
     process.exitCode = await runAction(() => runBackup(opts));
+  });
+
+const log = program.command("log").description("프로젝트별 Log — 일일 기록 · 색인 · 보고서 바탕");
+
+log
+  .command("build")
+  .description("원문을 모아 그 달의 일일 기록과 색인을 정리한다 (기본: 오늘이 든 달)")
+  .requiredOption("--project <alias>", "project alias")
+  .option("--date <YYYY-MM-DD>", "이 날이 든 달")
+  .option("--month <YYYY-MM>", "이 달")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runLogBuild(opts));
+  });
+
+log
+  .command("show")
+  .description("그날 일일 기록을 찍는다 (기본: 오늘)")
+  .requiredOption("--project <alias>", "project alias")
+  .option("--date <YYYY-MM-DD>", "날짜")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runLogShow(opts));
+  });
+
+log
+  .command("confirm")
+  .description("그날을 확정한다 — 사건을 보존하고 이후 원문이 바뀌어도 그대로 둔다")
+  .requiredOption("--project <alias>", "project alias")
+  .requiredOption("--date <YYYY-MM-DD>", "날짜")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runLogConfirm(opts));
+  });
+
+log
+  .command("report")
+  .description("일 · 주 · 월 보고서 바탕을 만든다 — 이미 있으면 덮지 않는다")
+  .requiredOption("--project <alias>", "project alias")
+  .requiredOption("--period <period>", "day · week · month")
+  .option("--key <key>", "2026-10-15 · 2026-W42 · 2026-10 (기본: 오늘이 든 기간)")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runLogReport(opts));
   });
 
 const project = program.command("project").description("Manage registered projects");
@@ -227,11 +274,11 @@ knowledge
 
 const runs = program
   .command("runs")
-  .description("Collect run records and hold them against the design — 5단계 운영 (명세 §5)");
+  .description("Collect run records and hold them against the design — 5단계 테스트 (명세 §5)");
 
 runs
   .command("collect")
-  .description("File a normalized §5.2 run record at runs/<runId>.json")
+  .description("File a normalized §5.2 run record at test-runs/<runId>.json")
   .option("--project <alias>", "alias of the registered project")
   .option("--file <path>", "a run record, or an array of them, already normalized to §5.2")
   .option("--json", "machine-readable output")
@@ -389,6 +436,26 @@ room
   )
   .action(async () => {
     process.exitCode = await runRoomMirror();
+  });
+
+room
+  .command("guard")
+  .description(
+    "Claude Code hook (PreToolUse): once this session is bound to a project with MCP room_bind, deny file writes outside that project's folder. Reads the hook JSON on stdin; always exits 0",
+  )
+  .action(async () => {
+    process.exitCode = await runRoomGuard();
+  });
+
+const quota = program.command("quota").description("LLM subscription quota (the console's HP bars)");
+
+quota
+  .command("statusline")
+  .description(
+    "Claude Code statusLine command: record the plan's 5-hour/7-day usage (rate_limits) for the console HP bar and print what is left. Reads the status JSON on stdin; always exits 0",
+  )
+  .action(async () => {
+    process.exitCode = await runQuotaStatusline();
   });
 
 try {

@@ -65,9 +65,9 @@ export function RoomExecutionPanel({ project, roomId, members, execution, waitin
   const changed = execution && plan && execution.plan.digest !== plan.digest;
   const phaseIndex = execution?.phase === "act" ? 0 : ["check", "check_failed"].includes(execution?.phase ?? "") ? 1
     : ["deploy", "deploy_approval", "done"].includes(execution?.phase ?? "") ? 2 : -1;
-  return <section className="room-execution" aria-label="운영 실행">
+  return <section className="room-execution" aria-label="테스트 실행">
     {execution ? <>
-      <div className="room-phase-rail" aria-label="운영 실행 단계">{["Act · 수행", "Check · 검증", "Deploy · 적용"].map((s, i) =>
+      <div className="room-phase-rail" aria-label="테스트 실행 단계">{["Act · 수행", "Check · 검증", "Deploy · 적용"].map((s, i) =>
         <span key={s} className={i === phaseIndex ? "is-current" : i < phaseIndex ? "is-passed" : ""}>{i < phaseIndex ? "✓ " : ""}{s}</span>)}</div>
       <div className="room-execution-status"><b>{PHASE[execution.phase]}</b><small>채택본 v{execution.plan.version} · {execution.threadId.slice(0, 10)}</small></div>
       <details><summary>채택된 Plan · 읽기 전용</summary><p>{execution.plan.goal}</p><ul>{execution.plan.requirements.map(r => <li key={r.id}>{r.text}{r.fit ? <small>완료 기준: {r.fit}</small> : null}</li>)}</ul></details>
@@ -92,14 +92,14 @@ export function RoomExecutionPanel({ project, roomId, members, execution, waitin
       {!changed && !["done", "failed", "consult"].includes(execution.phase) ? <button type="button" className="flow-btn" disabled={locked} onClick={() => void action("sync")}>LangGraph 상태 확인 · 이어가기</button> : null}
       <details><summary>요구 변경 · 상담 재검토</summary><textarea aria-label="상담으로 보낼 변경" value={consultNote} onChange={e => setConsultNote(e.target.value)} placeholder="요구 누락·해석 오류·범위 변경" />
         <button type="button" className="flow-btn" disabled={locked || !consultNote.trim()} onClick={async () => {
-          if (await action("consult", { note: consultNote })) onConsult(`운영 대화 ${roomId} · 채택본 v${execution.plan.version}\n${consultNote}`);
+          if (await action("consult", { note: consultNote })) onConsult(`테스트 대화 ${roomId} · 채택본 v${execution.plan.version}\n${consultNote}`);
         }}>관련 실행 대기 · 상담으로 보내기</button></details>
     </> : null}
-    {showSetup && !active ? <details className="room-execution-setup"><summary>운영 실행 설정{execution ? " · 새 실행" : ""}</summary>
+    {showSetup && !active ? <details className="room-execution-setup"><summary>테스트 실행 설정{execution ? " · 새 실행" : ""}</summary>
       {!plan ? <><p>{planError || "채택본 확인 중"}</p><button type="button" className="flow-btn" onClick={() => onConsult()}>상담에서 설계 채택</button></> : <>
         <p>채택본 v{plan.version} · {plan.requirements.length}개 요구사항</p>
         {!roomId || enabled.length < 2 ? <button type="button" className="flow-btn" onClick={onAddMembers}>리더와 별도 검토자 LLM 추가</button> : null}
-        <label>운영 리더<select aria-label="운영 리더" value={leaderId} onChange={e => setLeader(e.target.value)}>{enabled.map(m => <option key={m.id} value={m.id}>{label(m)}</option>)}</select></label>
+        <label>테스트 리더<select aria-label="테스트 리더" value={leaderId} onChange={e => setLeader(e.target.value)}>{enabled.map(m => <option key={m.id} value={m.id}>{label(m)}</option>)}</select></label>
         <label>독립 검토자<select aria-label="독립 검토자" value={reviewerId} onChange={e => setReviewer(e.target.value)}>{enabled.map(m => <option key={m.id} value={m.id}>{label(m)}</option>)}</select></label>
         <label>자동 시험 명령<input aria-label="자동 시험 명령" value={testCommand} onChange={e => setTest(e.target.value)} /></label>
         <label>적용 명령 · 선택<input aria-label="적용 명령" value={deployCommand} onChange={e => setDeploy(e.target.value)} placeholder='["pnpm", "deploy:staging"]' /></label>

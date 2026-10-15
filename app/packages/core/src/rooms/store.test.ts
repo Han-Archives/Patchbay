@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { roomMemory } from "./memory.js";
+import { DEFAULT_ROOM_MODES, readModes, writeModes } from "./modes.js";
 import { appendRoomMessage, displayRoomTitle, listRooms, readRoom, readRoomMeta, roomPrompt, roomStatus, roomTitle, roundKind, roundPrompt, writeRoomMeta } from "./store.js";
 
 describe("대화방 기록", () => {
@@ -83,5 +84,27 @@ describe("대화방 기록", () => {
       { seq: 0, at: "t", role: "memory", text: "맥락. 이전 대화 「구멍을 봐 줘」에서 옮긴 요약이다.", sourceId: "older" },
     ]);
     expect(title).toBe("맥락 · 구멍을 봐 줘");
+  });
+
+  it("모드 목록은 기본 6종으로 시작하고 저장 · 방 메타데이터 · 프롬프트 규약에 반영된다", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-room-modes-"));
+    const defaults = await readModes(home, "demo");
+    expect(defaults.map((m) => m.id)).toEqual(["discuss", "report", "planning", "design", "study", "coding"]);
+    const custom = [...DEFAULT_ROOM_MODES, { id: "arch", name: "아키텍처 점검", icon: "planning" as const, color: "#123456", execution: "read" as const, prompt: "경계 위반만 찾는다.", agentIds: ["a1", "a2"] }];
+    await writeModes(home, "demo", custom);
+    expect((await readModes(home, "demo")).at(-1)).toMatchObject({ id: "arch", name: "아키텍처 점검", agentIds: ["a1", "a2"] });
+
+    await writeRoomMeta(home, "demo", "r1", { title: null, kept: false, modeId: "planning", members: [] });
+    expect((await readRoomMeta(home, "demo", "r1")).modeId).toBe("planning");
+
+    const messages = [{ seq: 0, at: "t", role: "user" as const, text: "단계별로 쪼개 줘" }];
+    const member = { speaker: "claude-code" as const, model: "opus", role: "설계한다.", name: "수리" };
+    const readPrompt = roundPrompt(messages, member, "talk", defaults.find((m) => m.id === "planning"));
+    expect(readPrompt).toContain("모드: 플래닝");
+    expect(readPrompt).toContain("읽기 전용 모드:");
+
+    const editPrompt = roundPrompt(messages, member, "talk", defaults.find((m) => m.id === "report"));
+    expect(editPrompt).toContain("모드: 보고서 작성");
+    expect(editPrompt).toContain("문서 · 시안 작성:");
   });
 });

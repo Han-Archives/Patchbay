@@ -63,6 +63,8 @@ describe("tool inventory", () => {
         "list_pending_requests",
         "list_projects",
         "llm_status",
+        "log_build",
+        "log_read",
         "place_on_board",
         "progress_write",
         "room_bind",

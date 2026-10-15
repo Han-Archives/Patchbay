@@ -1,4 +1,4 @@
-import { readOpsRuns } from "../runs/opsRuns.js";
+import { readTestRuns } from "../runs/testRuns.js";
 import { readInferred, readOverlay } from "../studio/projectFiles.js";
 import type { KnowledgeSnapshot } from "./contract.js";
 import { auditReplica, knowledgeFromIr, knowledgeFromRuns, mergeSnapshots, type ReplicaAudit } from "./ingest.js";
@@ -24,9 +24,9 @@ export async function readKnowledgeReplica(studioHome: string, alias: string): P
   const overlay = await readOverlay(studioHome, alias);
   const scan = graphFromInferred(inferred, overlay);
   let snapshot = overlay.ir ? mergeSnapshots(scan, knowledgeFromIr(overlay.ir)) : scan;
-  // 셋째 줄기 — 3 운영의 실행 (기획 20261008a). 원본은 ops/activity.json.
+  // 셋째 줄기 — 3 테스트의 실행 (기획 20261008a). 원본은 test/activity.json.
   if (overlay.ir) {
-    const runs = knowledgeFromRuns(await readOpsRuns(studioHome, alias), overlay.ir);
+    const runs = knowledgeFromRuns(await readTestRuns(studioHome, alias), overlay.ir);
     snapshot = { nodes: [...snapshot.nodes, ...runs.nodes], edges: [...snapshot.edges, ...runs.edges] };
   }
   return { snapshot, audit: auditReplica(snapshot), irVersion: overlay.ir?.version ?? null };

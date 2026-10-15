@@ -125,7 +125,7 @@ describe("답 → 설계도", () => {
 
 describe("요구사항 명세 관례 (29148 · Volere · PRD · ISO 25010 · MoSCoW)", () => {
   const REFS = [
-    { id: "F1", title: "기존 운영 문서", kind: "link" as const, uri: "https://example.com/ops" },
+    { id: "F1", title: "기존 테스트 문서", kind: "link" as const, uri: "https://example.com/ops" },
     { id: "F2", title: "화면 시안", kind: "image" as const, uri: "F2-ui.png" },
   ];
   const full: SurveyAnswers = {

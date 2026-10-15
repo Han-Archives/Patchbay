@@ -13,19 +13,26 @@ import {
   readRoom,
   displayRoomTitle,
   readAgents,
+  readModes,
   readRoomMeta,
   readStudio,
   roomStatus,
   roundKind,
   roundPrompt,
   todosPath,
+  readTodoPreparations,
+  latestPreparations,
+  cycleItemsPath,
   readTodos,
   updateTodos,
+  recordLlmQuotaExhausted,
   writeAgents,
+  writeModes,
   type RoundKind,
   writeRoomMeta,
   type RoomMember,
   type RoomMeta,
+  type RoomMode,
   type RoomSpeaker,
 } from "@patchbay/core";
 import { resolveBin } from "./processHost.js";
@@ -64,7 +71,7 @@ export interface RoomTurnRequest {
   /** Claude `--effort`. medium 또는 high. */
   effort?: "low" | "medium" | "high";
   /**
-   * 일반 토의는 기본 권한. 운영 모델 호출은 명시적으로 읽기/편집 범위를 제한한다.
+   * 일반 토의는 기본 권한. 테스트 모델 호출은 명시적으로 읽기/편집 범위를 제한한다.
    * `apply` 는 대화방 보내기 — 요청이면 그 LLM이 직접 프로젝트를 고치고 검사 명령까지 돌린다. 커밋은 열고, 푸시 · 삭제는 막는다.
    */
   execution?: "read" | "edit" | "apply";
@@ -123,10 +130,17 @@ export function parseRoomStdout(stdout: string): { text: string; usage?: { input
 function readUsage(stdout: string): { input: number; output: number } | undefined {
   for (const line of stdout.trim().split("\n").reverse()) {
     try {
-      const body = JSON.parse(line) as { usage?: { input_tokens?: unknown; output_tokens?: unknown } };
-      const input = body.usage?.input_tokens;
+      const body = JSON.parse(line) as {
+        usage?: { input_tokens?: unknown; output_tokens?: unknown; cached_input_tokens?: unknown };
+      };
+      const rawInput = body.usage?.input_tokens;
       const output = body.usage?.output_tokens;
-      if (typeof input === "number" && typeof output === "number" && input >= 0 && output >= 0) {
+      const cached = body.usage?.cached_input_tokens;
+      if (typeof rawInput === "number" && typeof output === "number" && rawInput >= 0 && output >= 0) {
+        const input =
+          typeof cached === "number" && cached > 0 && cached <= rawInput
+            ? rawInput - cached
+            : rawInput;
         return { input, output };
       }
     } catch {
@@ -257,7 +271,7 @@ export const defaultRoomRunner: RoomRunner = async (req) => {
     const tools = req.execution === "edit" ? "Read,Grep,Glob,Edit,Write" : "Read,Grep,Glob";
     args.push("--tools", tools, "--allowedTools", tools, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
   }
-  if (req.execution && req.speaker === "grok") return { ok: false, kind: "error", text: "Grok의 운영 도구 권한 제한은 아직 확인되지 않았다. 읽기·편집 권한을 제한할 수 있는 담당을 선택한다.", ms: 0 };
+  if (req.execution && req.speaker === "grok") return { ok: false, kind: "error", text: "Grok의 테스트 도구 권한 제한은 아직 확인되지 않았다. 읽기·편집 권한을 제한할 수 있는 담당을 선택한다.", ms: 0 };
   const run = await runProcess(req.bin, args, req.cwd, req.timeoutMs, undefined, req.signal);
   const ms = Date.now() - started;
   if (req.signal?.aborted) return { ok: false, kind: "stopped", text: "사람이 중단했다.", ms };
@@ -273,6 +287,15 @@ const running = new Set<string>();
 const stoppers = new Map<string, AbortController>();
 /** 고칠 수 있는 사람이 낀 바퀴는 프로젝트마다 한 번에 하나 — 두 방이 같은 파일을 동시에 고치지 않게. */
 const applying = new Set<string>();
+
+/** 사전 준비도 기존 실행 잠금을 공유한다. 프로젝트별 한 작업, 대화별 한 호출. */
+export function claimPreparationRoom(alias: string, roomId: string) {
+  const key = `${alias}/${roomId}`;
+  if (runningRoomAliases().includes(alias) || applying.has(alias)) throw new Error("프로젝트의 다른 LLM 작업이 끝난 뒤 진행해주세요.");
+  const controller = new AbortController();
+  running.add(key); applying.add(alias); stoppers.set(key, controller);
+  return { signal: controller.signal, abort: () => controller.abort(), release: () => { running.delete(key); applying.delete(alias); stoppers.delete(key); } };
+}
 
 /** 손댄 파일(git 기준)과 그 수정 시각. git 저장소가 아니면 null. */
 export type DirtySnapshot = (cwd: string) => Promise<Map<string, number> | null>;
@@ -435,6 +458,88 @@ export async function saveAgents(
   return { ok: true, agents };
 }
 
+export function checkModes(modes: RoomMode[]): string | null {
+  const seen = new Set<string>();
+  for (const mode of modes) {
+    const name = mode.name.trim();
+    if (!name) return "모드 이름이 비어 있다.";
+    if (seen.has(name)) return "같은 이름의 모드를 두 번 등록하지 않는다.";
+    seen.add(name);
+  }
+  return null;
+}
+
+export async function loadModes(
+  studioHome: string,
+  alias: string,
+): Promise<{ ok: true; modes: RoomMode[] } | { ok: false; status: 404; error: string }> {
+  const studio = await readStudio(studioHome);
+  if (!studio.projects.some((p) => p.alias === alias)) return { ok: false, status: 404, error: `"${alias}" 는 등록된 프로젝트가 아니다.` };
+  return { ok: true, modes: await readModes(studioHome, alias) };
+}
+
+export async function saveModes(
+  studioHome: string,
+  input: { alias: string; modes: RoomMode[] },
+): Promise<{ ok: true; modes: RoomMode[] } | { ok: false; status: 400 | 404; error: string }> {
+  const problem = checkModes(input.modes);
+  if (problem) return { ok: false, status: 400, error: problem };
+  const studio = await readStudio(studioHome);
+  if (!studio.projects.some((p) => p.alias === input.alias)) return { ok: false, status: 404, error: `"${input.alias}" 는 등록된 프로젝트가 아니다.` };
+  const modes = input.modes.map((mode) => ({ ...mode, id: mode.id || randomUUID(), name: mode.name.trim() }));
+  await writeModes(studioHome, input.alias, modes);
+  return { ok: true, modes };
+}
+
+export async function saveRoomMode(
+  studioHome: string,
+  input: { alias: string; roomId?: string; modeId: string | null; now?: () => Date },
+): Promise<{ ok: true; roomId: string; modeId: string | null; members: RoomMember[] } | { ok: false; status: 400 | 404 | 409; error: string }> {
+  const studio = await readStudio(studioHome);
+  if (!studio.projects.some((p) => p.alias === input.alias)) {
+    return { ok: false, status: 404, error: `"${input.alias}" 는 등록된 프로젝트가 아니다.` };
+  }
+  const modes = await readModes(studioHome, input.alias);
+  const picked = input.modeId ? modes.find((m) => m.id === input.modeId) ?? null : null;
+  if (input.modeId && !picked) {
+    return { ok: false, status: 400, error: "선택한 모드가 목록에 없다." };
+  }
+  const roomId = input.roomId ?? newRoomId(input.now?.());
+  if (input.roomId) {
+    const existing = await readRoom(studioHome, input.alias, roomId);
+    if (!existing) return { ok: false, status: 404, error: `대화방 ${roomId} 가 없다.` };
+  }
+  const meta = await ensureRoom(studioHome, input.alias, roomId);
+  if (meta.kept) return { ok: false, status: 409, error: "이 방은 읽기만 된다." };
+  if (meta.execution && !["done", "failed", "consult"].includes(meta.execution.phase)) {
+    return { ok: false, status: 409, error: "진행 중인 실행에서는 모드를 바꾸지 않는다." };
+  }
+  let members = meta.members;
+  if (picked?.agentIds && picked.agentIds.length > 0) {
+    const agents = await readAgents(studioHome, input.alias);
+    const ordered: RoomMember[] = [];
+    for (const agentId of picked.agentIds) {
+      const inRoom = members.find((m) => m.id === agentId);
+      if (inRoom) {
+        ordered.push({ ...inRoom, enabled: true });
+        continue;
+      }
+      const inAgents = agents.find((a) => a.id === agentId);
+      if (inAgents) {
+        ordered.push({ ...inAgents, id: inAgents.id ?? randomUUID(), enabled: true });
+      }
+    }
+    if (ordered.length > 0) {
+      const chosenIds = new Set(ordered.map((m) => m.id));
+      const rest = members.filter((m) => !chosenIds.has(m.id)).map((m) => ({ ...m, enabled: false }));
+      members = [...ordered, ...rest];
+    }
+  }
+  const nextModeId = picked ? picked.id : null;
+  await writeRoomMeta(studioHome, input.alias, roomId, { ...meta, members, modeId: nextModeId });
+  return { ok: true, roomId, modeId: nextModeId, members };
+}
+
 export async function removeRoom(
   studioHome: string,
   input: { alias: string; roomId: string },
@@ -447,7 +552,7 @@ export async function removeRoom(
     return { ok: false, status: 409, error: "이 대화방은 답을 기다리는 중이다." };
   }
   const meta = await readRoomMeta(studioHome, input.alias, input.roomId);
-  if (meta.execution && !["done", "failed", "consult"].includes(meta.execution.phase)) return { ok: false, status: 409, error: "진행 중인 운영 실행은 종료하거나 상담으로 넘긴 뒤 삭제한다." };
+  if (meta.execution && !["done", "failed", "consult"].includes(meta.execution.phase)) return { ok: false, status: 409, error: "진행 중인 테스트 실행은 종료하거나 상담으로 넘긴 뒤 삭제한다." };
   let gone = false;
   try {
     gone = await deleteRoom(studioHome, input.alias, input.roomId);
@@ -520,14 +625,19 @@ export async function sendRoomTurn(
   if (input.roomId && !existing) return { ok: false, status: 404, error: `대화방 ${roomId} 가 없다.` };
   const meta = existing ? await readRoomMeta(studioHome, input.alias, roomId) : await ensureRoom(studioHome, input.alias, roomId);
   if (meta.kept) return { ok: false, status: 409, error: "이 방은 읽기만 된다. 이 방에서 계속하면 다시 말한다." };
-  if (meta.execution) return { ok: false, status: 409, error: "운영 실행 방에서는 실행 버튼을 사용한다. 새 요구는 상담으로 보낸다." };
+  if (meta.execution) return { ok: false, status: 409, error: "테스트 실행 방에서는 실행 버튼을 사용한다. 새 요구는 상담으로 보낸다." };
 
   const kind = input.round ?? roundKind(text);
   const live = meta.members.filter((member) => member.enabled !== false);
   if (kind && live.length === 0) {
     return { ok: false, status: 400, error: "켜진 사람이 없다. LLM에서 사람을 켜면 대화 화면에 아이콘이 나온다." };
   }
-  const acts = Boolean(kind) && live.some(canApply);
+  const preparedReview = latestPreparations(await readTodoPreparations(studioHome, input.alias)).find(v => v.roomId === roomId && v.status !== "done");
+  const activeMode = preparedReview
+    ? { id: "preparation-review", name: "준비 결과 검토", execution: "read" as const, prompt: "준비 결과에 대한 질문에 답한다. 파일을 바꾸거나 업무를 실행하지 않는다. 실행은 준비 결과의 승인 버튼, 수정은 수정 요청을 사용하도록 안내한다." }
+    : meta.modeId ? (await readModes(studioHome, input.alias)).find((m) => m.id === meta.modeId) ?? null : null;
+  const modeExec = activeMode?.execution ?? "apply";
+  const acts = Boolean(kind) && modeExec !== "read" && live.some(canApply);
   if (acts && applying.has(input.alias)) return { ok: false, status: 409, error: "이 프로젝트의 다른 대화방에서 LLM이 일하는 중이다. 끝난 뒤 보낸다." };
   if (acts) {
     const queue = (await readTodos(studioHome, input.alias)).filter(todo => !todo.done && !todo.inactive);
@@ -535,8 +645,16 @@ export async function sendRoomTurn(
     if (index > 0) return { ok: false, status: 409, error: `먼저 위의 할일 「${queue[0]!.title}」을 완료해주세요. 먼저 진행할 작업이면 할일 순서를 바꿔주세요.` };
   }
 
-  if (text) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text }, now());
-  if (input.round) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text: input.round === "talk" ? "대화 시작" : "토의 시작" }, now());
+  const modeTag = activeMode
+    ? {
+        modeId: activeMode.id,
+        modeName: activeMode.name,
+        ...(activeMode.icon ? { modeIcon: activeMode.icon } : {}),
+        ...(activeMode.color ? { modeColor: activeMode.color } : {}),
+      }
+    : {};
+  if (text) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text, ...modeTag }, now());
+  if (input.round) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text: input.round === "talk" ? "대화 시작" : "토의 시작", ...(!text ? modeTag : {}) }, now());
   if (!kind) return { ok: true, roomId, done: Promise.resolve() };
 
   running.add(key);
@@ -555,6 +673,10 @@ export async function sendRoomTurn(
         "기존 배열 순서와 id·at·roomId·source·inactive를 보존한다. 완료하면 completedAt에 현재 ISO 시각을 남긴다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
         "사용자가 명시한 새 작업 요구사항과 실행 중 발생한 미해결 오류·후속 작업을 구체적인 할일로 목록 맨 아래에 추가한다. 같은 미완료 항목이 이미 있으면 중복 추가하지 않는다. 6건은 화면 표시 기준일 뿐 저장 개수 제한이 아니다. 기존 할일을 새 목록으로 교체하거나 6건으로 잘라내지 않는다.",
         "방금 끝낸 항목은 done=true로 보존하고, 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다.",
+        "작업을 계획했다면 대시보드 흐름도의 세부 항목에도 남긴다. 사용자가 보고 무엇을 할지 알 수 있게 한다.",
+        `세부 항목 파일: ${cycleItemsPath(studioHome, input.alias)}`,
+        '형식: {"items":[{"id":"고유한 값","step":"design|build|test|review","task":"작업 이름","name":"업무명","desc":"무엇을 하는지 짧게","tag":"UI|Agent|데이터|서버|문서","source":"llm","at":"ISO 시각"}]}',
+        "task는 흐름도 표의 작업 이름(설계는 PRD 주제, 구현·테스트는 LangGraph 노드 이름)과 같게 쓴다. name은 80자, desc는 200자 이하. 새 항목은 source를 llm으로 해서 맨 아래에 추가한다. 같은 작업 아래 같은 이름이 있으면 추가하지 않는다. 기존 항목의 id·todoId와 source가 user인 항목은 그대로 둔다.",
       ].join("\n");
       for (const member of live) {
         if (stop.signal.aborted) break;
@@ -565,7 +687,14 @@ export async function sendRoomTurn(
           continue;
         }
         const after = await readRoom(studioHome, input.alias, roomId);
-        const act = canApply(member);
+        const canEdit = canApply(member);
+        const memberExecution: "read" | "edit" | "apply" | undefined =
+          modeExec === "read"
+            ? (preparedReview || canEdit ? "read" : undefined)
+            : modeExec === "edit"
+              ? (canEdit ? "edit" : undefined)
+              : (canEdit ? "apply" : undefined);
+        const act = memberExecution === "apply" || memberExecution === "edit";
         const before = act ? await snapshot(project.path) : null;
         const result = await runner({
           speaker: member.speaker,
@@ -573,11 +702,11 @@ export async function sendRoomTurn(
           role: member.role,
           ...(member.effort ? { effort: member.effort } : {}),
           bin,
-          prompt: `${roundPrompt(after?.messages ?? [], member, kind)}${act ? `\n${todoInstruction}` : ""}`,
+          prompt: `${roundPrompt(after?.messages ?? [], member, kind, activeMode)}${memberExecution === "apply" ? `\n${todoInstruction}` : ""}`,
           cwd: project.path,
           timeoutMs: deps.timeoutMs ?? (act ? ROOM_ACT_TIMEOUT_MS : ROOM_TURN_TIMEOUT_MS),
-          ...(act ? { execution: "apply" as const } : {}),
-          ...(act ? { writeDirs: [path.dirname(todoFile)] } : {}),
+          ...(memberExecution ? { execution: memberExecution } : {}),
+          ...(memberExecution === "apply" ? { writeDirs: [path.dirname(todoFile)] } : {}),
           signal: stop.signal,
         });
         const later = before ? await snapshot(project.path) : null;
@@ -600,6 +729,9 @@ export async function sendRoomTurn(
             now(),
           );
         } else {
+          if (member.speaker === "claude-code" || member.speaker === "codex") {
+            await recordLlmQuotaExhausted(studioHome, member.speaker, result.text, now()).catch(() => undefined);
+          }
           await appendRoomMessage(
             studioHome,
             input.alias,
@@ -647,6 +779,7 @@ export async function roomReadView(studioHome: string, alias: string, id: string
     displayTitle: displayRoomTitle(meta.title, read.messages),
     kept: meta.kept,
     members: meta.members,
+    modeId: meta.modeId ?? null,
     execution: meta.execution ?? null,
     status: roomStatus(read.messages),
     running: isRoomRunning(alias, id),

@@ -787,3 +787,43 @@ describe("POST /api/project/hidden", () => {
     expect((await post({ alias: "nope", hidden: true })).status).toBe(404);
   });
 });
+
+describe("GET · POST /api/llm-quota", () => {
+  it("스냅샷을 반환하고 체력통 설정 · 수동 회복을 반영한다", async () => {
+    const studioHome = tmpStudioHome();
+    await ensureStudioInitialized(studioHome);
+    const app = createFlowApp({ studioHome });
+    const post = (body: unknown) =>
+      app.request("/api/llm-quota", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const getRes = await app.request("/api/llm-quota");
+    expect(getRes.status).toBe(200);
+    const initial = (await getRes.json()) as { preset: string; providers: Array<{ provider: string; hpPct: number | null }> };
+    expect(initial.preset).toBe("max5x");
+    expect(initial.providers.map((p) => p.provider)).toEqual(["claude-code", "codex"]);
+    expect(initial.providers[0]?.hpPct).toBeNull();
+    expect(initial.providers[1]?.hpPct).toBe(100);
+
+    const setRes = await post({
+      preset: "custom",
+      caps: {
+        "claude-code": { sessionTokens: 500_000, weeklyTokens: 2_000_000 },
+      },
+    });
+    expect(setRes.status).toBe(200);
+    const updated = (await setRes.json()) as {
+      preset: string;
+      providers: Array<{ provider: string; session: { capTokens: number } }>;
+    };
+    expect(updated.preset).toBe("custom");
+    expect(updated.providers[0]?.session.capTokens).toBe(500_000);
+
+    const recRes = await post({ action: "recover", provider: "claude-code" });
+    expect(recRes.status).toBe(200);
+  });
+});
+

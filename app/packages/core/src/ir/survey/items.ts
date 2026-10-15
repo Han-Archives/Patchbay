@@ -573,7 +573,7 @@ export const SURVEY_ITEMS: SurveyItemDef[] = [
     id: "q.correct",
     cell: "1.7",
     ask: "사용자가 틀린 결과를 고칠 수 있나요?",
-    help: "고친 것이 다음 판의 시험이 되면 에이전트가 점점 나아집니다(5 운영 → 1 설계).",
+    help: "고친 것이 다음 판의 시험이 되면 에이전트가 점점 나아집니다(5 테스트 → 1 설계).",
     kind: "single",
     options: [
       { value: "yes", label: "예 — 고친 것을 남겨 시험으로 쓴다" },

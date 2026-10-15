@@ -32,7 +32,7 @@ function graphPort(): LangGraphPort {
   vm.runInNewContext(code.outputText, { exports: {}, require: () => ({ Annotation, StateGraph: Builder, START: "__start__", END: "__end__", interrupt }) });
   return {
     url: "http://graph.test", probe: async () => true,
-    listAssistants: async () => [{ id: "ops", name: "Operations", graphId: "patchbay-operations" }],
+    listAssistants: async () => [{ id: "test", name: "Test", graphId: "patchbay-test" }],
     getGraph: async () => null, listThreads: async () => [], listRuns: async () => [], listHistory: async () => [],
     createThread: async () => "thread-1",
     getState: async () => ({ values: state, next: node === "__end__" ? [] : [node], tasks: pending ? [{ name: node, interrupts: [{ value: pending }] }] : [] }),
@@ -67,7 +67,7 @@ async function setup(options: { testPass?: boolean; deploy?: boolean; leaderRepl
   const runner: RoomRunner = async req => {
     calls.push(req);
     await options.runnerGate;
-    if (req.prompt.includes("너는 운영 리더")) return { ok: true, text: options.leaderReply ?? JSON.stringify({ assignments: [{ id: "T-1", memberId: "leader", requirementIds: parsed.ir.requirements.map(r => r.id), instruction: "승인본 구현", complexity: "low", reason: "범위가 명확하다", effort: "low" }] }), ms: 3 };
+    if (req.prompt.includes("너는 테스트 리더")) return { ok: true, text: options.leaderReply ?? JSON.stringify({ assignments: [{ id: "T-1", memberId: "leader", requirementIds: parsed.ir.requirements.map(r => r.id), instruction: "승인본 구현", complexity: "low", reason: "범위가 명확하다", effort: "low" }] }), ms: 3 };
     if (req.prompt.includes("독립 검토자다")) return { ok: true, text: JSON.stringify({ outcome: "passed", reason: "승인 기준 확인", evidence: ["시험 로그와 변경 확인"] }), ms: 4 };
     return { ok: true, text: "승인본 구현 결과", ms: 5 };
   };
@@ -85,8 +85,8 @@ async function setup(options: { testPass?: boolean; deploy?: boolean; leaderRepl
 }
 async function startAndWait(f: Awaited<ReturnType<typeof setup>>) { const r = await f.start(); if (!r.ok) throw new Error(r.error); await r.done; }
 
-describe("상담 Plan을 받아 수행하는 운영 대화", () => {
-  it("운영 실행 중인 프로젝트를 시작부터 끝까지 알린다", async () => {
+describe("상담 Plan을 받아 수행하는 테스트 대화", () => {
+  it("테스트 실행 중인 프로젝트를 시작부터 끝까지 알린다", async () => {
     let release = () => {};
     const gate = new Promise<void>((resolve) => { release = resolve; });
     const f = await setup({ runnerGate: gate });
@@ -172,7 +172,7 @@ describe("상담 Plan을 받아 수행하는 운영 대화", () => {
     await f.host.install("demo");
     const config = JSON.parse(await fs.readFile(path.join(f.repo, "langgraph.json"), "utf8"));
     expect(config.graphs.main).toBe("./graph.ts:graph"); expect(config.env).toBe(".env");
-    expect(config.graphs["patchbay-operations"]).toBe("./patchbay-operations.ts:graph");
+    expect(config.graphs["patchbay-test"]).toBe("./patchbay-test.ts:graph");
     expect(ROOM_WORKFLOW_SOURCE).not.toMatch(/sqlite|MemorySaver/);
     expect((await f.host.start({})).ok).toBe(false);
   });

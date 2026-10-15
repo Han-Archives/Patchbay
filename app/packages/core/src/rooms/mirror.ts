@@ -26,7 +26,7 @@ export interface RoomMirrorState {
   /** UserPromptSubmit 이 먼저 적은 말. 세션 기록에 같은 말이 나오면 건너뛴다. */
   pending: string[];
   /** 아직 방에 적지 않은 Claude의 말 (한 턴이 끝나면 한 덩어리로 적는다). */
-  draft: { text: string; model: string; from: string | null } | null;
+  draft: { text: string; model: string; from: string | null; lastAt?: string | null } | null;
   lastPromptAt: string | null;
 }
 
@@ -43,6 +43,11 @@ export interface RoomMirrorResult {
 }
 
 type Line = Record<string, unknown>;
+
+/** 세션 기록의 시각을 방 말의 `sourceAt` 으로. 형식이 틀리면 넣지 않는다. */
+function sourceAtOf(value: unknown): { sourceAt?: string } {
+  return typeof value === "string" && Number.isFinite(Date.parse(value)) && /T.*(Z|[+-]\d\d:\d\d)$/.test(value) ? { sourceAt: value } : {};
+}
 
 function emptyState(): RoomMirrorState {
   return { alias: null, roomId: null, cursor: 0, pending: [], draft: null, lastPromptAt: null };
@@ -207,6 +212,7 @@ export async function mirrorSession(studioHome: string, input: RoomMirrorInput, 
     await appendRoomMessage(studioHome, alias, roomId, {
       role: "speaker", via: "claude-session", speaker: "claude-code", model: draft.model, text: clip(draft.text),
       ms: Number.isFinite(started) ? Math.max(0, now().getTime() - started) : 0,
+      ...sourceAtOf(draft.lastAt),
     }, now());
     state.draft = null;
     appended++;
@@ -220,13 +226,14 @@ export async function mirrorSession(studioHome: string, input: RoomMirrorInput, 
       lastSeen = prompt;
       state.lastPromptAt = typeof line.timestamp === "string" ? line.timestamp : state.lastPromptAt;
       if (state.pending[0] !== undefined && normalize(state.pending[0]) === normalize(prompt)) state.pending.shift();
-      else { await appendRoomMessage(studioHome, alias, roomId, { role: "user", via: "claude-session", text: clip(prompt) }, now()); appended++; }
+      else { await appendRoomMessage(studioHome, alias, roomId, { role: "user", via: "claude-session", text: clip(prompt), ...sourceAtOf(line.timestamp) }, now()); appended++; }
     } else {
       const said = assistantTextOf(line);
       if (said) {
+        const lastAt = typeof line.timestamp === "string" ? line.timestamp : null;
         state.draft = state.draft
-          ? { ...state.draft, text: `${state.draft.text}\n\n${said.text}`, model: said.model || state.draft.model }
-          : { text: said.text, model: said.model, from: state.lastPromptAt };
+          ? { ...state.draft, text: `${state.draft.text}\n\n${said.text}`, model: said.model || state.draft.model, lastAt: lastAt ?? state.draft.lastAt ?? null }
+          : { text: said.text, model: said.model, from: state.lastPromptAt, lastAt };
       }
     }
     state.cursor = index + 1;

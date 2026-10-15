@@ -1,4 +1,4 @@
-import type { OpsRunEntry } from "../runs/opsRuns.js";
+import type { TestRunEntry } from "../runs/testRuns.js";
 import { RESERVED_NODE_IDS, type Ir } from "../types/ir.js";
 import type { SensitivityLevel } from "../sensitivity/sensitivity.js";
 import {
@@ -183,7 +183,7 @@ export interface ReplicaAudit {
   scanEdges: number;
   /** Edges that only `overlay.ir` can produce. 0 is the warned state. */
   designEdges: number;
-  /** Edges that only 3 운영's runs can produce (`RAN`). */
+  /** Edges that only 3 테스트's runs can produce (`RAN`). */
   runEdges: number;
   /** 3.5 -- null when the replica carries something the scan does not. */
   warning: string | null;
@@ -227,11 +227,11 @@ export function runPath(runId: string): string {
 }
 
 /**
- * 실행 행 (기획 20261008a 4.1 — 실행↔요구사항↔eval↔문서). 3 운영이 남긴 `ops/activity.json` 에서:
+ * 실행 행 (기획 20261008a 4.1 — 실행↔요구사항↔eval↔문서). 3 테스트가 남긴 `test/activity.json` 에서:
  * 실행마다 `Run` 한 줄, 그 실행에서 실제로 일한 설계 노드마다 `RAN`. 설계에 없는 노드는 잇지 않는다.
  * 일한 노드가 없는 실행(답만 들어오고 할 일이 없던 것)은 관계가 없으니 행도 두지 않는다.
  */
-export function knowledgeFromRuns(runs: readonly OpsRunEntry[], ir: Ir): KnowledgeSnapshot {
+export function knowledgeFromRuns(runs: readonly TestRunEntry[], ir: Ir): KnowledgeSnapshot {
   const designed = new Set(ir.nodes.map((n) => n.id));
   const nodes: KnowledgeNodeView[] = [];
   const edges: KnowledgeEdgeView[] = [];

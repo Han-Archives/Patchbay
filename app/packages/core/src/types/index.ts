@@ -8,3 +8,4 @@ export * from "./progress.js";
 export * from "./excavation.js";
 export * from "./board.js";
 export * from "./ir.js";
+export * from "./dashboardHistory.js";

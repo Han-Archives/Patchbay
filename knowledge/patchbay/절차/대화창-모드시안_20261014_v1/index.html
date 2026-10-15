@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Patchbay · 대화창 모드 아이콘 디자인 시안</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --chrome: #1a1a1a;
+      --elevated: #222222;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --stroke: #333333;
+      --fill: #2a2a2a;
+      --ok: #a78bfa;
+      --ok-fill: #2a2342;
+      --warn: #e3a35a;
+      --warn-fill: #33261a;
+      --bad: #ef7b6e;
+      --bad-fill: #3a1e1a;
+      --read: #7ea0ff;
+      --read-fill: #222b42;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0b0b0b;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .page-head h1 {
+      margin: 4px 0 6px;
+      font-size: 22px;
+      letter-spacing: -0.4px;
+    }
+    .page-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      color: var(--ok);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 390px 430px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 1180px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .col-title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .col-sub {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* Room Frame */
+    .room-frame {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--bg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 730px;
+    }
+    .room-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 52px;
+      padding: 8px 10px;
+      background: var(--chrome);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .room-switch b {
+      flex: 1;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .room-switch-icons {
+      display: flex;
+      gap: 6px;
+    }
+    .room-icon {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      background: var(--fill);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .room-switch-icons .room-icon {
+      width: 52px;
+    }
+    .room-icon.is-on {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    /* Stage */
+    .room-stage {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--bg);
+    }
+    .msg {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+      font-size: 12.5px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .msg.is-user {
+      background: #1a2030;
+      border-color: #2f3f8f;
+    }
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .mode-msg-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      display: inline-grid;
+      place-items: center;
+      color: #fff;
+    }
+    .mode-msg-badge svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    /* Compose */
+    .room-compose {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px 12px;
+      background: var(--chrome);
+      border-top: 1px solid var(--stroke);
+    }
+    .room-compose textarea {
+      width: 100%;
+      min-height: 82px;
+      padding: 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      resize: none;
+    }
+    .room-compose-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .room-plus {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+      line-height: 0;
+    }
+    .room-call-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .flow-btn {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .flow-btn.primary {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+
+    /* Bottom Dock */
+    .room-dock {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px 12px;
+      background: var(--chrome);
+      border-top: 1px solid var(--stroke);
+    }
+    .room-chip {
+      width: 36px;
+      min-width: 36px;
+      height: 28px;
+      padding: 0;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      display: inline-grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .room-chip svg {
+      width: 16px;
+      height: 16px;
+    }
+    .room-dock-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--stroke);
+      margin: 0 2px;
+    }
+    .room-dock-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+    }
+    /* Icon-only Mode Trigger Button next to + */
+    .room-mode-trigger {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+      position: relative;
+    }
+    .room-mode-trigger svg {
+      width: 15px;
+      height: 15px;
+    }
+    .room-mode-trigger.is-active {
+      color: #fff;
+      border-color: rgba(255,255,255,0.35);
+    }
+    /* Active Mode Icon Chip shown in dock */
+    .room-mode-active-chip {
+      width: 36px;
+      height: 28px;
+      border-radius: 6px;
+      display: inline-grid;
+      place-items: center;
+      color: #fff;
+      border: 1.5px solid #fff;
+      position: relative;
+    }
+    .room-mode-active-chip svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Dock Popover Menu */
+    .room-dock-menu {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 8px);
+      width: 248px;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid #4a4a4a;
+      background: var(--elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 20;
+    }
+    .menu-caption {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 4px 6px 2px;
+      font-weight: 600;
+    }
+    .mode-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: var(--fill);
+      text-align: left;
+    }
+    .mode-item.is-on {
+      background: var(--ok-fill);
+      border-color: var(--ok);
+    }
+    .mode-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .mode-item-body b {
+      display: block;
+      font-size: 12.5px;
+    }
+    .mode-item-body small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .exec-badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 650;
+    }
+    .exec-read { background: var(--read-fill); color: var(--read); border: 1px solid #4b6bcb; }
+    .exec-edit { background: var(--warn-fill); color: var(--warn); border: 1px solid var(--warn); }
+    .exec-apply { background: var(--ok-fill); color: var(--ok); border: 1px solid var(--ok); }
+
+    /* LLM Face */
+    .room-llm {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      background: #3a3a3a;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .room-call {
+      background: #4a4a4a;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .call-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 7px;
+      background: #2f2f2f;
+      border: 1px solid #5a5a5a;
+    }
+    .call-tabs button {
+      height: 28px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .call-tabs button.is-on {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .room-call label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11.5px;
+      color: #d0d0d0;
+    }
+    .room-call input, .room-call select, .room-call textarea {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      color: var(--text);
+      font-size: 12.5px;
+    }
+    .room-pair {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .icon-preset-grid {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 6px;
+      border-radius: 6px;
+      background: #2f2f2f;
+      border: 1px solid #555;
+    }
+    .icon-preset-btn {
+      width: 34px;
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+    }
+    .icon-preset-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    .icon-preset-btn.is-picked {
+      background: var(--ok-fill);
+      border-color: var(--ok);
+      color: #fff;
+    }
+    .agent-pick-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px;
+      border-radius: 6px;
+      background: #2f2f2f;
+      border: 1px solid #555;
+    }
+    .agent-pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--fill);
+      font-size: 11.5px;
+    }
+    .agent-pick.is-picked {
+      background: var(--ok-fill);
+      border-color: var(--ok);
+      color: #fff;
+    }
+    .room-roles-title {
+      margin: 4px 2px 0;
+      font-size: 12.5px;
+    }
+    .room-role {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      background: #4a4a4a;
+    }
+    .room-role-body {
+      grid-column: 1 / -1;
+      padding-top: 6px;
+      border-top: 1px solid #5a5a5a;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .spec-card {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--chrome);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .icon-catalog {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .icon-catalog-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+    }
+    .icon-catalog-item b {
+      display: block;
+      font-size: 12.5px;
+    }
+    .icon-catalog-item small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .spec-step {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: var(--elevated);
+      font-size: 12px;
+    }
+    .spec-step b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--ok);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">PATCHBAY ROOM MODES · ICON-FIRST DESIGN</div>
+        <h1>대화창 모드 아이콘 버튼 &amp; 모드별 전용 아이콘 시안</h1>
+        <p>대화창에는 <code>모드 · 플래닝</code> 같은 긴 문구 대신 <b>전용 SVG 아이콘</b>만 깔끔하게 노출하고, 마우스를 올렸을 때(`title`)나 팝업 메뉴에서만 이름을 보여줍니다.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Column 1: Interactive Chat View (Icon-only Mode in Dock) -->
+      <div>
+        <h2 class="col-title">01 · 대화 화면 — 문구 없이 아이콘으로 표시되는 모드</h2>
+        <p class="col-sub">하단 바 왼쪽엔 <b>켜진 LLM + 현재 모드 아이콘 칩</b>, 오른쪽엔 <b>[+]</b>와 <b>[모드 아이콘 버튼]</b>만 둡니다.</p>
+
+        <div class="room-frame" id="chat-frame">
+          <div class="room-switch">
+            <b>결제 모듈 리팩터링 검토</b>
+            <div class="room-switch-icons">
+              <button type="button" class="room-icon" title="대화방 목록">
+                <svg viewBox="0 0 16 16" width="15" height="15"><path d="M2 3.5h8.5a1.5 1.5 0 0 1 1.5 1.5v4.2a1.5 1.5 0 0 1-1.5 1.5H6.2L3.2 13V10.7H2A1.5 1.5 0 0 1 .5 9.2V5A1.5 1.5 0 0 1 2 3.5Z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 2h8a1.4 1.4 0 0 1 1.4 1.4v3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </button>
+              <button type="button" class="room-icon" id="go-llm-btn" title="LLM 및 모드 설정">
+                <svg viewBox="0 0 16 16" width="15" height="15"><rect x="4" y="4" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 1.8v2.2M9.8 1.8v2.2M6.2 12v2.2M9.8 12v2.2M1.8 6.2h2.2M1.8 9.8h2.2M12 6.2h2.2M12 9.8h2.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="room-stage" id="message-list"></div>
+
+          <div class="room-compose">
+            <textarea id="chat-draft" placeholder="보낼 말을 입력하고 [보내기]를 누르면 선택된 모드 아이콘으로 실행합니다.">타임스탬프 역전 방지 조건까지 포함해서 실행 단계를 확정해줘.</textarea>
+            <div class="room-compose-tools">
+              <button type="button" class="room-plus" title="첨부">
+                <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </button>
+              <div class="room-call-actions">
+                <button type="button" class="flow-btn" id="record-btn">기록하기</button>
+                <button type="button" class="flow-btn primary" id="send-btn">보내기</button>
+                <button type="button" class="flow-btn" disabled>중단하기</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="room-dock" aria-label="켜진 LLM 및 모드">
+            <div id="dock-chips" style="display:flex; gap:6px; align-items:center;"></div>
+
+            <div class="room-dock-right">
+              <!-- + LLM 추가 버튼 -->
+              <button type="button" class="room-plus" id="dock-plus-btn" aria-label="LLM 추가" title="LLM 추가">
+                <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </button>
+              <!-- 모드 선택 아이콘 버튼 (문구 없음) -->
+              <button type="button" class="room-mode-trigger" id="dock-mode-btn" aria-label="모드 선택" title="모드 선택"></button>
+
+              <!-- Mode Popover -->
+              <div class="room-dock-menu" id="mode-menu">
+                <div class="menu-caption">모드 선택 (클릭 시 지정 · 다시 누르면 해제)</div>
+                <div id="mode-menu-items" style="display:flex; flex-direction:column; gap:4px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2: Interactive LLM & Mode Management View -->
+      <div>
+        <h2 class="col-title">02 · LLM 화면 — [LLM 호출 | 모드 추가] &amp; 모드 아이콘 선택</h2>
+        <p class="col-sub">모드를 추가할 때 <b>전용 아이콘 모양</b>을 고르거나 이미지/HTML로 등록합니다.</p>
+
+        <div class="room-frame">
+          <div class="room-switch">
+            <b>결제 모듈 리팩터링 검토</b>
+            <div class="room-switch-icons">
+              <button type="button" class="room-icon" title="대화방 목록">
+                <svg viewBox="0 0 16 16" width="15" height="15"><path d="M2 3.5h8.5a1.5 1.5 0 0 1 1.5 1.5v4.2a1.5 1.5 0 0 1-1.5 1.5H6.2L3.2 13V10.7H2A1.5 1.5 0 0 1 .5 9.2V5A1.5 1.5 0 0 1 2 3.5Z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 2h8a1.4 1.4 0 0 1 1.4 1.4v3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </button>
+              <button type="button" class="room-icon is-on" title="LLM 및 모드 설정">
+                <svg viewBox="0 0 16 16" width="15" height="15"><rect x="4" y="4" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 1.8v2.2M9.8 1.8v2.2M6.2 12v2.2M9.8 12v2.2M1.8 6.2h2.2M1.8 9.8h2.2M12 6.2h2.2M12 9.8h2.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="room-llm">
+            <section class="room-call">
+              <div class="call-tabs" role="tablist">
+                <button type="button" id="tab-agent" role="tab" aria-selected="false">LLM 호출</button>
+                <button type="button" id="tab-mode" class="is-on" role="tab" aria-selected="true">모드 추가</button>
+              </div>
+
+              <!-- Mode Add Form -->
+              <div id="form-mode" style="display:flex; flex-direction:column; gap:8px;">
+                <div class="room-pair">
+                  <label>
+                    모드 이름 (툴팁·목록용)
+                    <input id="new-mode-name" value="디버그" placeholder="예: 토의, 코딩, 스터디" />
+                  </label>
+                  <label>
+                    아이콘 색 &amp; 미리보기
+                    <span style="display:flex; gap:6px; align-items:center;">
+                      <input type="color" id="new-mode-color" value="#e08a2f" style="width:34px; height:30px; padding:0;" />
+                      <span class="room-chip" id="new-mode-preview" style="background:#e08a2f;"></span>
+                    </span>
+                  </label>
+                </div>
+
+                <label>
+                  모드 아이콘 모양
+                  <div class="icon-preset-grid" id="icon-picker"></div>
+                </label>
+
+                <label>
+                  작업 권한
+                  <select id="new-mode-exec">
+                    <option value="read">읽기만 (read — 토의·플래닝·스터디)</option>
+                    <option value="edit">파일·문서 수정만 (edit — 보고서·디자인)</option>
+                    <option value="apply">수정 + 시험·빌드 실행 (apply — 코딩)</option>
+                  </select>
+                </label>
+
+                <label>
+                  참여 LLM 조합 (선택 · 비우면 현재 켜진 LLM 사용)
+                  <div class="agent-pick-list" id="agent-picker"></div>
+                </label>
+
+                <label>
+                  모드 규약 (참여 LLM 공통 프롬프트)
+                  <textarea id="new-mode-prompt" rows="2">가설을 세우고 로그·재현 조건으로 원인을 먼저 좁힌다. 원인이 고정되기 전에는 코드를 고치지 않는다.</textarea>
+                </label>
+
+                <button type="button" class="flow-btn primary" id="add-mode-submit" style="height:32px;">모드 목록에 등록</button>
+              </div>
+
+              <!-- Agent Add Form (when switched) -->
+              <div id="form-agent" style="display:none; flex-direction:column; gap:8px;">
+                <label>
+                  사용 가능한 LLM
+                  <select><option>Claude · 연결됨</option><option>Codex · 연결됨</option><option>Grok · 연결됨</option></select>
+                </label>
+                <div class="room-pair">
+                  <label>역할명<input value="보안 검토" /></label>
+                  <label>강도<select><option>high</option><option>medium</option></select></label>
+                </div>
+                <label>주요 역할<textarea rows="2">권한 우회와 입력 검증 누락만 집중해서 찾는다.</textarea></label>
+                <button type="button" class="flow-btn primary" style="height:32px;">Agents 목록에 등록</button>
+              </div>
+            </section>
+
+            <h3 class="room-roles-title">등록된 모드</h3>
+            <div id="registered-modes" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Generated SVG Icon Set & Interaction Spec -->
+      <div class="spec-card">
+        <h2 class="col-title" style="margin:0;">03 · 생성한 모드 아이콘 세트 &amp; 표시 방식</h2>
+        <p style="margin:0; color:var(--muted); font-size:12px;">대화창 안에서 글자를 없애고 한눈에 구분되는 16×16 선형 벡터 아이콘으로 표현합니다.</p>
+
+        <div class="icon-catalog" id="icon-catalog"></div>
+
+        <div class="spec-step">
+          <b>① 하단 바 오른쪽: [+] 옆 원형 [모드 아이콘 버튼]</b>
+          기존 <code>+</code> 버튼(28×28 원형) 바로 옆에 같은 크기의 원형 <b>모드 스위치 아이콘 버튼</b>을 둡니다. 모드가 켜지면 버튼 배경색이 그 모드의 색으로 바뀌고 해당 모드 아이콘이 그려집니다.
+        </div>
+        <div class="spec-step">
+          <b>② 하단 바 왼쪽: 켜진 LLM 칩 옆에 [현재 모드 아이콘 칩]</b>
+          선택된 모드가 있으면 하단 LLM 칩 옆(구분선 뒤)에 해당 모드 아이콘 배지가 함께 놓여, 문구 줄 없이도 지금 어떤 모드인지 즉시 보입니다.
+        </div>
+        <div class="spec-step">
+          <b>③ 대화 말풍선: [나] 옆에 작은 모드 아이콘 배지</b>
+          보낸 메시지 머리에도 글자 태그 대신 20×20 모드 아이콘 배지만 붙이고, 마우스를 올리면 모드 이름이 툴팁으로 나옵니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mode SVG Icons (16x16 stroke-based vector icons matching Patchbay's RoomsIcon / LlmIcon style)
+    const MODE_ICONS = {
+      // 모드 기본 버튼 아이콘 (슬라이더/모드 다이얼)
+      trigger: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/><circle cx="5.5" cy="4.5" r="1.6" fill="#1a1a1a"/><circle cx="10.5" cy="8" r="1.6" fill="#1a1a1a"/><circle cx="6.5" cy="11.5" r="1.6" fill="#1a1a1a"/></svg>`,
+      // 토의: 겹쳐진 두 말풍선
+      discuss: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.2h7.5a1.3 1.3 0 0 1 1.3 1.3v3.5a1.3 1.3 0 0 1-1.3 1.3H5.2L2.6 11.5V9.3H2A1.3 1.3 0 0 1 .7 8V4.5A1.3 1.3 0 0 1 2 3.2Z"/><path d="M7.5 6.8h6.5a1.2 1.2 0 0 1 1.2 1.2v3.2a1.2 1.2 0 0 1-1.2 1.2h-.8v2l-2.2-2H7.5a1.2 1.2 0 0 1-1.2-1.2V8"/></svg>`,
+      // 보고서 작성: 문서와 본문 줄
+      report: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8h6.2L13 5.1v9.1a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1Z"/><path d="M9.5 1.8v3.5H13"/><path d="M5.2 8h5.6M5.2 10.6h5.6M5.2 13h3.4"/></svg>`,
+      // 플래닝: 분기 경로와 체크 노드 (로드맵)
+      planning: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.2" cy="3.5" r="1.6"/><circle cx="3.2" cy="12.5" r="1.6"/><circle cx="12.8" cy="8" r="1.6"/><path d="M4.8 3.5h3a2 2 0 0 1 2 2v2.5h1.4"/><path d="M4.8 12.5h3a2 2 0 0 0 2-2V8"/></svg>`,
+      // 디자인: 레이아웃 격자와 펜촉/도형
+      design: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.2" width="12" height="11.6" rx="1.8"/><path d="M2 6h12M6.5 6v7.8"/><circle cx="10.3" cy="10" r="1.5"/></svg>`,
+      // 스터디: 펼쳐진 책
+      study: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.6c-1.6-1.1-3.8-1.3-6-.8v9.5c2.2-.5 4.4-.3 6 .8 1.6-1.1 3.8-1.3 6-.8V2.8c-2.2-.5-4.4-.3-6 .8Z"/><path d="M8 3.6v9.5"/></svg>`,
+      // 코딩: 코드 꺾쇠와 슬래시 </>
+      coding: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 4.8 1.8 8l3.4 3.2M10.8 4.8 14.2 8l-3.4 3.2M9.2 3.2 6.8 12.8"/></svg>`,
+      // 디버그/검토: 돋보기와 과녁
+      debug: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.2" cy="7.2" r="4.6"/><path d="m10.6 10.6 3.4 3.4"/><path d="M7.2 4.8v4.8M4.8 7.2h4.8"/></svg>`,
+    };
+
+    const ICON_LABELS = {
+      discuss: "토의 (말풍선)",
+      report: "보고서 (문서)",
+      planning: "플래닝 (분기 그래프)",
+      design: "디자인 (레이아웃)",
+      study: "스터디 (펼친 책)",
+      coding: "코딩 (코드 </>)",
+      debug: "디버그/검토 (탐색)",
+    };
+
+    const AGENTS = [
+      { id: "a-design", name: "설계", mark: "설", speaker: "Claude", color: "#3d6fe0", enabled: true },
+      { id: "a-code", name: "구현", mark: "구", speaker: "Codex", color: "#e08a2f", enabled: false },
+      { id: "a-critic", name: "비평", mark: "비", speaker: "Grok", color: "#5b6fd6", enabled: true },
+    ];
+
+    const MODES = [
+      { id: "discuss", name: "토의", icon: "discuss", color: "#3d6fe0", execution: "read", agentIds: [], prompt: "찬반과 대안을 비교하고 마지막에 합의된 점, 남은 이견, 아직 안 정한 것을 정리한다." },
+      { id: "report", name: "보고서 작성", icon: "report", color: "#2b8a6e", execution: "edit", agentIds: ["a-design", "a-critic"], prompt: "첫 번째 LLM이 문서 초안을 작성하고, 다음 LLM은 사실 오류와 구조 누락만 점검한다." },
+      { id: "planning", name: "플래닝", icon: "planning", color: "#6d4aff", execution: "read", agentIds: ["a-design", "a-critic"], prompt: "실행 순서, 의존 관계, 하지 않을 것, 맞다·틀리다로 판정할 수 있는 완료 조건을 정한다." },
+      { id: "design", name: "디자인", icon: "design", color: "#d97724", execution: "edit", agentIds: ["a-design", "a-code"], prompt: "제약을 고정하고 시안 둘 이상을 비교한 뒤 화면 산출물을 만든다." },
+      { id: "study", name: "스터디", icon: "study", color: "#4f7cac", execution: "read", agentIds: [], prompt: "핵심 개념을 설명하고 사람이 이해했는지 확인하는 질문을 남긴다." },
+      { id: "coding", name: "코딩", icon: "coding", color: "#8b5cf6", execution: "apply", agentIds: ["a-code", "a-critic"], prompt: "요구와 완료 조건을 바꾸지 않고 직접 구현·시험한 뒤, 다른 모델이 결함을 독립 검토한다." },
+    ];
+
+    let selectedModeId = "planning";
+    let menuOpen = true;
+    let expandedModeId = "coding";
+    let pickedAgentsForNew = ["a-design", "a-critic"];
+    let pickedIconForNew = "debug";
+
+    const MESSAGES = [
+      { role: "user", modeId: "planning", modeName: "플래닝", modeIcon: "planning", modeColor: "#6d4aff", text: "결제 실패 재시도 큐를 분리하려고 해. 순서와 완료 조건을 먼저 잡아줘." },
+      { role: "speaker", who: "Claude · 설계 · 4.2초", text: "1. 재시도 상태 스키마 분리 → 2. 멱등키 검사 추가\n완료 조건: 중복 결제 0건, 3회 실패 시 DLQ 이동" },
+      { role: "speaker", who: "Grok · 비평 · 3.1초", text: "반대 점검: 웹훅 지연 도착 시 큐 상태가 역전될 수 있어 타임스탬프 비교 조건을 완료 기준에 넣어야 합니다." },
+    ];
+
+    const EXEC_LABEL = { read: "읽기", edit: "문서", apply: "실행" };
+
+    function renderChat() {
+      const list = document.getElementById("message-list");
+      list.innerHTML = MESSAGES.map(m => {
+        if (m.role === "user") {
+          const badge = m.modeIcon
+            ? `<span class="mode-msg-badge" style="background:${m.modeColor}" title="모드: ${m.modeName}">${MODE_ICONS[m.modeIcon]}</span>`
+            : "";
+          return `<div class="msg is-user"><div class="msg-meta"><span>나</span>${badge}</div>${m.text}</div>`;
+        }
+        return `<div class="msg"><div class="msg-meta">${m.who}</div>${m.text}</div>`;
+      }).join("");
+
+      const mode = MODES.find(m => m.id === selectedModeId);
+
+      // Left side of room-dock: enabled LLM chips + active mode icon chip
+      const chips = document.getElementById("dock-chips");
+      const agentChips = AGENTS.filter(a => a.enabled).map(a =>
+        `<span class="room-chip" style="background:${a.color}" title="${a.name} (${a.speaker})">${a.mark}</span>`
+      ).join("");
+      const activeModeChip = mode
+        ? `<span class="room-dock-sep" aria-hidden="true"></span><button type="button" class="room-mode-active-chip" id="active-mode-chip" style="background:${mode.color}" title="현재 모드: ${mode.name} (${EXEC_LABEL[mode.execution]}) · 클릭 시 해제">${MODE_ICONS[mode.icon]}</button>`
+        : "";
+      chips.innerHTML = agentChips + activeModeChip;
+
+      const clearBtn = document.getElementById("active-mode-chip");
+      if (clearBtn) {
+        clearBtn.onclick = () => { selectedModeId = ""; renderAll(); };
+      }
+
+      // Right side of room-dock: icon-only mode trigger button next to +
+      const btn = document.getElementById("dock-mode-btn");
+      if (mode) {
+        btn.className = "room-mode-trigger is-active";
+        btn.style.background = mode.color;
+        btn.title = `모드 선택 (현재: ${mode.name})`;
+        btn.innerHTML = MODE_ICONS[mode.icon];
+      } else {
+        btn.className = "room-mode-trigger";
+        btn.style.background = "";
+        btn.title = "모드 선택";
+        btn.innerHTML = MODE_ICONS.trigger;
+      }
+
+      const menu = document.getElementById("mode-menu");
+      menu.style.display = menuOpen ? "flex" : "none";
+      const items = document.getElementById("mode-menu-items");
+      items.innerHTML = MODES.map(m => {
+        const on = m.id === selectedModeId;
+        const who = m.agentIds.length
+          ? m.agentIds.map(id => AGENTS.find(a => a.id === id)?.name).filter(Boolean).join(" · ")
+          : "현재 켜진 LLM";
+        return `<button type="button" class="mode-item ${on ? "is-on" : ""}" data-mode="${m.id}">
+          <span class="room-chip" style="background:${m.color}; width:28px; min-width:28px; height:26px;">${MODE_ICONS[m.icon]}</span>
+          <span class="mode-item-body"><b>${m.name}</b><small>${who}</small></span>
+          <span class="exec-badge exec-${m.execution}">${EXEC_LABEL[m.execution]}</span>
+        </button>`;
+      }).join("");
+
+      items.querySelectorAll("[data-mode]").forEach(el => {
+        el.onclick = () => {
+          const id = el.getAttribute("data-mode");
+          selectedModeId = selectedModeId === id ? "" : id;
+          const picked = MODES.find(m => m.id === selectedModeId);
+          if (picked && picked.agentIds.length > 0) {
+            AGENTS.forEach(a => { a.enabled = picked.agentIds.includes(a.id); });
+          }
+          renderAll();
+        };
+      });
+    }
+
+    function renderLlmFace() {
+      const preview = document.getElementById("new-mode-preview");
+      preview.innerHTML = MODE_ICONS[pickedIconForNew];
+
+      const iconPicker = document.getElementById("icon-picker");
+      iconPicker.innerHTML = Object.keys(ICON_LABELS).map(key => {
+        const on = key === pickedIconForNew;
+        return `<button type="button" class="icon-preset-btn ${on ? "is-picked" : ""}" data-icon="${key}" title="${ICON_LABELS[key]}">${MODE_ICONS[key]}</button>`;
+      }).join("");
+      iconPicker.querySelectorAll("[data-icon]").forEach(el => {
+        el.onclick = () => {
+          pickedIconForNew = el.getAttribute("data-icon");
+          renderLlmFace();
+        };
+      });
+
+      const picker = document.getElementById("agent-picker");
+      picker.innerHTML = AGENTS.map(a => {
+        const idx = pickedAgentsForNew.indexOf(a.id);
+        const on = idx >= 0;
+        return `<button type="button" class="agent-pick ${on ? "is-picked" : ""}" data-pick="${a.id}">
+          <span class="room-chip" style="background:${a.color}; width:20px; min-width:20px; height:20px; font-size:10px;">${a.mark}</span>
+          ${on ? `${idx + 1}. ` : ""}${a.name} (${a.speaker})
+        </button>`;
+      }).join("");
+      picker.querySelectorAll("[data-pick]").forEach(el => {
+        el.onclick = () => {
+          const id = el.getAttribute("data-pick");
+          if (pickedAgentsForNew.includes(id)) pickedAgentsForNew = pickedAgentsForNew.filter(x => x !== id);
+          else pickedAgentsForNew = [...pickedAgentsForNew, id];
+          renderLlmFace();
+        };
+      });
+
+      const list = document.getElementById("registered-modes");
+      list.innerHTML = MODES.map(m => {
+        const shown = expandedModeId === m.id;
+        const who = m.agentIds.length
+          ? m.agentIds.map(id => AGENTS.find(a => a.id === id)?.name).filter(Boolean).join(", ")
+          : "현재 대화에 켜진 LLM";
+        return `<section class="room-role">
+          <span class="room-chip" style="background:${m.color}">${MODE_ICONS[m.icon]}</span>
+          <b>${m.name}</b>
+          <span class="exec-badge exec-${m.execution}">${EXEC_LABEL[m.execution]}</span>
+          <button type="button" class="room-icon ${shown ? "is-on" : ""}" data-expand="${m.id}">≡</button>
+          ${shown ? `<div class="room-role-body">
+            <div><span style="color:var(--muted)">참여 LLM:</span> ${who}</div>
+            <div><span style="color:var(--muted)">모드 규약:</span> ${m.prompt}</div>
+          </div>` : ""}
+        </section>`;
+      }).join("");
+
+      list.querySelectorAll("[data-expand]").forEach(el => {
+        el.onclick = () => {
+          const id = el.getAttribute("data-expand");
+          expandedModeId = expandedModeId === id ? "" : id;
+          renderLlmFace();
+        };
+      });
+    }
+
+    function renderCatalog() {
+      const cat = document.getElementById("icon-catalog");
+      const items = [
+        { icon: "trigger", color: "#2a2a2a", name: "모드 스위치 (기본)", desc: "하단 [+] 옆 기본 아이콘" },
+        ...MODES.map(m => ({ icon: m.icon, color: m.color, name: m.name, desc: `${EXEC_LABEL[m.execution]} 권한` })),
+        { icon: "debug", color: "#e08a2f", name: "디버그 · 검토", desc: "추가 아이콘 프리셋" },
+      ];
+      cat.innerHTML = items.map(item => `
+        <div class="icon-catalog-item">
+          <span class="room-chip" style="background:${item.color}; border-color:#444;">${MODE_ICONS[item.icon]}</span>
+          <div><b>${item.name}</b><small>${item.desc}</small></div>
+        </div>
+      `).join("");
+    }
+
+    function renderAll() {
+      renderChat();
+      renderLlmFace();
+      renderCatalog();
+    }
+
+    document.getElementById("dock-mode-btn").onclick = () => {
+      menuOpen = !menuOpen;
+      renderChat();
+    };
+
+    document.getElementById("send-btn").onclick = () => {
+      const textarea = document.getElementById("chat-draft");
+      const text = textarea.value.trim();
+      if (!text) return;
+      const mode = MODES.find(m => m.id === selectedModeId);
+      MESSAGES.push({
+        role: "user",
+        modeId: mode ? mode.id : "",
+        modeName: mode ? mode.name : "",
+        modeIcon: mode ? mode.icon : "",
+        modeColor: mode ? mode.color : "#3d6fe0",
+        text,
+      });
+      const activeNames = AGENTS.filter(a => a.enabled).map(a => a.name).join(" → ");
+      MESSAGES.push({
+        role: "speaker",
+        who: `${activeNames || "LLM"} · 응답`,
+        text: mode
+          ? `[${mode.name}] ${mode.prompt}`
+          : "일반 대화로 한 바퀴 응답했습니다.",
+      });
+      textarea.value = "";
+      menuOpen = false;
+      renderChat();
+    };
+
+    document.getElementById("tab-agent").onclick = () => {
+      document.getElementById("tab-agent").classList.add("is-on");
+      document.getElementById("tab-mode").classList.remove("is-on");
+      document.getElementById("form-agent").style.display = "flex";
+      document.getElementById("form-mode").style.display = "none";
+    };
+    document.getElementById("tab-mode").onclick = () => {
+      document.getElementById("tab-mode").classList.add("is-on");
+      document.getElementById("tab-agent").classList.remove("is-on");
+      document.getElementById("form-mode").style.display = "flex";
+      document.getElementById("form-agent").style.display = "none";
+    };
+
+    document.getElementById("new-mode-color").oninput = (e) => {
+      document.getElementById("new-mode-preview").style.background = e.target.value;
+    };
+
+    document.getElementById("add-mode-submit").onclick = () => {
+      const name = document.getElementById("new-mode-name").value.trim();
+      if (!name) return;
+      const color = document.getElementById("new-mode-color").value;
+      const execution = document.getElementById("new-mode-exec").value;
+      const prompt = document.getElementById("new-mode-prompt").value.trim();
+      const id = "custom-" + Date.now();
+      MODES.push({ id, name, icon: pickedIconForNew, color, execution, agentIds: [...pickedAgentsForNew], prompt });
+      expandedModeId = id;
+      selectedModeId = id;
+      renderAll();
+    };
+
+    renderAll();
+  </script>
+</body>
+</html>

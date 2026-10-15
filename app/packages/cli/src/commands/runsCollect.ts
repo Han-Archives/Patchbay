@@ -20,7 +20,7 @@ export interface RunsCollectCommandOptions {
  * `patchbay runs collect --project <alias> --file <record.json>`
  *
  * Takes a record an adapter already normalized to §5.2 and files it at
- * `runs/<runId>.json`. Any provider's adapter can feed this — the console's
+ * `test-runs/<runId>.json`. Any provider's adapter can feed this — the console's
  * LangGraph adapter writes through the same Core functions, so the CLI is not a
  * second ingest path with its own rules (원칙 8).
  *

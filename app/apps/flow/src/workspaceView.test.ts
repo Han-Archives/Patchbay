@@ -43,8 +43,8 @@ async function markScanned(home: string, alias: string): Promise<void> {
 const tones = (facts: ProjectFacts) => stagesOf(facts).map((stage) => `${stage.id}:${stage.tone}`);
 
 describe("stagesOf", () => {
-  it("띠는 0 대시보드 · 1 설계 · 2 구현 · 3 운영 · 4 지식 그래프 · 5 문서 호출 (사용자 결정 2026-10-08)", () => {
-    expect(stagesOf(NONE).map((stage) => stage.id)).toEqual(["dashboard", "design", "build", "run", "graph", "docs"]);
+  it("띠는 0 대시보드 · 1 설계 · 2 구현 · 3 테스트 · 4 지식 그래프 · 5 문서 호출 (사용자 결정 2026-10-08)", () => {
+    expect(stagesOf(NONE).map((stage) => stage.id)).toEqual(["dashboard", "design", "build", "test", "graph", "docs"]);
   });
 
   it("스캔했고 설계가 없으면 1 설계에 서 있고 뒤는 잠긴다", () => {
@@ -52,7 +52,7 @@ describe("stagesOf", () => {
       "dashboard:done",
       "design:now",
       "build:locked",
-      "run:locked",
+      "test:locked",
       "graph:locked",
       "docs:locked",
     ]);
@@ -81,16 +81,16 @@ describe("stagesOf", () => {
     expect(stagesOf(stuck)[1]).toMatchObject({ tone: "blocked", detail: "schemaVersion이 없다." });
   });
 
-  it("채택하면 2 구현 · 뼈대만으로는 지남이 아니다 — 빈 노드를 다 채워야 3 운영이 열린다", () => {
+  it("채택하면 2 구현 · 뼈대만으로는 지남이 아니다 — 빈 노드를 다 채워야 3 테스트가 열린다", () => {
     const adopted = { ...NONE, adopted: { version: 1 }, nodes: { total: 9, passed: 0 } };
-    expect(tones(adopted).slice(1)).toEqual(["design:done", "build:now", "run:locked", "graph:locked", "docs:locked"]);
+    expect(tones(adopted).slice(1)).toEqual(["design:done", "build:now", "test:locked", "graph:locked", "docs:locked"]);
     const scaffolded = { ...adopted, scaffold: true, filled: { total: 9, empty: 9 } };
     expect(stagesOf(scaffolded)[2]).toMatchObject({ tone: "now", status: "노드 채우는 중 · 0/9" });
-    expect(tones(scaffolded)[3]).toBe("run:locked");
+    expect(tones(scaffolded)[3]).toBe("test:locked");
     const filled = { ...scaffolded, filled: { total: 9, empty: 0 } };
     expect(stagesOf(filled)[2]).toMatchObject({ tone: "done", status: "노드 9/9 채움" });
-    expect(tones(filled).slice(3)).toEqual(["run:now", "graph:locked", "docs:locked"]);
-    expect(currentStage(stagesOf(filled))).toBe("run");
+    expect(tones(filled).slice(3)).toEqual(["test:now", "graph:locked", "docs:locked"]);
+    expect(currentStage(stagesOf(filled))).toBe("test");
   });
 
   it("4 지식 그래프 · 5 문서 호출은 설계의 노드를 모두 한 번 이상 지난 뒤에 열린다 (사용자 결정 2026-10-08)", () => {
@@ -99,7 +99,7 @@ describe("stagesOf", () => {
     expect(stagesOf(some)[3]).toMatchObject({ tone: "now", status: "노드 6/9 지남" });
     expect(stagesOf(some)[4]).toMatchObject({ tone: "locked", status: "노드 6/9 지난 뒤" });
     const all = { ...base, nodes: { total: 9, passed: 9 } };
-    expect(tones(all).slice(3)).toEqual(["run:done", "graph:now", "docs:now"]);
+    expect(tones(all).slice(3)).toEqual(["test:done", "graph:now", "docs:now"]);
     expect(currentStage(stagesOf(all))).toBe("graph");
   });
 
@@ -120,26 +120,31 @@ describe("attentionOf", () => {
     expect(attentionOf(stagesOf(NONE))).toBeNull();
   });
 
-  it("손을 댄 프로젝트는 진행, 막힌 칸이 있으면 막힘", () => {
+  it("막힌 칸이 있을 때만 막힘 — 손을 댄 프로젝트라도 실행 중처럼 보이는 점을 찍지 않는다", () => {
     const writing = { ...NONE, draft: { readable: false as const, complete: 4, total: 9, error: "x" } };
-    expect(attentionOf(stagesOf(writing))).toBe("active");
-    expect(attentionOf(stagesOf({ ...NONE, adopted: { version: 1 } }))).toBe("active");
+    expect(attentionOf(stagesOf(writing))).toBeNull();
+    expect(attentionOf(stagesOf({ ...NONE, adopted: { version: 1 } }))).toBeNull();
+    const finished = { ...NONE, adopted: { version: 3 }, scaffold: true, filled: { total: 9, empty: 0 }, nodes: { total: 9, passed: 9 } };
+    expect(attentionOf(stagesOf(finished))).toBeNull(); // 테스트까지 지난 프로젝트 — 2026-10-15 실행 중처럼 보이던 경우
     const failing = { ...NONE, draft: { readable: true as const, passed: 20, total: 26, failedGates: ["1.2"] } };
     expect(attentionOf(stagesOf(failing))).toBe("blocked");
   });
 });
 
 describe("projectInitials", () => {
-  it("낱말이 여럿이면 앞 두 낱말의 첫 글자 — 같은 앞말을 쓰는 프로젝트가 겹치지 않는다", () => {
-    expect(projectInitials("shop-app")).toBe("sa");
-    expect(projectInitials("shop-rag")).toBe("sr");
-    expect(projectInitials("영어 공부")).toBe("영공");
-    expect(projectInitials("Data Pipeline 실습")).toBe("DP");
+  it("이름이나 낱말 수에 관계없이 첫 글자만 표시한다", () => {
+    expect(projectInitials("shop-app")).toBe("s");
+    expect(projectInitials("shop-rag")).toBe("s");
+    expect(projectInitials("영어 공부")).toBe("영");
+    expect(projectInitials("Data Pipeline 실습")).toBe("D");
+    expect(projectInitials("practice")).toBe("p");
   });
 
-  it("낱말이 하나면 앞 두 글자", () => {
-    expect(projectInitials("practice")).toBe("pr");
+  it("앞뒤 공백과 빈 이름, 결합된 문자를 처리한다", () => {
+    expect(projectInitials("  영어 공부  ")).toBe("영");
     expect(projectInitials("")).toBe("?");
+    expect(projectInitials("   ")).toBe("?");
+    expect(projectInitials("👩‍💻 개발")).toBe("👩‍💻");
   });
 });
 
@@ -204,7 +209,7 @@ describe("loadWorkspace", () => {
     expect(project.stages[3]).toMatchObject({ tone: "now", status: "노드 정보 없음 · 실행 기록 1건" });
   });
 
-  it("빈 노드 표시를 graph.ts 에서 세고, 운영에서 일한 노드를 ops/passed-nodes.json 에서 센다", async () => {
+  it("빈 노드 표시를 graph.ts 에서 세고, 테스트에서 일한 노드를 test/passed-nodes.json 에서 센다", async () => {
     await registerProject(home, { alias: "demo", kind: "local_repo", path: repo });
     await markScanned(home, "demo");
     const dir = path.join(home, "projects", "demo");

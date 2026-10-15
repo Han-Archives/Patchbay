@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import type { RunEvidence } from "@patchbay/core";
 
 /**
- * 4 지식 그래프 맨 위 — 실행에서 이은 근거 경로 (기획 20261008a: 지식 그래프는 운영 뒤).
- * 실행 → 일한 노드 → 맡은 요구사항 → 보는 평가 → 찾는 문서. 3 운영의 실행 기록(ops/activity.json)에서 계산한다.
+ * 4 지식 그래프 맨 위 — 실행에서 이은 근거 경로 (기획 20261008a: 지식 그래프는 테스트 뒤).
+ * 실행 → 일한 노드 → 맡은 요구사항 → 보는 평가 → 찾는 문서. 3 테스트의 실행 기록(test/activity.json)에서 계산한다.
  */
 export function RunEvidencePanel({ project, revision }: { project: string; revision: number }) {
   const [runs, setRuns] = useState<RunEvidence[] | null>(null);
@@ -31,7 +31,7 @@ export function RunEvidencePanel({ project, revision }: { project: string; revis
         실행에서 이은 근거 경로 <small>실행 → 일한 노드 → 요구사항 → 평가 → 문서</small>
       </h3>
       {runs.length === 0 ? (
-        <p className="ops-note">아직 노드가 일한 실행이 없다 — 3 운영에서 쓰고 「실행 기록」을 열면 쌓인다.</p>
+        <p className="test-note">아직 노드가 일한 실행이 없다 — 3 테스트에서 쓰고 「실행 기록」을 열면 쌓인다.</p>
       ) : (
         <ol className="kg-run-list">
           {runs.map((r) => (

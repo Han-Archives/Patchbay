@@ -16,7 +16,7 @@ alwaysApply: true
 
 ```
 mv workspace/records/patchbay/명세/Patchbay_명세_20261010a.md workspace/records/archive/docs/명세/
-#  새 판을 workspace/records/patchbay/명세/Patchbay_명세_20261014a.md 로 쓴다
+#  새 판을 workspace/records/patchbay/명세/Patchbay_명세_20261015a.md 로 쓴다
 ```
 
 - 보관 자리는 살아 있던 층을 따른다 — 공개 문서는 `archive/docs/<같은 폴더>/`(`git mv`), 비공개 기록층 문서는 `workspace/records/archive/docs/<같은 폴더>/`. 새 보관 폴더를 만들지 않는다.
@@ -25,12 +25,12 @@ mv workspace/records/patchbay/명세/Patchbay_명세_20261010a.md workspace/reco
   그 경우였다.
 - 판 표기는 날짜 + 글자다: `_20260929a`. 같은 날 다시 쓰면 `b`, `c`.
 
-## 오늘 기준 (2026-10-14 실측)
+## 오늘 기준 (2026-10-15 실측)
 
 | 문서 | 살아 있는 폴더 | 판 | 보관 |
 | --- | --- | --- | --- |
-| 기획서 | `workspace/records/patchbay/기획/` | 1 (`20261010a`) | `workspace/records/archive/docs/기획/` · `archive/docs/기획/` |
-| 명세서 | `workspace/records/patchbay/명세/` | 1 (`20261014a`) | `workspace/records/archive/docs/명세/` · `archive/docs/명세/` |
+| 기획서 | `workspace/records/patchbay/기획/` | 1 (`20261015a`) | `workspace/records/archive/docs/기획/` · `archive/docs/기획/` |
+| 명세서 | `workspace/records/patchbay/명세/` | 1 (`20261015a`) | `workspace/records/archive/docs/명세/` · `archive/docs/명세/` |
 | 구현계획 | `workspace/records/patchbay/구현계획/` | 1 (`20260928a`) | `archive/docs/구현계획/` 5 |
 | 디자인 | `knowledge/patchbay/디자인/` | 1 (`20260919a`) | `archive/docs/디자인/` 3 |
 

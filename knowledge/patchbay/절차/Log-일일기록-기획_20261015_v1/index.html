@@ -1,0 +1,110 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Patchbay · Log 시안</title><style>
+:root{color-scheme:dark;--bg:#121212;--panel:#1a1a1a;--el:#222;--line:#333;--text:#f2f2f2;--muted:#9a9a9a;--ok:#a78bfa;--okf:#2a2342;--warn:#e3a35a;
+--UI:#a78bfa;--데이터:#6fc3df;--서버:#e3a35a;--문서:#8ed8b0;--Agent:#ef7b6e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;background:#282828;border:1px solid #414141;border-radius:7px;padding:6px 11px}button:hover{border-color:var(--ok)}button[aria-pressed=true]{background:var(--okf);border-color:#6d58b0;color:#dccfff}
+small,.muted{color:var(--muted)}h1,h2,h3{margin:0}h1{font-size:18px}h2{font-size:14px}h3{font-size:13px}
+.shell{display:grid;grid-template-columns:56px 1fr;min-height:100vh}.tools{border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:18px;padding:18px 0;color:#777;font-size:18px}.tools .on{color:var(--ok)}
+main{padding:18px 22px;display:grid;gap:14px;grid-template-columns:300px minmax(0,1fr);grid-template-areas:"head head" "cal day" "tags day" "idx idx";align-content:start}
+header{grid-area:head;display:flex;align-items:center;gap:12px;flex-wrap:wrap}header p{margin:0}header .sp{margin-left:auto;display:flex;gap:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.cal{grid-area:cal}.cal .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}.cal .dow{font-size:11px;color:var(--muted);text-align:center}
+.cell{aspect-ratio:1;border-radius:5px;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;cursor:pointer;position:relative}
+.cell i{width:6px;height:6px;border-radius:50%;margin-top:2px}.cell.sel{border-color:var(--text)}.cell.closed::after{content:'';position:absolute;top:3px;right:3px;width:4px;height:4px;border-radius:50%;background:#666}
+.legend{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-top:8px}.legend b{width:12px;height:12px;border-radius:3px;display:inline-block}
+.tags{grid-area:tags}.bar{display:grid;grid-template-columns:52px 1fr 26px;gap:8px;align-items:center;margin:7px 0;cursor:pointer}.bar span{height:10px;border-radius:4px}.bar.off{opacity:.3}
+.day{grid-area:day;display:flex;flex-direction:column;min-height:420px}.day .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.day .top .sp{margin-left:auto}
+.day .acts{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.md{background:#161616;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow:auto;flex:1}
+.md h4{margin:12px 0 4px;font-size:13px}.md ul{margin:4px 0;padding-left:18px}.md table{border-collapse:collapse;width:100%;font-size:12px}.md td,.md th{border-bottom:1px solid #2a2a2a;padding:4px 6px;text-align:left}
+.chip{display:inline-block;font-size:11px;padding:0 7px;border-radius:9px;border:1px solid;margin-left:4px;line-height:18px}.chip.est{border-style:dashed}
+.stale{background:#33261a;border:1px solid #6b4a24;color:#f0c58e;border-radius:7px;padding:6px 10px;margin-bottom:8px;font-size:12px}
+.idx{grid-area:idx}.idx .filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}.idx table{width:100%;border-collapse:collapse;font-size:12px}.idx th{color:var(--muted);font-weight:500;text-align:left;border-bottom:1px solid var(--line);padding:6px}.idx td{padding:7px 6px;border-bottom:1px solid #262626}.idx a{color:var(--ok);text-decoration:none}
+.kind{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 6px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;width:min(640px,92vw);padding:0}dialog header{padding:12px 16px;border-bottom:1px solid var(--line)}dialog pre{margin:0;padding:16px;white-space:pre-wrap;font:12px/1.6 ui-monospace,Menlo,monospace;max-height:60vh;overflow:auto}dialog footer{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.decide{grid-area:auto;grid-column:1/-1}.decide table{width:100%;border-collapse:collapse;font-size:12px}.decide td,.decide th{border-bottom:1px solid #2a2a2a;padding:6px;text-align:left;vertical-align:top}.decide th{color:var(--muted);font-weight:500}.decide b{color:var(--ok)}
+@media (max-width:820px){.shell{grid-template-columns:minmax(0,1fr)}.tools{display:none}main{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "cal" "day" "tags" "idx";padding:14px 16px}.idx table,.decide table,.md table{display:block;overflow-x:auto}.card{min-width:0}}
+</style>
+<div class="shell">
+<nav class="tools" aria-label="프로젝트 도구"><span>⌂</span><span>▦</span><span>▤</span><span>✎</span><span>◎</span><span>☰</span><span class="on" title="Log">≡</span></nav>
+<main>
+<header><h1>Log · patchbay</h1><p class="muted">하루마다 무엇이 바뀌었는지 — 일일 기록 · 색인 · 보고서 바탕</p>
+<div class="sp" role="group" aria-label="기간"><button data-p="day" aria-pressed="true">일</button><button data-p="week">주</button><button data-p="month">월</button></div></header>
+
+<section class="card cal"><div style="display:flex;justify-content:space-between;align-items:center"><button aria-label="이전 달">◀</button><h2>2026년 10월</h2><button aria-label="다음 달">▶</button></div>
+<div class="grid" id="cal"></div>
+<div class="legend">적음 <b style="background:#26213a"></b><b style="background:#3d3266"></b><b style="background:#5f4ca3"></b><b style="background:#8b74e0"></b> 많음 · 점 = 가장 많은 태그 · 회색 점 = 확정</div></section>
+
+<section class="card tags"><h2 id="tagTitle">태그 · 10/15</h2><small>누르면 아래 색인이 그 태그로 걸러집니다</small><div id="bars"></div></section>
+
+<section class="card day"><div class="top"><h2 id="dayTitle">2026-10-15 (목)</h2><span class="muted" id="dayCounts"></span>
+<div class="sp" role="tablist"><button id="tabRec" aria-pressed="true">기록</button><button id="tabSum" aria-pressed="false">요약</button></div></div>
+<div class="acts"><button id="rebuild">다시 정리</button><button id="summarize">요약 만들기 · qwen2.5-14b (로컬)</button><span style="flex:1"></span><button class="rep" data-r="day">보고서: 오늘</button><button class="rep" data-r="week">이번 주</button><button class="rep" data-r="month">이번 달</button></div>
+<div class="md" id="md"></div></section>
+
+<section class="card idx"><div style="display:flex;align-items:baseline;gap:10px"><h2>색인</h2><small id="idxCount"></small></div>
+<div class="filters" id="filters"></div>
+<table><thead><tr><th>날짜</th><th>시각</th><th>종류</th><th>제목</th><th>태그</th><th>출처</th></tr></thead><tbody id="rows"></tbody></table></section>
+
+<section class="card decide"><h2>정할 것 (기획 9.3절 · Codex 검토 반영)</h2><table><thead><tr><th>결정</th><th>추천</th><th>다른 안과 대가</th></tr></thead><tbody>
+<tr><td>D1 지난 날 기록 고정</td><td><b>잠정 → 사용자가 「확정」</b> (Codex 검토로 바꿈)</td><td>자동 마감: 덜 모인 자료를 확정</td></tr>
+<tr><td>D2 대화를 얼마나</td><td><b>사용자 말 발췌 + 방 링크</b>, 결과 근거는 did · 끝낸 할일</td><td>LLM 답까지: 파일 큼 · 민감 정보 퍼짐</td></tr>
+<tr><td>D3 요약 모델</td><td><b>LM Studio 경로 재사용 · 고른 모델 ID 저장</b></td><td>고정 모델명: 모델 바꾸면 깨짐</td></tr>
+<tr><td>D4 보고서 바탕 문서 위치</td><td><b>작업 공간 log/reports/</b> · 덮지 않음 · 내려받기</td><td>프로젝트 레포: 공개 레포에 섞일 위험</td></tr>
+<tr><td>D5 묶이지 않은 Claude Code 대화</td><td><b>뺀다</b> (Codex 동의)</td><td>경로로 맞춰 읽기: 다른 프로젝트 대화 섞임</td></tr>
+<tr><td>D6 (새) 할일 · 항목 삭제 · 되돌림 기록</td><td><b>남긴다</b> — 저장 함수가 log/events.jsonl에</td><td>안 남김: 삭제 · 수정은 영영 빠짐</td></tr>
+<tr><td>D7 (새) 미러 대화를 말한 날로</td><td><b>묶는다</b> — 메시지에 sourceAt</td><td>안 묶음: 늦게 묶은 지난 대화가 오늘로</td></tr>
+</tbody></table></section>
+</main></div>
+
+<dialog id="dlg"><header><b id="dlgTitle"></b> <small id="dlgPath"></small></header><pre id="dlgBody"></pre><footer><button>파일 위치 복사</button><button>내려받기</button><button onclick="dlg.close()">닫기</button></footer></dialog>
+
+<script>
+const TAGS=["UI","데이터","서버","문서","Agent"];const color=t=>getComputedStyle(document.documentElement).getPropertyValue('--'+t).trim();
+const days={};const seed=[0,0,0,0,0,2,0,5,9,7,3,0,4,8,12,0,0,0];
+seed.forEach((n,i)=>{if(!n)return;const d=i+1;days[d]={n,tags:{UI:Math.round(n*1.1),문서:Math.round(n*.7),데이터:Math.round(n*.45),서버:Math.round(n*.25),Agent:d%3?1:0},closed:d<15}});
+days[13].tags={문서:9,UI:3,데이터:1,서버:0,Agent:0};days[9].tags={Agent:7,서버:4,UI:2,문서:2,데이터:0};
+const ev=[
+{d:15,t:"16:05",k:"할일",title:"대시보드 에이전트 칸 제거",tags:["UI"],src:"할일 todo-71a"},
+{d:15,t:"15:40",k:"진행",title:"묶인 세션은 그 프로젝트 밖에 못 씀",tags:["Agent","서버"],src:"progress"},
+{d:15,t:"14:02",k:"진행",title:"체력바 Claude % 를 서버 사용률로",tags:["UI","데이터"],src:"progress"},
+{d:15,t:"13:40",k:"대화",title:"체력바 확인 — 사용자 9 · Claude 9",tags:["UI"],est:["체력바"],src:"방 2026-10-15-ab12 #1–18"},
+{d:15,t:"11:20",k:"흐름도",title:"오류가 났을 때 흐름 그리기",tags:["UI"],src:"cycle-items"},
+{d:15,t:"10:02",k:"진행",title:"흐름도 밑 세부 항목 트리 표",tags:["UI","데이터"],src:"progress"},
+{d:14,t:"21:10",k:"커밋",title:"사이드바 메인 아이콘 정리",tags:["UI"],src:"git 0763d6f"},
+{d:14,t:"19:30",k:"커밋",title:"개요를 콘솔 안으로",tags:["UI","문서","서버"],src:"git 37a3ef8"},
+{d:14,t:"16:00",k:"대화",title:"저장 구조 안3 검토 — 사용자 14 · Codex 6",tags:["문서"],src:"방 2026-10-14-3c9e #1–40"},
+{d:13,t:"18:20",k:"진행",title:"문서 머리말 여섯 곳 정리",tags:["문서"],src:"progress"}];
+let sel=15,period="day",tab="rec",filt=new Set(),kinds=new Set();
+function cal(){const g=document.getElementById('cal');g.innerHTML="월화수목금토일".split("").map(c=>`<div class="dow">${c}</div>`).join("")+'<div></div><div></div>';
+for(let d=1;d<=31;d++){const x=days[d];const lv=!x?"#1c1c1c":x.n<4?"#26213a":x.n<7?"#3d3266":x.n<10?"#5f4ca3":"#8b74e0";const top=x?Object.entries(x.tags).sort((a,b)=>b[1]-a[1])[0][0]:null;
+const inRange=period==="week"?d>=12&&d<=18:period==="month";g.insertAdjacentHTML('beforeend',`<div class="cell ${d===sel?'sel':''} ${x&&x.closed?'closed':''}" style="background:${lv};${inRange&&d!==sel?'outline:1px solid #555':''}" data-d="${d}" title="${x?x.n+'건':'기록 없음'}">${d}${top?`<i style="background:${color(top)}"></i>`:''}</div>`)}
+g.querySelectorAll('.cell').forEach(c=>c.onclick=()=>{const d=+c.dataset.d;if(!days[d])return;sel=d;render()})}
+function range(){return period==="day"?[sel]:period==="week"?[12,13,14,15,16,17,18]:Object.keys(days).map(Number)}
+function bars(){const sum={};range().forEach(d=>{const x=days[d];if(x)for(const[t,n]of Object.entries(x.tags))sum[t]=(sum[t]||0)+n});const max=Math.max(1,...Object.values(sum));
+document.getElementById('tagTitle').textContent="태그 · "+(period==="day"?`10/${sel}`:period==="week"?"10/12–10/18":"10월");
+document.getElementById('bars').innerHTML=TAGS.map(t=>`<div class="bar ${filt.size&&!filt.has(t)?'off':''}" data-t="${t}"><small>${t}</small><span style="width:${(sum[t]||0)/max*100}%;background:${color(t)}"></span><small>${sum[t]||0}</small></div>`).join("");
+document.querySelectorAll('.bar').forEach(b=>b.onclick=()=>toggle(b.dataset.t))}
+function toggle(t){filt.has(t)?filt.delete(t):filt.add(t);render()}
+function chips(e){return e.tags.map(t=>`<span class="chip" style="color:${color(t)};border-color:${color(t)}">${t}</span>`).join("")+(e.est||[]).map(t=>`<span class="chip est" title="로컬 LLM 제안 — 채택하면 규칙으로" style="color:#bbb;border-color:#777">${t}?</span>`).join("")}
+function md(){const x=days[sel];const list=ev.filter(e=>e.d===sel);document.getElementById('dayTitle').textContent=`2026-10-${String(sel).padStart(2,'0')}`;
+document.getElementById('dayCounts').textContent=x?`${list.length}건${x.closed?' · 확정':' · 잠정'}`:'';
+const el=document.getElementById('md');
+if(tab==="sum"){el.innerHTML=sel===15?`<div class="stale">일일 기록이 요약 뒤에 바뀌었습니다 (진행 1건 추가) · <u>다시 요약</u></div><h4>한 줄 요약</h4><p>체력바가 Claude 서버 사용률을 쓰게 바꾸고, 묶인 세션의 쓰기 범위를 훅으로 막았다.</p><h4>한 일</h4><ul><li>체력바 Claude % 를 상태줄 rate_limits 로 <small>[progress 14:02]</small></li><li>흐름도 밑 세부 항목 트리 표 <small>[progress 10:02]</small></li></ul><h4>결정</h4><ul><li>Claude 토큰 합계 추정은 버린다 <small>[방 ab12 #9]</small></li></ul><h4>막힌 것 · 남은 일</h4><ul><li>Flow 시험 1건 — 다른 세션의 할일 준비 작업 <small>[progress 15:40]</small></li></ul><h4>태그 제안</h4><p>${chips({tags:[],est:["체력바","훅"]})}</p><p><small>qwen2.5-14b-instruct-mlx · 10/15 15:58 · 원문 해시 3f1a…</small></p>`:`<p class="muted">아직 요약이 없습니다. 「요약 만들기」를 누르면 로컬 모델이 이 날 기록만 읽고 요약합니다 (클라우드로 보내지 않음).</p>`;return}
+el.innerHTML=`<small>log/days/2026-10-${String(sel).padStart(2,'0')}.md</small><h4>한눈에</h4><p>${x?`${list.length}건 · 가장 많이 바뀐 곳: ${Object.entries(x.tags).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([t,n])=>t+' '+n).join(' · ')}`:''}</p>
+${["진행","대화","할일","흐름도","커밋"].map(k=>{const r=list.filter(e=>e.k===k);return r.length?`<h4>${k}</h4><ul>${r.map(e=>`<li>${e.t} <b>${e.title}</b>${chips(e)}</li>`).join("")}</ul>`:''}).join("")}
+${sel===15?`<h4>바뀐 파일</h4><table><tr><th>태그</th><th>파일</th><th>대표 경로</th></tr><tr><td>UI</td><td>14</td><td>app/apps/flow/src/LlmHealthRail.tsx · console.css</td></tr><tr><td>데이터</td><td>6</td><td>app/packages/core/src/studio/llmQuotaStore.ts</td></tr><tr><td>문서</td><td>9</td><td>knowledge/patchbay/기획/저장구조.md</td></tr></table><p><small>커밋 안 된 변경 41파일 · 출처: progress 3 · rooms 1 · todos 1 · cycle-items 1</small></p>`:''}`}
+function idx(){const r=range();const kindList=["진행","대화","할일","흐름도","커밋"];
+document.getElementById('filters').innerHTML=TAGS.map(t=>`<button class="tf" data-t="${t}" aria-pressed="${filt.has(t)}" style="${filt.has(t)?`border-color:${color(t)}`:''}"><span style="color:${color(t)}">●</span> ${t}</button>`).join("")+'<span style="width:12px"></span>'+kindList.map(k=>`<button class="kf" data-k="${k}" aria-pressed="${kinds.has(k)}">${k}</button>`).join("")+'<input placeholder="검색" style="margin-left:auto;background:#161616;border:1px solid #414141;border-radius:7px;padding:5px 9px;color:inherit">';
+document.querySelectorAll('.tf').forEach(b=>b.onclick=()=>toggle(b.dataset.t));document.querySelectorAll('.kf').forEach(b=>b.onclick=()=>{const k=b.dataset.k;kinds.has(k)?kinds.delete(k):kinds.add(k);render()});
+const rows=ev.filter(e=>r.includes(e.d)&&(!filt.size||e.tags.some(t=>filt.has(t)))&&(!kinds.size||kinds.has(e.k)));
+document.getElementById('idxCount').textContent=`${rows.length}건 · ${period==="day"?'이 날':period==="week"?'이번 주':'이번 달'}`;
+document.getElementById('rows').innerHTML=rows.map(e=>`<tr><td>10/${e.d}</td><td>${e.t}</td><td><span class="kind">${e.k}</span></td><td>${e.title}</td><td>${chips(e)}</td><td><a href="#">${e.src} ↗</a></td></tr>`).join("")||'<tr><td colspan="6" class="muted">걸러진 기록이 없습니다</td></tr>'}
+function render(){cal();bars();md();idx();document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===period));tabRec.setAttribute('aria-pressed',tab==="rec");tabSum.setAttribute('aria-pressed',tab==="sum")}
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{period=b.dataset.p;render()});tabRec.onclick=()=>{tab="rec";render()};tabSum.onclick=()=>{tab="sum";render()};
+summarize.onclick=()=>{summarize.textContent="요약 중… (로컬)";setTimeout(()=>{summarize.textContent="요약 만들기 · qwen2.5-14b (로컬)";tab="sum";render()},900)};
+rebuild.onclick=()=>{rebuild.textContent="정리함 ✓";setTimeout(()=>rebuild.textContent="다시 정리",1200)};
+const REP={day:["patchbay 일일 보고 · 2026-10-15","log/reports/day-2026-10-15.md"],week:["patchbay 주간 보고 · 2026-W42 (10/12–10/18)","log/reports/week-2026-W42.md"],month:["patchbay 월간 보고 · 2026-10","log/reports/month-2026-10.md"]};
+document.querySelectorAll('.rep').forEach(b=>b.onclick=()=>{const[t,p]=REP[b.dataset.r];dlgTitle.textContent=t;dlgPath.textContent=p+" · 처음 만든 초안 (있으면 덮지 않고 엽니다)";
+dlgBody.textContent=`---\nproject: patchbay\nperiod: ${b.dataset.r}\nsources: { days: ${b.dataset.r==="day"?1:b.dataset.r==="week"?4:8}, summaries: 1 }\n---\n# ${t}\n\n## 한 줄 요약\n(사람이 쓴다 — 아래 근거를 보고)\n\n## 주요 성과\n- 10/15 체력바 Claude % 를 서버 사용률로 [근거: progress 14:02]\n- 10/15 묶인 세션은 그 프로젝트 밖에 못 씀 [근거: progress 15:40]\n- 10/14 개요를 콘솔 안으로 [근거: git 37a3ef8]\n\n## 바뀐 영역\n| 태그 | 사건 | 파일 | 지난 기간 대비 |\n| UI | 31 | 58 | +12 |\n| 문서 | 20 | 24 | +3 |\n\n## 끝낸 할일 · 결정\n- 대시보드 에이전트 칸 제거 (10/15)\n\n## 막힌 것 · 남은 일\n- Flow 시험 1건 (할일 준비 작업)\n\n## 다음 계획\n(사람이 쓴다)\n\n## 근거\nlog/days/ 2026-10-13 · 14 · 15 · 색인 필터: 없음`;dlg.showModal()});
+render();
+</script></html>

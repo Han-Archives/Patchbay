@@ -179,7 +179,7 @@ export async function writeOverlayProcess(
   return updated;
 }
 
-/** `overlay.app` 만 바꾼다 — 3 운영에 띄울 프로젝트 화면 주소. null 이면 뺀다. */
+/** `overlay.app` 만 바꾼다 — 3 테스트에 띄울 프로젝트 화면 주소. null 이면 뺀다. */
 export async function writeOverlayApp(studioHome: string, alias: string, url: string | null): Promise<Overlay> {
   const overlay = await readOverlay(studioHome, alias);
   const { app: _old, ...rest } = overlay;

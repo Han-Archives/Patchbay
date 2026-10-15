@@ -13,6 +13,7 @@ import { registerProgressWriteTool } from "./tools/progressWrite.js";
 import { registerThreadTools } from "./tools/threads.js";
 import { registerConsultTools } from "./tools/consult.js";
 import { registerRoomTools } from "./tools/rooms.js";
+import { registerLogTools } from "./tools/log.js";
 import { registerSessionTools, SESSION_INSTRUCTIONS, type LlmRun } from "./tools/session.js";
 
 /**
@@ -43,6 +44,7 @@ export function createServer(studioHome: string = resolveStudioHome(), deps: { l
   registerThreadTools(server, studioHome);
   registerConsultTools(server, studioHome);
   registerRoomTools(server, studioHome);
+  registerLogTools(server, studioHome);
   registerSessionTools(server, studioHome, deps.llmRunner ? { runner: deps.llmRunner } : {});
 
   return server;

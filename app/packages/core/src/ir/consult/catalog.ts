@@ -87,7 +87,7 @@ export const CONSULT_ITEMS: readonly ConsultItem[] = [
   item("6-b", S, "1.5", "순서와 갈림길", ["edges"], "infer", "시작에서 끝까지 빠짐없이 닿아야 한다"),
   item("6-c", S, "1.5", "실패하면 가는 길", ["edges[when]"], "default", "모델 거절 · 시간 초과 · 빈 입력에 길이 없으면 막다른 단계가 생긴다"),
   item("3-b", S, "1.2", "틀리면 피해 크기", ["riskLevel"], "ask", "피해가 크면 사람 확인이 꼭 들어가야 한다"),
-  item("9-b", S, "1.8", "헷갈리는 입력", ["evals"], "ask", "헷갈리는 입력이 시험에 없으면 운영에서 처음 만난다"),
+  item("9-b", S, "1.8", "헷갈리는 입력", ["evals"], "ask", "헷갈리는 입력이 시험에 없으면 테스트에서 처음 만난다"),
   item("3-f", S, "1.7", "사람에게 넘기는 때", ["requirements[pattern=unwanted]"], "ask", "넘길 조건이 없으면 에이전트가 모르는 것도 그냥 한다"),
   item("N1", S, "1.2", "외부 MCP · 도구", ["tools[via=mcp]", "tools"], "ask", "밖의 도구를 모르면 권한과 자격 증명을 정할 수 없다"),
   item("N2", S, "1.3", "DB에 쌓는 것", ["emits[to=db]", "emits"], "ask", "무엇을 어디에 쌓는지 모르면 쓰기 권한과 되돌리기를 정할 수 없다"),
@@ -122,7 +122,7 @@ export const CONSULT_ITEMS: readonly ConsultItem[] = [
   item("N10", X, "1.3", "자격 증명 보관", ["credentials"], "ask", "키가 어디 있는지 모르면 밖으로 나가는 도구를 막을 수도 열 수도 없다"),
 
   item("9-c", M, "1.8", "추적 표", ["requirementLinks"], "infer", "빈칸이 곧 빠진 약속이다"),
-  item("9-d", M, "1.8", "시험 예 개수", ["evals"], "default", "처음엔 적어도 되고, 운영 실패가 쌓이며 는다"),
+  item("9-d", M, "1.8", "시험 예 개수", ["evals"], "default", "처음엔 적어도 되고, 테스트 실패가 쌓이며 는다"),
   item("7-c", M, "1.6", "문서 쓰는 비율", [], "default", "후보 중 절반도 안 쓰면 고르는 기준이 빠진 것이다 — 검사 1.6/doc-coverage가 본다"),
 ];
 

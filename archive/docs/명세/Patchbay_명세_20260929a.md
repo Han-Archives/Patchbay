@@ -124,7 +124,7 @@ MCP는 이 경로에 없다. 기획서 10절의 「쓰기 MCP는 확정 overlay�
 | `evals` | `Eval[]` | ✅ | — | §3.7 — 1.8 |
 | `requirementLinks` | `Link[]` | ✅ | — | §3.7 — 1.8의 추적 표 |
 
-**`ir.trace[]`는 없다.** 요구사항 추적은 `requirementLinks[]`, 운영 중 기록은 §5의 **실행 기록**이다.
+**`ir.trace[]`는 없다.** 요구사항 추적은 `requirementLinks[]`, 테스트 중 기록은 §5의 **실행 기록**이다.
 같은 이름을 쓰면 M6에서 어느 쪽을 뜻하는지 판정할 수 없다.
 
 **검사 결과를 IR에 적지 않는다.** 초안의 `L4_없음: true` · `rtm_빈칸:` 같은 필드는 받지 않는다 —
@@ -280,7 +280,7 @@ M5에서 그래프 조회로 바뀐다. 「후보는 많은데 표가 몇 개만
 | --- | --- | --- | --- |
 | ① | **DRC** (M2) | 설계 시점 | `tools[]`·`models[]`가 요구하는 caps가 `caps[]`에 선언됐나. 되돌릴 수 없는 행동에 `humanApproval`이 붙었나 |
 | ② | **생성기** (M4) | 스캐폴드 생성 시 | 노드 껍데기에 요구 caps와 사람 확인 지점을 **주석과 스텁**으로 넣는다 |
-| ③ | **실행 대조** (M6) | 운영 후 | 실행 기록의 `toolCalls[].caps`가 IR 선언을 벗어나면 어긋남으로 띄운다 |
+| ③ | **실행 대조** (M6) | 테스트 후 | 실행 기록의 `toolCalls[].caps`가 IR 선언을 벗어나면 어긋남으로 띄운다 |
 | ④ | **Patchbay 자신** | 항상 | MCP 쓰기 도구는 확정 overlay를 쓰지 않는다. `ir adopt`만이 쓰기다 |
 
 **Patchbay는 런타임에서 caps를 강제하지 않는다.** 원칙 9 — 그래프 invoke는 LangGraph의 몫이고
@@ -294,7 +294,7 @@ Patchbay는 실행 엔진이 아니다. 강제는 **생성된 코드와 그 런�
 
 ### 5.1 이름
 
-운영 중 런타임이 남긴 기록은 **실행 기록**(`run record`)이다. `trace`라고 부르지 않는다 —
+테스트 중 런타임이 남긴 기록은 **실행 기록**(`run record`)이다. `trace`라고 부르지 않는다 —
 요구사항 추적 표(`requirementLinks`)와 이름이 겹치면 M6에서 어느 쪽인지 판정할 수 없다.
 Patchbay는 **트레이스 뷰어를 만들지 않는다.** 시계열은 외부 관측 도구의 몫이다.
 
@@ -320,7 +320,7 @@ Patchbay는 **트레이스 뷰어를 만들지 않는다.** 시계열은 외부 
 
 ### 5.3 어디에 저장하나
 
-`~/.patchbay/projects/<alias>/runs/<runId>.json` — 한 실행 한 파일.
+`~/.patchbay/projects/<alias>/test-runs/<runId>.json` — 한 실행 한 파일.
 원칙 7대로 **파일이 원본**이고 Neo4j는 재인제스트로 다시 채울 수 있는 인덱스다.
 트레이스·토큰 로그를 Neo4j에 넣지 않는다(기획서 §6).
 
@@ -514,7 +514,7 @@ IR 전체에 묻힌다. 최소 변형만 적으면 **자료가 곧 검사의 뜻
 | 1 | IR이 사는 곳 | `overlay.yaml`의 `ir` 절. `process` 확장 아님 |
 | 2 | 초안 | `~/.patchbay/projects/<alias>/ir.proposed.yaml` |
 | 3 | 보관본 | `~/.patchbay/projects/<alias>/versions/<n>/{ir.yaml, evals.json, adopted.json}` |
-| 4 | 실행 기록 | `~/.patchbay/projects/<alias>/runs/<runId>.json` |
+| 4 | 실행 기록 | `~/.patchbay/projects/<alias>/test-runs/<runId>.json` |
 | 5 | 쓰기 경로 | `patchbay ir adopt` 하나. `--force` 없음. DRC 실패면 거절 |
 | 6 | 키 표기 | 기계 키는 영어 camelCase, 값은 한국어 자유 문장 |
 | 7 | IR 형식 버전 | `schemaVersion: 1` |

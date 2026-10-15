@@ -7,6 +7,7 @@ import {
   ROOM_SPEAKER_LABEL,
   ROOM_SPEAKERS,
   type RoomMember,
+  type RoomMode,
   roomMemberSchema,
   roomMessageSchema,
   type NewRoomMessage,
@@ -32,7 +33,7 @@ function serialize<T>(file: string, action: () => Promise<T>): Promise<T> {
  * 죽은 프로세스가 남긴 잠금은 10초가 지나면 걷는다.
  */
 export const ROOM_LOCK_STALE_MS = 10_000;
-async function withFileLock<T>(file: string, action: () => Promise<T>): Promise<T> {
+export async function withFileLock<T>(file: string, action: () => Promise<T>): Promise<T> {
   const lock = `${file}.lock`;
   const deadline = Date.now() + 15_000;
   for (;;) {
@@ -155,6 +156,7 @@ export function roomTitle(messages: readonly RoomMessage[]): string {
 }
 
 export interface RoomSummary {
+  preparationStatus?: string;
   id: string;
   title: string;
   status: RoomStatus;
@@ -228,13 +230,24 @@ const ACT_INSTRUCTIONS = [
   "- 끝나면 한국어로 짧게 보고한다: 바꾼 것 · 확인한 결과(통과/실패 그대로) · 못 한 것.",
 ].join("\n");
 
+const EDIT_INSTRUCTIONS = [
+  "문서 · 시안 작성: 요청에 맞는 문서·설계·시안 파일만 작성하거나 고친다. 셸 명령 실행이나 프로젝트 전체 코드 변경은 하지 않는다.",
+  "- 앞에 말한 사람이 초안을 이미 썼으면 같은 파일을 덮어쓰지 말고, 네 역할에 맞춰 사실 오류·구조 누락을 점검하거나 보완한다.",
+  "- 끝나면 한국어로 짧게 보고한다: 작성·보완한 내용과 남은 쟁점.",
+].join("\n");
+
+const READ_INSTRUCTIONS = [
+  "읽기 전용 모드: 이번 차례에는 프로젝트 파일을 수정하거나 삭제하지 않는다. 읽기와 분석만으로 답한다.",
+].join("\n");
+
 const canAct = (speaker: RoomSpeaker) => speaker === "claude-code" || speaker === "codex";
 
-/** 한 바퀴에서 이 사람에게 주는 기록. 역할은 사람이 적은 문장이다. */
+/** 한 바퀴에서 이 사람에게 주는 기록. 역할은 사람이 적은 문장이고, 모드가 켜져 있으면 모드 규약과 권한을 따른다. */
 export function roundPrompt(
   messages: readonly RoomMessage[],
   member: { speaker: RoomSpeaker; model: string; role: string; name?: string },
   kind: RoundKind,
+  mode?: Pick<RoomMode, "name" | "prompt" | "execution"> | null,
 ): string {
   const named = member.name?.trim() ? `역할명: ${member.name.trim()}\n` : "";
   const role = member.role.trim() || "역할이 비어 있다. 짧게 답한다.";
@@ -242,7 +255,21 @@ export function roundPrompt(
     kind === "talk"
       ? "이번은 대화다. 네 역할로 사람이 꺼낸 주제만 답한다. 앞에 말한 사람의 결론을 받아치지 않는다."
       : "이번은 토의다. 네 역할로 답하고, 바로 앞에 말한 사람의 말에서 한 점을 받는다. 앞에 사람이 주제만 말했으면 그 주제만 답한다.";
-  return `${roomPrompt(messages, member.speaker, member.model)}\n\n${named}네 역할: ${role}\n${how}${canAct(member.speaker) ? `\n${ACT_INSTRUCTIONS}` : ""}`;
+  const modeBlock = mode
+    ? `\n모드: ${mode.name}\n모드 규약: ${mode.prompt.trim() || "주제에 맞게 답한다."}`
+    : "";
+  const execution = mode?.execution ?? "apply";
+  const actBlock =
+    execution === "read"
+      ? `\n${READ_INSTRUCTIONS}`
+      : execution === "edit"
+        ? canAct(member.speaker)
+          ? `\n${EDIT_INSTRUCTIONS}`
+          : ""
+        : canAct(member.speaker)
+          ? `\n${ACT_INSTRUCTIONS}`
+          : "";
+  return `${roomPrompt(messages, member.speaker, member.model)}\n\n${named}네 역할: ${role}\n${how}${modeBlock}${actBlock}`;
 }
 
 /** `title` 이 null 이면 아직 사람이 고치지 않았다. 빈 문자열이면 사람이 비웠다. */
@@ -250,10 +277,12 @@ export interface RoomMeta {
   title: string | null;
   kept: boolean;
   members: RoomMember[];
+  /** 현재 이 대화방에 지정된 모드 id. 비어 있거나 null 이면 일반 대화. */
+  modeId?: string | null;
   execution?: RoomExecution;
 }
 
-const EMPTY_META: RoomMeta = { title: null, kept: false, members: [] };
+const EMPTY_META: RoomMeta = { title: null, kept: false, members: [], modeId: null };
 
 export function roomMetaPath(studioHome: string, alias: string, id: string): string {
   return path.join(projectStudioDir(studioHome, alias), ROOM_DIR_NAME, `${safeRoomId(id)}.meta.json`);
@@ -272,6 +301,7 @@ export async function readRoomMeta(studioHome: string, alias: string, id: string
       title: typeof raw.title === "string" ? raw.title : null,
       kept: raw.kept === true,
       members: Array.isArray(raw.members) ? raw.members.flatMap((row, index) => { const member = normalizeMember(row); return member ? [{ ...member, id: member.id ?? `legacy-${index}` }] : []; }) : [],
+      modeId: typeof raw.modeId === "string" && raw.modeId.trim() ? raw.modeId.trim() : null,
       ...(raw.execution ? { execution: roomExecutionSchema.parse(raw.execution) } : {}),
     };
   } catch (error) {

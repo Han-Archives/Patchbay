@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 import { appendRoomMessage, registerProject, writeRoomMeta } from "@patchbay/core";
 import { connectInProcess, callTool, resultJson } from "../testSupport.js";
 
-describe("운영 대화 MCP 원문 조회", () => {
+describe("테스트 대화 MCP 원문 조회", () => {
   it("증분 조회와 원문 순번을 제공하고 상담을 섞거나 재개하지 않는다", async () => {
     const home = await fs.mkdtemp(path.join(os.tmpdir(), "pb-mcp-room-"));
     await registerProject(home, { alias: "demo", kind: "local_repo", path: "/tmp/demo" });
-    await writeRoomMeta(home, "demo", "r1", { title: "운영", kept: false, members: [] });
+    await writeRoomMeta(home, "demo", "r1", { title: "테스트", kept: false, members: [] });
     await Promise.all(Array.from({ length: 5 }, (_, n) => appendRoomMessage(home, "demo", "r1", { role: "user", text: `메모 ${n}` })));
     const { client, close } = await connectInProcess(home);
     try {

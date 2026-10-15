@@ -9,6 +9,12 @@
 
 version: 1
 rules:
+  - path: "workspace/projects/*/dashboard-history.json"
+    tier: 허가
+    why: 사용자가 작성한 일자별 변경 기록
+  - path: "workspace/projects/*/todo-preparations.json"
+    tier: 허가
+    why: 할일 사전 준비 산출물과 사용자 승인 이력
   - path: "workspace/projects/*/rooms/**"
     tier: 허가
     why: 대화방 원문 — 사용자 대화가 그대로 있다
@@ -18,7 +24,7 @@ rules:
   - path: "workspace/projects/*/threads/**"
     tier: 허가
     why: 실행 스레드 원문
-  - path: "workspace/projects/*/runs/**"
+  - path: "workspace/projects/*/test-runs/**"
     tier: 허가
     why: 실행 기록 원문
   - path: "workspace/projects/*/refs/**"
@@ -30,6 +36,21 @@ rules:
   - path: "workspace/records/**"
     tier: 허가
     why: 비공개 기록층 — 다른 프로젝트 내용 · 기획 대화 원문 · 결정 기록
+  - path: "workspace/projects/*/log/events/**"
+    tier: 허가
+    why: Log 원문 — 할일 변동 · 확정한 날의 사건(사용자 말 발췌 포함)
+  - path: "workspace/projects/*/log/records/**"
+    tier: 허가
+    why: Log 일일 기록 — 사용자 말 발췌가 들어 있다
+  - path: "workspace/projects/*/log/summaries/**"
+    tier: 허가
+    why: Log 로컬 LLM 요약 — 일일 기록에서 나온 글
+  - path: "workspace/projects/*/log/reports/**"
+    tier: 허가
+    why: Log 보고서 바탕 — 사람이 고쳐 쓰는 저작물
+  - path: "workspace/projects/*/log/index/**"
+    tier: 기록
+    why: Log 색인 — 사건 제목 · 태그 집계
   - path: "workspace/room-mirror/**"
     tier: 기록
     why: 세션 ↔ 방 연결과 옮긴 위치

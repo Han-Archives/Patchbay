@@ -20,6 +20,7 @@ import {
   readProposedIr,
   readStudio,
   refsDir,
+  recordLlmQuotaExhausted,
   CONSULT_HOSTS,
   type ConsultHost,
   type ConsultMessage,
@@ -78,7 +79,7 @@ export interface HostTurnRequest {
 }
 
 export type HostTurnResult =
-  | { ok: true; text: string; sessionId?: string; ms: number; costUsd?: number }
+  | { ok: true; text: string; sessionId?: string; ms: number; costUsd?: number; usage?: { input: number; output: number } }
   | { ok: false; kind: "error" | "timeout"; text: string; ms: number; partial?: string };
 
 export type HostRunner = (req: HostTurnRequest) => Promise<HostTurnResult>;
@@ -121,12 +122,22 @@ export function codexArgs(req: HostTurnRequest): string[] {
   return req.resume ? ["exec", "resume", req.sessionId!, ...common, prompt] : ["exec", ...common, prompt];
 }
 
-export function parseClaudeOutput(stdout: string): { text: string; sessionId?: string; costUsd?: number; isError: boolean } {
+export function parseClaudeOutput(stdout: string): {
+  text: string;
+  sessionId?: string;
+  costUsd?: number;
+  usage?: { input: number; output: number };
+  isError: boolean;
+} {
   const body = JSON.parse(stdout.trim().split("\n").at(-1) ?? "{}") as Record<string, unknown>;
+  const rawUsage = body.usage as { input_tokens?: unknown; output_tokens?: unknown } | undefined;
+  const input = typeof rawUsage?.input_tokens === "number" && rawUsage.input_tokens >= 0 ? rawUsage.input_tokens : undefined;
+  const output = typeof rawUsage?.output_tokens === "number" && rawUsage.output_tokens >= 0 ? rawUsage.output_tokens : undefined;
   return {
     text: typeof body.result === "string" ? body.result : "",
     ...(typeof body.session_id === "string" ? { sessionId: body.session_id } : {}),
     ...(typeof body.total_cost_usd === "number" ? { costUsd: body.total_cost_usd } : {}),
+    ...(input !== undefined && output !== undefined ? { usage: { input, output } } : {}),
     isError: body.is_error === true || body.subtype === "error",
   };
 }
@@ -318,7 +329,7 @@ export const defaultHostRunner: HostRunner = async (req) => {
     if (req.host === "claude-code") {
       const out = parseClaudeOutput(run.stdout);
       if (run.code !== 0 || out.isError) return { ok: false, kind: "error", text: explainHostFailure(out.text || run.stderr || `종료 코드 ${run.code}`, req.model), ms };
-      return { ok: true, text: out.text, ...(out.sessionId ? { sessionId: out.sessionId } : {}), ms, ...(out.costUsd !== undefined ? { costUsd: out.costUsd } : {}) };
+      return { ok: true, text: out.text, ...(out.sessionId ? { sessionId: out.sessionId } : {}), ms, ...(out.costUsd !== undefined ? { costUsd: out.costUsd } : {}), ...(out.usage ? { usage: out.usage } : {}) };
     }
     const out = parseCodexOutput(run.stdout);
     if (run.code !== 0 || out.isError) return { ok: false, kind: "error", text: explainHostFailure(out.error ?? (run.stderr || `종료 코드 ${run.code}`), req.model), ms };
@@ -557,8 +568,10 @@ export async function sendConsultTurn(
           model: input.model || input.host,
           ms: result.ms,
           ...(result.costUsd !== undefined ? { costUsd: result.costUsd } : {}),
+          ...(result.usage ? { usage: result.usage } : {}),
         }, now());
       } else {
+        await recordLlmQuotaExhausted(studioHome, input.host, result.text, now()).catch(() => undefined);
         // 멈추기 전까지 쓴 답이 있으면 버리지 않는다 — 사람이 거기서부터 이어 갈 수 있게.
         if (!result.ok && result.partial) {
           await appendConsultMessage(studioHome, input.alias, consultId, {

@@ -116,7 +116,7 @@ export const overlaySchema = z.object({
    */
   budget: budgetSchema.optional(),
   /**
-   * 3 운영의 사용 창 — 프로젝트가 만든 화면 (사용자 결정 2026-10-08: 문제는 Patchbay 운영 안에서 푼다).
+   * 3 테스트의 사용 창 — 프로젝트가 만든 화면 (사용자 결정 2026-10-08: 문제는 Patchbay 테스트 안에서 푼다).
    * 화면은 프로젝트가 만들고 Patchbay는 틀만 맡는다. 설계(ir)가 아니다 — 같은 설계라도 화면 주소는 기기마다 다르다.
    */
   app: z.object({ url: z.string().url() }).optional(),

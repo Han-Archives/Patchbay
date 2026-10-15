@@ -42,6 +42,7 @@ export const consultHostSchema = z.object({
   model: z.string(),
   ms: z.number().int().nonnegative(),
   costUsd: z.number().nonnegative().optional(),
+  usage: z.object({ input: z.number().int().nonnegative(), output: z.number().int().nonnegative() }).optional(),
 });
 export const consultSystemSchema = z.object({
   ...base,

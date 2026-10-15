@@ -20,7 +20,7 @@ export type LoadRunsResult =
   | { ok: false; status: 400 | 404; error: string };
 
 /**
- * 5단계 운영 — 한 번 읽어 네 가지를 답한다: 무엇이 수집됐나(상태별), 설계와
+ * 5단계 테스트 — 한 번 읽어 네 가지를 답한다: 무엇이 수집됐나(상태별), 설계와
  * 어긋난 것(5.3), 한도를 넘긴 실행(5.6), 그리고 버전이 둘 이상이면 v(n)↔v(n+1).
  *
  * Computed by Core from the project's own files, like the impact radius and the
@@ -102,7 +102,7 @@ export type WriteDraftEvalsResult =
   | { ok: false; status: 400 | 404 | 409; error: string };
 
 /**
- * 5.4 — `patchbay runs draft-evals --write` 와 같은 일. 운영 화면의 「평가 초안 넣기」가 부른다.
+ * 5.4 — `patchbay runs draft-evals --write` 와 같은 일. 테스트 화면의 「평가 초안 넣기」가 부른다.
  *
  * 쓰기는 Core `appendProposedEvals` 하나이고 `ir.proposed.yaml` 에만 쓴다. 승인본(`overlay.ir`)의
  * 쓰기 길은 여전히 `ir adopt` 하나 — 실패 기록은 평가를 **제안**할 뿐 채택하지 못한다. 검토와 채택은

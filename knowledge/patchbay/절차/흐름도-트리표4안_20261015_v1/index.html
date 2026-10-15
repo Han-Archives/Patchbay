@@ -1,0 +1,164 @@
+<title>흐름도 트리표 4안</title>
+<style>
+/* 레이아웃: 요구사항 · 버전 탭, 아래는 [흐름도(그대로) + 트리 표 | 할일] 두 칸 (좁으면 한 칸) */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--bad:#ef7b6e;--user:#7fc8a0;
+--t-ui:#7db3ef;--t-agent:#f0a3c8;--t-data:#7fc8a0;--t-server:#e3a35a;--t-doc:#b8b8b8;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button,input,select{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.wrap{max-width:1280px;margin:auto;padding:28px 16px 48px;display:grid;gap:18px}
+h1{font-size:21px;margin:4px 0 0;text-wrap:balance}h2{font-size:15px;margin:0}small,.muted{color:var(--muted);font-size:12px}
+.tag{color:var(--ok-text);background:var(--ok-fill);border:1px solid var(--ok-line);padding:5px 10px;border-radius:6px;font-size:12px;white-space:nowrap}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.req{background:var(--chrome);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:12px}
+.req ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.req li{background:var(--elevated);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;color:var(--sub)}.req li b{display:block;color:var(--text);font-size:12px;margin-bottom:3px}
+.req p{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{background:var(--elevated);border:1px solid var(--stroke);border-radius:8px;padding:8px 12px;font-size:13px}.tabs button[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+.vdesc{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6}.vdesc b{color:var(--text)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start}
+.panel{background:var(--chrome);border:1px solid var(--line);border-radius:10px;min-width:0;overflow:hidden}
+.phead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}.phead .sp{flex:1}
+/* 흐름도 (이전 시안 그대로) */
+.flow{display:flex;align-items:stretch;padding:18px 16px;overflow-x:auto}
+.node{flex:1 1 0;min-width:120px;text-align:left;background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:12px;display:grid;gap:6px}
+.node:hover{border-color:#555}.node[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+.node b{font-size:14px}.node small{font-variant-numeric:tabular-nums}.arrow{align-self:center;color:#555;padding:0 8px;font-size:15px}
+.bar{height:4px;background:var(--fill);border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.hint{font-size:11.5px;color:var(--muted);padding:0 16px 14px}
+/* 트리 표 공통 */
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;min-width:660px;table-layout:fixed}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;line-height:1.5}
+thead th{font-size:11.5px;font-weight:600;color:var(--muted);background:#1d1d1d;white-space:nowrap;letter-spacing:.02em}
+col.c-name{width:170px}col.c-tag{width:156px}.tags{flex-wrap:nowrap}col.c-run{width:112px}
+.toggle{background:none;border:0;padding:2px 0;text-align:left;font-weight:600;display:flex;gap:8px;align-items:center;white-space:nowrap}.toggle .car{display:inline-block;width:12px;color:var(--muted);transition:transform .15s}.toggle[aria-expanded=true] .car{transform:rotate(90deg);color:var(--ok-text)}
+tr.task:hover{background:#1f1f1f}tr.task.is-open{background:#1f1d26}
+tr.sub td{background:#181818;padding-top:8px;padding-bottom:8px}
+.indent{display:flex;gap:8px;align-items:center;padding-left:20px;margin-left:5px;border-left:1px solid var(--ok-line);min-height:28px;white-space:nowrap}
+.nm{font-size:12.5px;color:var(--text)}.desc{font-size:12.5px;color:var(--sub)}.task .desc{color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}.dot.llm{background:var(--ok)}.dot.user{background:var(--user)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--stroke);color:var(--sub);white-space:nowrap}
+.tags{display:flex;gap:4px;flex-wrap:wrap}
+.run{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.play{width:28px;height:28px;border-radius:50%;border:1px solid var(--ok-line);background:var(--ok-fill);color:var(--ok-text);font-size:10px;display:inline-grid;place-items:center;padding:0 0 0 2px;flex:none}.play:hover{background:#3a2f5c}
+.minus{width:24px;height:24px;border-radius:6px;border:1px solid var(--stroke);background:transparent;color:var(--muted);padding:0;font-size:14px;line-height:1;flex:none}.minus:hover{color:var(--bad);border-color:var(--bad)}
+.sent{font-size:11px;color:var(--ok-text);white-space:nowrap}
+.addbtn{background:none;border:1px dashed var(--stroke);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted)}.addbtn:hover{color:var(--text);border-color:#666}
+.addrow input,.addrow select{width:100%;background:var(--bg);border:1px solid var(--stroke);border-radius:6px;padding:6px 8px;font-size:12.5px}
+.btn{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:6px 10px;font-size:12px;white-space:nowrap}.btn.pri{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;font-size:11.5px;color:var(--muted);align-items:center}.legend span{display:inline-flex;gap:6px;align-items:center}
+/* 태그 색 (2·3·4안) */
+.c-UI{--tc:var(--t-ui)}.c-Agent{--tc:var(--t-agent)}.c-데이터{--tc:var(--t-data)}.c-서버{--tc:var(--t-server)}.c-문서{--tc:var(--t-doc)}
+.v2 .chip,.v4 .chip{color:var(--tc);border-color:color-mix(in srgb,var(--tc) 45%,transparent);background:color-mix(in srgb,var(--tc) 12%,transparent)}
+.v2 tr.sub td:first-child{box-shadow:inset 3px 0 0 var(--tc)}
+.v2 .chip b{font-weight:600;font-variant-numeric:tabular-nums}
+/* 3안 한 줄 · 필터 */
+.filter{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}.filter button{background:transparent;border:1px solid var(--stroke);border-radius:999px;padding:4px 11px;font-size:12px;color:var(--sub);display:inline-flex;gap:6px;align-items:center}.filter button[aria-pressed=true]{border-color:var(--tc,var(--ok));color:var(--tc,var(--ok-text));background:color-mix(in srgb,var(--tc,var(--ok)) 14%,transparent)}.filter button small{font-size:11px;font-variant-numeric:tabular-nums}
+.v3 td{padding-top:7px;padding-bottom:7px}.v3 .desc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3 .tg{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tc)}.v3 .tg:before{content:"";display:inline-block;width:6px;height:6px;border-radius:1px;background:var(--tc);margin-right:6px;vertical-align:1px}
+.v3 .play{width:24px;height:24px;font-size:9px}
+/* 4안 실행 강조 */
+.v4 col.c-run{width:150px}.runbtn{border:1px solid var(--ok-line);background:var(--ok-fill);color:#e4d9ff;border-radius:7px;padding:5px 10px;font-size:12px;white-space:nowrap}.runbtn:hover{background:#3a2f5c}
+.queued{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;color:var(--ok-text);border:1px solid var(--ok-line);border-radius:7px;padding:4px 8px;white-space:nowrap}.queued b{font-variant-numeric:tabular-nums}
+.v4 .desc small{display:block;font-size:11px;margin-top:2px}
+.runall{background:none;border:1px solid var(--stroke);border-radius:7px;padding:4px 9px;font-size:11.5px;color:var(--sub);white-space:nowrap}.runall:hover{border-color:var(--ok-line);color:var(--ok-text)}
+/* 할일 */
+.todo ol{list-style:none;margin:0;padding:6px 0;counter-reset:t}.todo li{display:grid;grid-template-columns:20px 1fr 24px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:start;counter-increment:t}
+.todo li:before{content:counter(t);font-size:11px;color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}.todo li.fresh{animation:in .5s ease}.todo .tt{font-size:12.5px;line-height:1.5}.todo small{display:block;font-size:11px;margin-top:2px}
+.todo .x{background:none;border:0;color:var(--muted);padding:0;font-size:15px}.todo .x:hover{color:var(--bad)}
+.empty{padding:22px 16px;font-size:12px;color:var(--muted);line-height:1.6}
+@keyframes in{from{background:var(--ok-fill)}to{background:transparent}}
+@media(max-width:940px){.stage{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+<header class="top"><div><small>PATCHBAY / 대시보드 / 흐름도</small><h1>흐름도 트리표 · 4가지 버전</h1></div><span class="tag">승인 전 시안 · 예시 데이터</span></header>
+
+<section class="req" aria-label="요구사항 정리">
+<h2>이번 요구사항</h2>
+<ol>
+<li><b>트리 표 · 흐름도 그대로</b>앞 시안의 1안 트리 표를 바탕으로 한다. 흐름도 칸과 할일 칸은 바꾸지 않는다.</li>
+<li><b>항목명</b>업무 이름. 7글자를 넘으면 7글자 뒤를 「...」로 줄인다. 마우스를 올리면 전체 이름이 보인다.</li>
+<li><b>설명</b>무엇을 하는지 짧게 한 줄.</li>
+<li><b>태그</b>가장 위 분류 하나 — UI · Agent · 데이터 · 서버 · 문서. 작업 행에는 아래 세부 항목들의 태그가 모여 보인다.</li>
+<li><b>실행</b>▶ 를 누르면 오른쪽 할일 맨 아래에 올라간다. − 는 빼기, 표 맨 아래 + 는 네 칸을 그대로 입력하는 줄.</li>
+</ol>
+<p>글자 수는 띄어쓰기 · 가운뎃점도 한 글자로 센다. 네 버전 모두 열 순서(항목명 · 설명 · 태그 · 실행)와 동작은 같고, 태그를 보여 주는 방식과 실행 칸의 모양이 다르다.</p>
+</section>
+
+<nav class="tabs" id="tabs" aria-label="버전 고르기"></nav>
+<p class="vdesc" id="vdesc"></p>
+<div class="stage" id="app"></div>
+</div>
+<script>
+const STAGES=[["design","설계"],["build","구현"],["run","테스트"],["review","검토"]];
+const TAGS=["UI","Agent","데이터","서버","문서"];
+let uid=0;const T=(name,desc,items)=>({id:"t"+(++uid),name,desc,items:items.map(([name,desc,tag,src])=>({id:"i"+(++uid),name,desc,tag,src}))});
+const BASE={
+ design:[T("목표 · 범위 정리","이번 설계가 다룰 것과 뺄 것",[["사용자 문제 한 줄","누구의 어떤 불편인지 한 문장으로","문서","llm"],["뺄 기능 목록","이번 주기에 하지 않을 것 적기","문서","llm"],["성공 기준 정하기","끝났다고 볼 기준 3개","문서","user"]]),
+  T("사용자 흐름","화면에서 무엇을 누르고 어디로 가는지",[["첫 실행 흐름 그리기","처음 연 사람이 거치는 화면 순서","UI","llm"],["오류가 났을 때 흐름 그리기","실패 안내와 다시 시도 경로","UI","llm"],["화면 전환 목록","화면 사이 이동 경로를 표로","UI","user"],["LLM 응답 대기 처리","Agent가 답하는 동안 보일 상태","Agent","llm"]]),
+  T("데이터 구조","저장할 항목과 관계",[["저장 항목 목록","남길 필드와 형식 정리","데이터","llm"],["저장 위치 정하기","파일 경로와 형식 결정","데이터","llm"],["Agent 기억 범위","다음 대화에 가져갈 내용","Agent","llm"]]),
+  T("PRD 검토","요구사항 누락과 열린 질문 확인",[["열린 질문 정리","아직 답이 없는 질문 모으기","문서","llm"],["빠진 요구사항 확인","흐름 · 데이터와 PRD 대조","문서","llm"]])],
+ build:[T("저장소 모듈","세부 항목을 읽고 쓰는 코어",[["읽기 · 쓰기 함수","항목 불러오기와 저장","데이터","llm"],["단위 시험 작성","추가 · 삭제 · 순서 시험","서버","llm"]]),
+  T("화면 연결","흐름도 · 표 · 할일 잇기",[["흐름도 칸 클릭 연결","칸을 누르면 표 바꾸기","UI","llm"],["트리 표 그리기","작업 행 아래로 세부 펼치기","UI","llm"],["할일로 보내기 버튼","▶ 누르면 할일 맨 아래에 추가","UI","user"]]),
+  T("Agent 계획 연결","LLM이 세부 항목을 채우게",[["계획 요청 프롬프트","단계 · 작업을 주고 세부 항목 받기","Agent","llm"],["응답을 항목으로 변환","이름 · 설명 · 태그로 나눠 저장","Agent","llm"]])],
+ run:[T("실행 점검","실제로 돌려서 확인",[["서버 기동 확인","서버가 응답하는지 확인","서버","llm"],["노드별 실행 결과 확인","노드마다 통과 · 실패 보기","Agent","llm"]]),T("기록","실행 결과 남기기",[["실행 로그 저장","실행 기록을 프로젝트에 보관","데이터","llm"]])],
+ review:[T("달라진 점","설계와 결과 비교",[["설계와 구현의 차이","PRD와 실제 동작이 다른 곳","문서","llm"],["다음 주기 반영 항목","다음 설계에 넣을 것 고르기","문서","user"]])]};
+const VERS=[
+ {name:"1안 · 기본 네 칸",desc:"<b>요청한 네 칸을 가장 담백하게.</b> 태그는 무채색 칩, 실행 칸은 ▶ 와 − 만. 항목명 앞 점으로 LLM 계획(보라) · 직접 추가(초록)를 구분한다."},
+ {name:"2안 · 태그 색 구분",desc:"<b>태그마다 색을 준다.</b> 세부 행 왼쪽 끝에 태그 색 띠가 있어 펼친 목록에서 UI · Agent 덩어리가 바로 보인다. 작업 행 태그 칸에는 태그별 개수가 붙는다."},
+ {name:"3안 · 한 줄 · 태그 필터",desc:"<b>촘촘한 한 줄 행 + 위쪽 태그 필터.</b> 「Agent」만 누르면 Agent 세부 항목만 남는다. 설명이 칸보다 길면 끝을 줄인다. 행이 많아질 때를 위한 안."},
+ {name:"4안 · 실행 강조",desc:"<b>실행 칸을 넓혀 글자 버튼으로.</b> 「▶ 할일로」를 누르면 「할일 #2」처럼 할일 속 순서가 보인다. 작업 행에는 「▶ 남은 것 모두」. 설명 아래에 출처를 글자로 적는다."}];
+const S=VERS.map(()=>{const data=JSON.parse(JSON.stringify(BASE));return{stage:"design",open:new Set([data.design[1].id]),adding:null,filter:null,data,todo:[data.design[1].items[1].id],fresh:null}});
+let v=0;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const short=s=>{const a=Array.from(s);return a.length>7?a.slice(0,7).join("").trimEnd()+"...":s};
+const st=()=>S[v];
+function find(s,id){for(const[k]of STAGES)for(const t of s.data[k]){if(t.id===id)return{task:t,stage:k};const it=t.items.find(i=>i.id===id);if(it)return{item:it,task:t,stage:k}}}
+const vis=t=>st().filter&&v===2?t.items.filter(i=>i.tag===st().filter):t.items;
+const tagCount=items=>TAGS.map(g=>[g,items.filter(i=>i.tag===g).length]).filter(x=>x[1]);
+const nameCell=(text,extra="")=>`<span class="nm" title="${esc(text)}">${esc(short(text))}</span>${extra}`;
+const toggle=t=>`<button class="toggle" data-act="toggle" data-id="${t.id}" aria-expanded="${st().open.has(t.id)}" title="${esc(t.name)}"><span class="car">▸</span>${esc(short(t.name))}</button>`;
+const inTodo=i=>st().todo.indexOf(i.id);
+const play=i=>inTodo(i)>=0?`<span class="sent">할일에 있음 ✓</span>`:`<button class="play" data-act="play" data-id="${i.id}" aria-label="${esc(i.name)} 할일로 보내기" title="할일로 보내기">▶</button>`;
+const minus=i=>`<button class="minus" data-act="del" data-id="${i.id}" aria-label="${esc(i.name)} 빼기" title="빼기">−</button>`;
+function addRow(t,cls=""){const id=`${v}-${t.id}`;if(st().adding!==t.id)return`<tr class="sub ${cls}"><td colspan="4"><div class="indent"><button class="addbtn" data-act="add" data-id="${t.id}">+ 세부 항목 추가</button></div></td></tr>`;
+ return`<tr class="sub addrow"><td><div class="indent"><input form="f-${id}" id="n-${id}" placeholder="항목명" maxlength="40" required aria-label="항목명"></div></td><td><input form="f-${id}" placeholder="무엇을 하는지 짧게" maxlength="60" aria-label="설명"></td><td><select form="f-${id}" aria-label="태그">${TAGS.map(g=>`<option>${g}</option>`).join("")}</select></td><td><div class="run"><form id="f-${id}" data-task="${t.id}"><button class="btn pri">추가</button></form><button class="minus" data-act="cancel" aria-label="취소" title="취소">×</button></div></td></tr>`}
+const cols=`<colgroup><col class="c-name"><col><col class="c-tag"><col class="c-run"></colgroup><thead><tr><th>항목명</th><th>설명</th><th>태그</th><th style="text-align:right">실행</th></tr></thead>`;
+
+function flow(){const s=st();return`<div class="flow" role="group" aria-label="흐름도">${STAGES.map(([k,name],i)=>{const items=s.data[k].flatMap(t=>t.items);const n=items.length,d=items.filter(x=>s.todo.includes(x.id)).length;return`${i?'<span class="arrow" aria-hidden="true">→</span>':""}<button class="node" data-act="stage" data-id="${k}" aria-pressed="${s.stage===k}"><b>${name}</b><small>작업 ${s.data[k].length} · 세부 ${n}</small><span class="bar"><i style="width:${n?d/n*100:0}%"></i></span></button>`}).join("")}</div><div class="hint">칸을 누르면 아래에 그 단계의 작업 사항이 나옵니다. 막대는 할일에 올린 비율.</div>`}
+
+const R=[
+// 1안 기본
+s=>`<div class="tbl"><table>${cols}<tbody>${s.data[s.stage].map(t=>{const o=s.open.has(t.id);return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td class="desc">${esc(t.desc)}</td><td><div class="tags">${tagCount(t.items).map(([g])=>`<span class="chip">${g}</span>`).join("")}</div></td><td style="text-align:right"><small>세부 ${t.items.length}</small></td></tr>${o?t.items.map(i=>`<tr class="sub"><td><div class="indent"><i class="dot ${i.src}" title="${i.src==="llm"?"LLM 계획":"직접 추가"}"></i>${nameCell(i.name)}</div></td><td class="desc">${esc(i.desc)}</td><td><span class="chip">${i.tag}</span></td><td><div class="run">${play(i)}${minus(i)}</div></td></tr>`).join("")+addRow(t):""}`}).join("")}</tbody></table></div><div class="legend"><span><i class="dot llm"></i>LLM 계획</span><span><i class="dot user"></i>직접 추가</span><span>항목명은 7글자 뒤 「...」 · 올리면 전체</span></div>`,
+// 2안 태그 색
+s=>`<div class="tbl"><table>${cols}<tbody>${s.data[s.stage].map(t=>{const o=s.open.has(t.id);return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td class="desc">${esc(t.desc)}</td><td><div class="tags">${tagCount(t.items).map(([g,n])=>`<span class="chip c-${g}">${g} <b>${n}</b></span>`).join("")}</div></td><td style="text-align:right"><small>세부 ${t.items.length}</small></td></tr>${o?t.items.map(i=>`<tr class="sub c-${i.tag}"><td><div class="indent"><i class="dot ${i.src}" title="${i.src==="llm"?"LLM 계획":"직접 추가"}"></i>${nameCell(i.name)}</div></td><td class="desc">${esc(i.desc)}</td><td><span class="chip c-${i.tag}">${i.tag}</span></td><td><div class="run">${play(i)}${minus(i)}</div></td></tr>`).join("")+addRow(t):""}`}).join("")}</tbody></table></div><div class="legend">${TAGS.map(g=>`<span class="c-${g}"><i class="dot" style="background:var(--tc)"></i>${g}</span>`).join("")}<span><i class="dot llm"></i>LLM 계획 · <i class="dot user"></i>직접 추가</span></div>`,
+// 3안 한 줄 · 필터
+s=>{const all=s.data[s.stage].flatMap(t=>t.items);return`<div class="filter" role="group" aria-label="태그로 거르기"><small>태그</small><button data-act="filter" data-id="" aria-pressed="${!s.filter}">전체 <small>${all.length}</small></button>${TAGS.map(g=>{const n=all.filter(i=>i.tag===g).length;return n?`<button class="c-${g}" data-act="filter" data-id="${g}" aria-pressed="${s.filter===g}">${g} <small>${n}</small></button>`:""}).join("")}</div><div class="tbl"><table>${cols}<tbody>${s.data[s.stage].filter(t=>vis(t).length).map(t=>{const o=s.open.has(t.id)||!!s.filter,items=vis(t);return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td><span class="desc" title="${esc(t.desc)}">${esc(t.desc)}</span></td><td><span class="desc">${tagCount(t.items).map(([g])=>`<span class="tg c-${g}">${g}</span>`).join(" ")}</span></td><td style="text-align:right"><small>${items.length}</small></td></tr>${o?items.map(i=>`<tr class="sub"><td><div class="indent"><i class="dot ${i.src}" title="${i.src==="llm"?"LLM 계획":"직접 추가"}"></i>${nameCell(i.name)}</div></td><td><span class="desc" title="${esc(i.desc)}">${esc(i.desc)}</span></td><td><span class="tg c-${i.tag}">${i.tag}</span></td><td><div class="run">${play(i)}${minus(i)}</div></td></tr>`).join("")+(s.filter?"":addRow(t)):""}`}).join("")}</tbody></table></div><div class="legend"><span>태그를 누르면 그 태그의 세부 항목만 펼쳐 보입니다</span></div>`},
+// 4안 실행 강조
+s=>`<div class="tbl"><table>${cols}<tbody>${s.data[s.stage].map(t=>{const o=s.open.has(t.id),left=t.items.filter(i=>inTodo(i)<0).length;return`<tr class="task${o?" is-open":""}"><td>${toggle(t)}</td><td class="desc">${esc(t.desc)}</td><td><div class="tags">${tagCount(t.items).map(([g])=>`<span class="chip c-${g}">${g}</span>`).join("")}</div></td><td style="text-align:right">${left?`<button class="runall" data-act="playall" data-id="${t.id}">▶ 남은 것 모두 ${left}</button>`:'<small>모두 올림</small>'}</td></tr>${o?t.items.map(i=>{const q=inTodo(i);return`<tr class="sub"><td><div class="indent">${nameCell(i.name)}</div></td><td class="desc">${esc(i.desc)}<small>${i.src==="llm"?"LLM 계획":"직접 추가"}</small></td><td><span class="chip c-${i.tag}">${i.tag}</span></td><td><div class="run">${q>=0?`<span class="queued">할일 <b>#${q+1}</b></span>`:`<button class="runbtn" data-act="play" data-id="${i.id}">▶ 할일로</button>`}${minus(i)}</div></td></tr>`}).join("")+addRow(t):""}`}).join("")}</tbody></table></div>`];
+
+function todo(){const s=st();return`<aside class="panel todo" aria-label="할일"><div class="phead"><h2>할일</h2><small>${s.todo.length}건</small><span class="sp"></span><small>▶ 로 올린 순서</small></div>${s.todo.length?`<ol>${s.todo.map(id=>{const f=find(s,id);return`<li class="${s.fresh===id?"fresh":""}"><div><div class="tt">${esc(f.item.name)}</div><small>${STAGES.find(x=>x[0]===f.stage)[1]} › ${esc(f.task.name)} · ${f.item.tag}</small></div><button class="x" data-act="untodo" data-id="${id}" aria-label="할일에서 빼기">×</button></li>`}).join("")}</ol>`:'<p class="empty">세부 항목의 ▶ 를 누르면 여기에 올라옵니다.</p>'}</aside>`}
+
+function draw(){const s=st(),name=STAGES.find(x=>x[0]===s.stage)[1];
+ document.getElementById("tabs").innerHTML=VERS.map((x,i)=>`<button data-v="${i}" aria-pressed="${i===v}">${x.name}</button>`).join("");
+ document.getElementById("vdesc").innerHTML=VERS[v].desc;
+ document.getElementById("app").innerHTML=`<section class="panel v${v+1}"><div class="phead"><h2>흐름도</h2><span class="sp"></span><small>예시 프로젝트</small></div>${flow()}<div class="phead" style="border-top:1px solid var(--line)"><h2>${name} · 작업 사항</h2><small>${s.data[s.stage].length}개 작업 · 작업을 누르면 세부 항목이 펼쳐집니다</small></div>${R[v](s)}</section>${todo()}`;
+ if(s.adding){const el=document.getElementById(`n-${v}-${s.adding}`);el&&el.focus()}s.fresh=null}
+
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-v]");if(b){v=+b.dataset.v;draw()}});
+const app=document.getElementById("app");
+app.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const s=st(),id=b.dataset.id,a=b.dataset.act,f=id&&find(s,id);
+ if(a==="stage"){s.stage=id;s.adding=null;s.filter=null}
+ else if(a==="toggle"){s.open.has(id)?s.open.delete(id):s.open.add(id)}
+ else if(a==="filter"){s.filter=id||null;s.adding=null}
+ else if(a==="play"){if(!s.todo.includes(id)){s.todo.push(id);s.fresh=id}}
+ else if(a==="playall"){f.task.items.filter(i=>!s.todo.includes(i.id)).forEach(i=>{s.todo.push(i.id);s.fresh=i.id})}
+ else if(a==="untodo"){s.todo=s.todo.filter(x=>x!==id)}
+ else if(a==="del"){f.task.items=f.task.items.filter(i=>i.id!==id);s.todo=s.todo.filter(x=>x!==id)}
+ else if(a==="add"){s.adding=id}
+ else if(a==="cancel"){s.adding=null}
+ else return;
+ draw()});
+app.addEventListener("submit",e=>{e.preventDefault();const s=st(),form=e.target,f=find(s,form.dataset.task),[n,d,g]=[...form.elements].filter(x=>x.tagName!=="BUTTON");const name=n.value.trim();if(!name)return;f.task.items.push({id:"i"+(++uid),name,desc:d.value.trim()||"—",tag:g.value,src:"user"});s.adding=null;draw()});
+app.addEventListener("keydown",e=>{if(e.key==="Escape"&&st().adding){st().adding=null;draw()}});
+draw();
+</script>

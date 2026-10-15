@@ -54,9 +54,11 @@ const server = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
     console.log(`Listening on ${host} -- 연결 토큰으로 로그인한다. 조회 전용 토큰은 실행을 허용하지 않는다.`);
   }
   console.log("Ctrl+C to stop.");
-  open(url).catch(() => {
-    // No default browser available (headless/CI) -- the printed URL above is still usable.
-  });
+  if (!process.argv.includes("--no-open")) {
+    open(url).catch(() => {
+      // No default browser available (headless/CI) -- the printed URL above is still usable.
+    });
+  }
 });
 
 let shuttingDown = false;

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { architectureRel } from "./boardContract.js";
-import type { SystemMap } from "./opsContract.js";
+import type { SystemMap } from "./testContract.js";
 
 /** 프로젝트 소유 아키텍처 원본만 사용한다. 없으면 공통 구조를 만들어내지 않는다. */
 export async function readSystemMap(repo: string, docs = "docs"): Promise<SystemMap | null> {

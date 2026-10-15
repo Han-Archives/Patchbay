@@ -19,7 +19,7 @@ import {
   type FlowViewConnected,
   type FlowViewResponse,
 } from "./langgraphContract.js";
-import { OpsPanel } from "./OpsPanel.js";
+import { TestPanel } from "./TestPanel.js";
 import { placeOnCanvas } from "./placeOnCanvas.js";
 import { CANVAS_MIN_ZOOM, RefitOnChange } from "./RefitOnChange.js";
 import { EMPTY_PROCESS_VIEW, type ProcessView } from "./projectContract.js";
@@ -47,13 +47,13 @@ export function FlowPane({
   project,
   revision = 0,
   onLangGraphStatus,
-  showOps = true,
+  showTest = true,
 }: {
   project: string;
   revision?: number;
   onLangGraphStatus?: (status: AdapterStatus) => void;
-  /** false 면 5단계 운영 면을 빼 둔다 — 작업 공간에서 「동작」이 따로 연다. */
-  showOps?: boolean;
+  /** false 면 5단계 테스트 면을 빼 둔다 — 작업 공간에서 「동작」이 따로 연다. */
+  showTest?: boolean;
 }) {
   const [view, setView] = useState<FlowViewResponse | null>(null);
   const [process, setProcess] = useState<ProcessView>(EMPTY_PROCESS_VIEW);
@@ -204,7 +204,7 @@ export function FlowPane({
     <div className="flow-pane">
       {error ? <p className="flow-error">{error}</p> : null}
       {placeNotice ? <p className="board-notice">{placeNotice}</p> : null}
-      {showOps ? <OpsPanel project={project} revision={revision + tick} /> : null}
+      {showTest ? <TestPanel project={project} revision={revision + tick} /> : null}
       {!view && !error ? <p>불러오는 중</p> : null}
       {view && view.status === "disconnected" ? (
         <Disconnected url={view.url} onReconnect={() => setTick((n) => n + 1)} />

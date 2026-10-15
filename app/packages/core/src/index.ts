@@ -13,3 +13,4 @@ export * from "./threads/index.js";
 export * from "./refs/index.js";
 export * from "./consult/index.js";
 export * from "./rooms/index.js";
+export * from "./log/index.js";

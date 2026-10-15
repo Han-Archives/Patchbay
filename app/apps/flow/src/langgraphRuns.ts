@@ -25,7 +25,7 @@ export interface CollectedRun {
 
 export interface RunCollectReport {
   threadId: string;
-  /** Records written to `runs/<runId>.json`. */
+  /** Records written to `test-runs/<runId>.json`. */
   collected: CollectedRun[];
   /**
    * Runs LangGraph reported but that could not be completed, with the fields it

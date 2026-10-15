@@ -630,7 +630,7 @@ describe("patchbay CLI (built binary)", () => {
       expect(body.total).toBe(3);
       expect(body.byStatus).toEqual({ success: 1, refused: 1, timeout: 1 });
       // 한 실행 한 파일 (§5.3).
-      const dir = path.join(studioHome, "projects", "m6a", "runs");
+      const dir = path.join(studioHome, "projects", "m6a", "test-runs");
       expect(fs.readdirSync(dir).sort()).toEqual([
         "run-fixture-0001.json", "run-fixture-0002.json", "run-fixture-0003.json",
       ]);

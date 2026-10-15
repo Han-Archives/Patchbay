@@ -42,6 +42,19 @@ describe("세션 → 대화방 옮겨 적기", () => {
     expect(room?.messages.every((m) => (m as { via?: string }).via === "claude-session")).toBe(true);
   });
 
+  it("세션 기록에서 늦게 옮긴 말에는 말한 시각(sourceAt)을 남긴다", async () => {
+    const dir = home();
+    await writeRoomMeta(dir, "demo", "r1", { title: "폰", kept: false, members: [] });
+    const transcript = path.join(dir, "t.jsonl");
+    writeTranscript(transcript, [human("어제 시작", "2026-10-14T14:50:00.000Z"), bindCall("b1"), bindResult("b1", "r1"), { ...said("ready"), timestamp: "2026-10-14T14:51:00.000Z" }]);
+    await mirrorSession(dir, { sessionId: "s9", transcriptPath: transcript, event: "Stop" }, () => new Date("2026-10-15T01:00:00.000Z"));
+    const room = await readRoom(dir, "demo", "r1");
+    expect(room?.messages.map((m) => [m.at, m.sourceAt])).toEqual([
+      ["2026-10-15T01:00:00.000Z", "2026-10-14T14:50:00.000Z"],
+      ["2026-10-15T01:00:00.000Z", "2026-10-14T14:51:00.000Z"],
+    ]);
+  });
+
   it("다음 요청은 훅에서 바로 적고, 세션 기록에 나와도 두 번 적지 않는다", async () => {
     const dir = home();
     await writeRoomMeta(dir, "demo", "r1", { title: "폰", kept: false, members: [] });

@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import { HISTORY_DOMAINS, historyDomainTags } from "./historyContract.js";
+import { createTodoPreparationHost, PreparationError } from "./todoPreparation.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -16,6 +18,10 @@ import {
   refFilePath,
   readStudio,
   readTodos,
+  readProgress,
+  readDashboardHistory,
+  appendDashboardHistory,
+  dashboardHistoryInputSchema,
   todoItemSchema,
   writeTodos,
   updateTodos,
@@ -23,6 +29,8 @@ import {
   todoHistoryDir,
   readThread,
   setProjectHidden,
+  renameProject,
+  ProjectRenameError,
   threadStatus,
   consultStatus,
   currentConsultMeta,
@@ -41,6 +49,16 @@ import {
   readKnowledgeReplica,
   runEvidence,
   roomMemberSchema,
+  roomModeSchema,
+  LLM_QUOTA_PRESETS,
+  LLM_QUOTA_PROVIDERS,
+  PRESET_CAPS,
+  clearLlmQuotaExhausted,
+  loadLlmQuotaSnapshot,
+  providerCapSchema,
+  updateLlmQuotaConfig,
+  type LlmQuotaPreset,
+  type LlmQuotaProvider,
 } from "@patchbay/core";
 import {
   SSE_KEEPALIVE_COMMENT,
@@ -69,8 +87,10 @@ import {
 } from "./knowledgeView.js";
 import { collectLangGraphRuns } from "./langgraphRuns.js";
 import { loadDashboard, runProjectTests } from "./dashboardView.js";
+import { registerLogRoutes } from "./logHost.js";
 import { applyTodoAction, TodoActionError } from "./todoActions.js";
-import { readOpsActivity } from "./opsActivity.js";
+import { applyCycleItemAction, CycleItemActionError, listCycleItems } from "./cycleItemActions.js";
+import { readTestActivity } from "./testActivity.js";
 import { loadRunsView, writeDraftEvalsView } from "./runsView.js";
 import { foreignWriteReason } from "./writeGuard.js";
 import { createNeo4jDriverPort, type Neo4jAppOptions } from "./neo4jAdapter.js";
@@ -116,6 +136,9 @@ import {
   saveRoomCast,
   loadAgents,
   saveAgents,
+  loadModes,
+  saveModes,
+  saveRoomMode,
   saveRoomKept,
   saveRoomTitle,
   sendRoomTurn,
@@ -194,6 +217,8 @@ export interface FlowApp extends Hono {
  */
 export function createFlowApp(options: FlowAppOptions): FlowApp {
   const app = new Hono();
+  let projectRenaming = false;
+  let activeWrites = 0;
 
   const role = (c: Context) => accessRole(options.access ?? {}, c.req.header("authorization")?.replace(/^Bearer /, ""), getCookie(c, FLOW_SESSION_COOKIE));
   app.use("/api/*", async (c, next) => {
@@ -225,6 +250,13 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
   app.delete("/api/session", c => { deleteCookie(c, FLOW_SESSION_COOKIE, { path: "/" }); return c.json({ ok: true }); });
   const listeners = new Set<(event: StudioEvent) => void>();
+  // 폴더를 옮기는 동안 새 작업이 이전 경로에서 시작되지 않게 한다.
+  app.use("/api/*", async (c, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(c.req.method) || c.req.path === "/api/session") return next();
+    if (projectRenaming) return c.json({ error: "프로젝트 이름을 변경하고 있습니다. 잠시 후 다시 시도해 주세요." }, 409);
+    activeWrites++;
+    try { return await next(); } finally { activeWrites--; }
+  });
   const emit = (event: StudioEvent) => {
     for (const listener of listeners) listener(event);
   };
@@ -234,6 +266,10 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   const roomExecution = createRoomExecutionHost(options.studioHome, {
     port: langgraphPort, runner: options.roomRunner, bin: options.roomBin, command: options.roomCommandRunner,
     ...(options.roomNotifications ? { notify: (alias: string, roomId: string, execution: Parameters<typeof notifyRoom>[3]) => notifyRoom(options.roomNotifications!, alias, roomId, execution) } : {}),
+  });
+  const todoPreparation = createTodoPreparationHost(options.studioHome, {
+    runner: options.roomRunner, bin: options.roomBin,
+    isBusy: (alias, roomId) => roomId ? isRoomRunning(alias, roomId) || roomExecution.isBusy(alias, roomId) : runningRoomAliases().includes(alias) || roomExecution.busyAliases().includes(alias),
   });
   const neo4jUri = resolveNeo4jUri(options.neo4j?.uri);
   const neo4jPort = options.neo4j ? createNeo4jDriverPort(options.neo4j) : undefined;
@@ -278,10 +314,28 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
 
   app.get("/api/workspace", async (c) => c.json(await loadWorkspace(options.studioHome)));
 
-  // 레일 불빛 — 대화방 · 상담 · 운영 실행 어디서든 LLM이 일하는 중인 프로젝트.
+  // 레일 불빛 — 대화방 · 상담 · 테스트 실행 어디서든 LLM이 일하는 중인 프로젝트.
   app.get("/api/running", (c) => {
     c.header("Cache-Control", "no-store");
     return c.json({ aliases: [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases()])] });
+  });
+
+  app.post("/api/project/name", async (c) => {
+    const rec = await jsonRecord(c);
+    if (typeof rec?.alias !== "string" || typeof rec?.name !== "string") return c.json({ error: "프로젝트와 새 이름을 입력해 주세요." }, 400);
+    if (activeWrites > 1) return c.json({ error: "다른 변경 작업이 끝난 뒤 이름을 변경해 주세요." }, 409);
+    projectRenaming = true;
+    try {
+      const result = await renameProject(options.studioHome, rec.alias, rec.name, {
+        protectedPaths: [__dirname],
+        isBusy: alias => runningRoomAliases().includes(alias) || runningConsultAliases().includes(alias) || roomExecution.busyAliases().includes(alias) || todoPreparation.isBusy(alias),
+      });
+      for (const alias of result.affectedAliases) emit({ event: "board", alias });
+      return c.json({ ok: true, alias: result.project.alias, name: result.project.name!, path: result.project.path });
+    } catch (error) {
+      if (error instanceof ProjectRenameError) return c.json({ error: error.message }, error.status);
+      return c.json({ error: "프로젝트 이름을 변경하지 못했습니다." }, 500);
+    } finally { projectRenaming = false; }
   });
 
   /** 레일에서 숨기기 · 다시 보이기. 등록과 파일은 그대로 둔다. */
@@ -634,7 +688,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
 
   /**
-   * 5단계 운영 — 상태별 수집 · 설계와 어긋난 것 · 한도를 넘긴 실행 · 버전 비교.
+   * 5단계 테스트 — 상태별 수집 · 설계와 어긋난 것 · 한도를 넘긴 실행 · 버전 비교.
    * Core가 파일에서 계산하므로 LangGraph가 꺼져 있어도 답한다.
    */
   app.get("/api/runs", async (c) => {
@@ -646,7 +700,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
 
   /**
-   * 첫 공급자에서 실행 기록을 받아 `runs/<runId>.json` 에 적는다 (명세 §5.5).
+   * 첫 공급자에서 실행 기록을 받아 `test-runs/<runId>.json` 에 적는다 (명세 §5.5).
    * A write, and it goes through Core's `writeRunRecord` -- the console has no
    * ingest path of its own (원칙 8).
    */
@@ -952,6 +1006,36 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
 
   /** 생성된 시험을 돌려 요구사항 지도를 칠한다 — 사람이 누를 때만. */
+  app.get("/api/dashboard/history", async c => {
+    const alias = c.req.query("alias") ?? "";
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try {
+      const [manual, progress] = await Promise.all([readDashboardHistory(options.studioHome, alias), readProgress(options.studioHome, alias)]);
+      const rows = [...(progress.current ? [progress.current] : []), ...progress.history];
+      return c.json({ entries: [
+        ...manual.map(entry => ({ ...entry, tags: historyDomainTags(entry), source: "manual" })),
+        ...rows.map((entry, index) => ({ id: `progress:${entry.timestamp}:${index}`, timestamp: entry.timestamp,
+          tags: historyDomainTags(entry), content: entry.summary, asked: entry.asked, did: entry.did, source: "progress" })),
+      ] });
+    } catch (e) { return c.json({ error: (e as Error).message }, 500); }
+  });
+  app.post("/api/dashboard/history", async c => {
+    const rec = await jsonRecord(c);
+    if (!rec || typeof rec.alias !== "string") return c.json({ error: "프로젝트를 선택해주세요." }, 400);
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === rec.alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    const parsed = dashboardHistoryInputSchema.safeParse(rec);
+    if (!parsed.success) return c.json({ error: "날짜, 태그(1~6개·각 30자 이하), 내용(1~5,000자)을 확인해주세요." }, 400);
+    if (!parsed.data.tags.every(tag => (HISTORY_DOMAINS as readonly string[]).includes(tag))) return c.json({ error: "UI·LLM·대화창 등 기능 영역 태그를 선택해주세요." }, 400);
+    try { return c.json({ entry: await appendDashboardHistory(options.studioHome, rec.alias, parsed.data) }, 201); }
+    catch (e) { return c.json({ error: (e as Error).message }, 500); }
+  });
+
+  /** 프로젝트 도구 줄 「Log」 — 일일 기록 · 색인 · 확정 · 로컬 요약 · 보고서 바탕 (사용자 결정 2026-10-15). */
+  registerLogRoutes(app, options.studioHome, {
+    ...(options.roomRunner ? { runner: options.roomRunner } : {}),
+    ...(options.roomBin !== undefined ? { lmsBin: options.roomBin } : {}),
+  });
+
   app.post("/api/dashboard/tests", async (c) => {
     const rec = await jsonRecord(c);
     const alias = typeof rec?.alias === "string" ? rec.alias : "";
@@ -961,15 +1045,15 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     return c.json({ ok: true, tests: result.tests });
   });
 
-  /** 3 운영의 실행 로그 — 아래 버튼을 누르면 보인다. 읽으면서 일한 노드를 쌓는다(4 · 5 를 여는 사실). */
-  app.get("/api/ops/activity", async (c) => {
+  /** 3 테스트의 실행 로그 — 아래 버튼을 누르면 보인다. 읽으면서 일한 노드를 쌓는다(4 · 5 를 여는 사실). */
+  app.get("/api/test/activity", async (c) => {
     const alias = c.req.query("alias");
     if (!alias) return c.json({ error: "alias is required." }, 400);
-    return c.json(await readOpsActivity(options.studioHome, alias, langgraphUrl));
+    return c.json(await readTestActivity(options.studioHome, alias, langgraphUrl));
   });
 
-  /** 3 운영의 사용 창 주소 — 프로젝트가 만든 화면. */
-  app.post("/api/ops/app", async (c) => {
+  /** 3 테스트의 사용 창 주소 — 프로젝트가 만든 화면. */
+  app.post("/api/test/app", async (c) => {
     const rec = await jsonRecord(c);
     const alias = typeof rec?.alias === "string" ? rec.alias : "";
     const url = typeof rec?.url === "string" ? rec.url.trim() : "";
@@ -1067,7 +1151,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     const alias = c.req.query("alias");
     if (!alias) return c.json({ error: "alias is required." }, 400);
     const rooms = await roomListView(options.studioHome, alias);
-    return c.json({ rooms: rooms.map((row) => ({ ...row, running: row.running || roomExecution.isBusy(alias, row.id) })) });
+    const prepared = (await todoPreparation.list(alias)).items;
+    return c.json({ rooms: rooms.map((row) => ({ ...row, preparationStatus: prepared.find(v => v.roomId === row.id)?.status, running: row.running || roomExecution.isBusy(alias, row.id) })) });
   });
 
   app.get("/api/room", async (c) => {
@@ -1081,7 +1166,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       return c.json({ error: (error as Error).message }, 400);
     }
     if (!read) return c.json({ error: `대화방 ${id} 가 없다.` }, 404);
-    return c.json({ ...read, running: read.running || roomExecution.isBusy(alias, id) });
+    const preparation = (await todoPreparation.list(alias)).items.find(v => v.roomId === id);
+    return c.json({ ...read, preparationStatus: preparation?.status, running: read.running || roomExecution.isBusy(alias, id) });
   });
 
   app.get("/api/room/approved", async (c) => {
@@ -1095,13 +1181,16 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     catch (error) { return c.json({ error: (error as Error).message }, 409); }
   });
   app.post("/api/room/execution/start", async (c) => {
-    const result = await roomExecution.start(await jsonRecord(c));
+    const rec = await jsonRecord(c);
+    if (typeof rec?.alias === "string" && todoPreparation.isBusy(rec.alias)) return c.json({ error: "할일 사전 준비가 끝난 뒤 실행해주세요." }, 409);
+    const result = await roomExecution.start(rec);
     if (!result.ok) return c.json({ error: result.error }, result.status);
     void result.done;
     return c.json({ ok: true, roomId: result.roomId }, 202);
   });
   app.post("/api/room/execution/action", async (c) => {
     const rec = await jsonRecord(c);
+    if (typeof rec?.alias === "string" && todoPreparation.isBusy(rec.alias)) return c.json({ error: "할일 사전 준비가 끝난 뒤 실행해주세요." }, 409);
     const result = await roomExecution.action({
       alias: typeof rec?.alias === "string" ? rec.alias : "", roomId: typeof rec?.roomId === "string" ? rec.roomId : "",
       executionId: typeof rec?.executionId === "string" ? rec.executionId : "",
@@ -1118,8 +1207,9 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   app.post("/api/room/send", async (c) => {
     const rec = await jsonRecord(c);
     if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    if (typeof rec.alias === "string" && todoPreparation.isBusy(rec.alias)) return c.json({ error: "사전 준비가 진행 중입니다. 준비를 마치거나 중지한 뒤 대화해주세요." }, 409);
     if (rec.round !== undefined && rec.round !== "talk" && rec.round !== "discuss") return c.json({ error: "round는 talk 또는 discuss여야 한다." }, 400);
-    if (typeof rec.alias === "string" && typeof rec.roomId === "string" && roomExecution.isBusy(rec.alias, rec.roomId)) return c.json({ error: "운영 실행을 처리하고 있다." }, 409);
+    if (typeof rec.alias === "string" && typeof rec.roomId === "string" && roomExecution.isBusy(rec.alias, rec.roomId)) return c.json({ error: "테스트 실행을 처리하고 있다." }, 409);
     const result = await sendRoomTurn(
       options.studioHome,
       {
@@ -1200,6 +1290,64 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     return c.json({ ok: true, agents: result.agents });
   });
 
+  app.get("/api/modes", async (c) => {
+    const result = await loadModes(options.studioHome, c.req.query("alias") ?? "");
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json({ modes: result.modes });
+  });
+
+  app.post("/api/modes", async (c) => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    const modes = Array.isArray(rec.modes) ? rec.modes : null;
+    if (!modes) return c.json({ error: "modes is required." }, 400);
+    const parsed = modes.flatMap((row) => {
+      const result = roomModeSchema.safeParse(row);
+      return result.success ? [result.data] : [];
+    });
+    if (parsed.length !== modes.length) return c.json({ error: "모드마다 id, 이름, 권한, 규약이 필요하다." }, 400);
+    const result = await saveModes(options.studioHome, { alias: typeof rec.alias === "string" ? rec.alias : "", modes: parsed });
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json({ ok: true, modes: result.modes });
+  });
+
+  app.post("/api/room/mode", async (c) => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    if (typeof rec.alias === "string" && typeof rec.roomId === "string" && roomExecution.isBusy(rec.alias, rec.roomId)) {
+      return c.json({ error: "실행 중에는 모드를 바꾸지 않는다." }, 409);
+    }
+    const modeId = typeof rec.modeId === "string" && rec.modeId.trim() ? rec.modeId.trim() : null;
+    const result = await saveRoomMode(options.studioHome, {
+      alias: typeof rec.alias === "string" ? rec.alias : "",
+      ...(typeof rec.roomId === "string" && rec.roomId ? { roomId: rec.roomId } : {}),
+      modeId,
+    });
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json({ ok: true, roomId: result.roomId, modeId: result.modeId, members: result.members });
+  });
+
+  app.get("/api/todo-preparations", async c => {
+    try {
+      const { items, running } = await todoPreparation.list(c.req.query("alias") ?? "");
+      const roomId = c.req.query("roomId");
+      return c.json({ items: items.map(v => c.req.query("summary") === "1" || (roomId && v.roomId !== roomId) ? { ...v, artifacts: [] } : v), running });
+    }
+    catch (e) { return c.json({ error: (e as Error).message }, e instanceof PreparationError ? e.status : 500); }
+  });
+  app.post("/api/todo-preparations/start", async c => {
+    const rec = await jsonRecord(c);
+    if (!rec || typeof rec.alias !== "string" || typeof rec.memberId !== "string" || !Array.isArray(rec.ids) || !rec.ids.every(id => typeof id === "string")) return c.json({ error: "대상 할일과 주 담당을 선택해주세요." }, 400);
+    try { return c.json(await todoPreparation.start(rec.alias, rec.ids, rec.memberId)); }
+    catch (e) { return c.json({ error: (e as Error).message }, e instanceof PreparationError ? e.status : 500); }
+  });
+  app.post("/api/todo-preparations/action", async c => {
+    const rec = await jsonRecord(c);
+    if (!rec || typeof rec.alias !== "string" || typeof rec.action !== "string" || (rec.action !== "stop" && typeof rec.id !== "string") || (rec.note !== undefined && typeof rec.note !== "string")) return c.json({ error: "준비 작업 요청 형식이 올바르지 않습니다." }, 400);
+    try { return c.json({ ok: true, result: await todoPreparation.action(rec.alias, String(rec.id ?? ""), rec.action, rec.note as string | undefined) }); }
+    catch (e) { return c.json({ error: (e as Error).message }, e instanceof PreparationError ? e.status : 500); }
+  });
+
   // 사용자·Agent의 할일. 실제 대화 실행 상태와 완료 기록을 함께 조회한다.
   app.get("/api/todos", async (c) => {
     const alias = c.req.query("alias") ?? "";
@@ -1235,6 +1383,23 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       const result = await applyTodoAction(options.studioHome, alias, rec, id => isRoomRunning(alias, id) || roomExecution.isBusy(alias, id));
       return c.json(result);
     } catch (error) { return c.json({ error: (error as Error).message }, error instanceof TodoActionError ? error.status : 500); }
+  });
+
+  // 흐름도 작업 아래 세부 항목. 상태는 연결된 할일과 실제 대화 실행에서 계산한다.
+  app.get("/api/cycle-items", async c => {
+    const alias = c.req.query("alias") ?? "";
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try { return c.json({ items: await listCycleItems(options.studioHome, alias, id => isRoomRunning(alias, id) || roomExecution.isBusy(alias, id)) }); }
+    catch (error) { return c.json({ error: `세부 항목 조회 실패: ${(error as Error).message}` }, 500); }
+  });
+
+  app.post("/api/cycle-items/action", async c => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    const alias = typeof rec.alias === "string" ? rec.alias : "";
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try { return c.json(await applyCycleItemAction(options.studioHome, alias, rec, id => isRoomRunning(alias, id) || roomExecution.isBusy(alias, id))); }
+    catch (error) { return c.json({ error: (error as Error).message }, error instanceof CycleItemActionError ? error.status : 500); }
   });
 
   app.get("/api/todos/history", async c => {
@@ -1346,6 +1511,56 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     return c.json({ ok: true, review: after.ok ? after.review : null });
   });
 
+  // LLM 구독제 토큰 체력바 (왼쪽 하단 레일 + 상세 창).
+  app.get("/api/llm-quota", async (c) => {
+    try {
+      return c.json(await loadLlmQuotaSnapshot(options.studioHome));
+    } catch (error) {
+      return c.json({ error: (error as Error).message }, 500);
+    }
+  });
+
+  app.post("/api/llm-quota", async (c) => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    try {
+      if (rec.action === "recover") {
+        const provider = typeof rec.provider === "string" ? rec.provider : "";
+        if (!(LLM_QUOTA_PROVIDERS as readonly string[]).includes(provider)) {
+          return c.json({ error: "유효한 LLM 공급자가 아닙니다." }, 400);
+        }
+        await clearLlmQuotaExhausted(options.studioHome, provider as LlmQuotaProvider);
+        return c.json(await loadLlmQuotaSnapshot(options.studioHome));
+      }
+      const preset = typeof rec.preset === "string" && (LLM_QUOTA_PRESETS as readonly string[]).includes(rec.preset)
+        ? (rec.preset as LlmQuotaPreset)
+        : undefined;
+      if (!preset) return c.json({ error: "preset 값이 필요합니다." }, 400);
+      await updateLlmQuotaConfig(options.studioHome, (current) => {
+        if (preset !== "custom") {
+          return {
+            ...current,
+            preset,
+            caps: {
+              "claude-code": { ...PRESET_CAPS[preset]["claude-code"] },
+              codex: { ...PRESET_CAPS[preset].codex },
+            },
+          };
+        }
+        const rawCaps = rec.caps && typeof rec.caps === "object" ? (rec.caps as Record<string, unknown>) : {};
+        const nextCaps = { ...current.caps };
+        for (const p of LLM_QUOTA_PROVIDERS) {
+          const parsed = providerCapSchema.safeParse(rawCaps[p]);
+          if (parsed.success) nextCaps[p] = parsed.data;
+        }
+        return { ...current, preset: "custom", caps: nextCaps };
+      });
+      return c.json(await loadLlmQuotaSnapshot(options.studioHome));
+    } catch (error) {
+      return c.json({ error: (error as Error).message }, 400);
+    }
+  });
+
   app.get("/api/events", (c) => {
     return streamSSE(c, async (stream) => {
       let writes = Promise.resolve();
@@ -1394,6 +1609,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     watchReady: studioWatch?.ready ?? Promise.resolve(),
     close: async () => {
       if (overdueTimer) clearInterval(overdueTimer);
+      todoPreparation.stopAll();
       await studioWatch?.close();
       studioWatch = undefined;
       await neo4jPort?.close();

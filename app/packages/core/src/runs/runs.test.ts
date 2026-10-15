@@ -97,7 +97,7 @@ describe("§5.3 실행 기록 보관", () => {
 
   it("names an unreadable file instead of quietly reporting fewer runs", async () => {
     await writeRunRecord(studioHome, "demo", loadRecord("success.json"));
-    fs.writeFileSync(path.join(studioHome, "projects", "demo", "runs", "broken.json"), "{ not json", "utf8");
+    fs.writeFileSync(path.join(studioHome, "projects", "demo", "test-runs", "broken.json"), "{ not json", "utf8");
     const read = await readRunRecords(studioHome, "demo");
     expect(read.records).toHaveLength(1);
     expect(read.rejected).toHaveLength(1);

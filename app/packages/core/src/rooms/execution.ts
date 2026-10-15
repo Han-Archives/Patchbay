@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { roomMemberSchema } from "./types.js";
 
-export const ROOM_WORKFLOW_GRAPH = "patchbay-operations";
+export const ROOM_WORKFLOW_GRAPH = "patchbay-test";
 export const ROOM_WORKFLOW_PROTOCOL = 1;
 export const roomCommandSchema = z.array(z.string().min(1).max(4096)).min(1).max(40);
 export const roomConnectedMemberSchema = roomMemberSchema.extend({ id: z.string().min(1) });

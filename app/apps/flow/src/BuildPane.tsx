@@ -111,7 +111,7 @@ export function BuildPane({
           <small>돌고 있는 그래프와 지금 노드 · 한 번 실행해 보기</small>
         </summary>
         {flowOpen ? (
-          <FlowPane project={project} revision={revision + tick} onLangGraphStatus={onLangGraphStatus} showOps={false} />
+          <FlowPane project={project} revision={revision + tick} onLangGraphStatus={onLangGraphStatus} showTest={false} />
         ) : null}
       </details>
     </>

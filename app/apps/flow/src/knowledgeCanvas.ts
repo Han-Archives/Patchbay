@@ -16,7 +16,7 @@ export const KNOWLEDGE_NODE_COLORS: Record<KnowledgeLabel, string> = {
   Requirement: "#7B4BC4",
   Eval: "#5E3AA0",
   Document: "#C08AE8",
-  // 실행 행 — 지금 할 일 색(주황) 계열: 운영에서 들어온 사실이다.
+  // 실행 행 — 지금 할 일 색(주황) 계열: 테스트에서 들어온 사실이다.
   Run: "#E3A35A",
 };
 

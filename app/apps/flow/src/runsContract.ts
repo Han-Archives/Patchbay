@@ -1,4 +1,4 @@
-/** Client-safe 5단계 운영 view types. The shapes themselves live in Core. */
+/** Client-safe 5단계 테스트 view types. The shapes themselves live in Core. */
 
 import type {
   BudgetReport,

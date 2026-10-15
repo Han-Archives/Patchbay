@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import { shortLabel } from "./shortLabel.js";
 import {
+  ROOM_MODE_ICONS,
   ROOM_SPEAKER_LABEL,
   roomMemory,
   type RoomMember,
   type RoomMessage,
+  type RoomMode,
+  type RoomModeExecution,
+  type RoomModeIcon,
   type RoomSpeaker,
   type RoomStatus,
   type RoomSummary,
   type RoomExecution,
 } from "@patchbay/core";
+import { TodoPreparationReview } from "./TodoPreparationPanel.js";
 import { RoomExecutionPanel } from "./RoomExecutionPanel.js";
 
 const CHIP: Record<RoomSpeaker, { mark: string; color: string }> = {
@@ -64,6 +70,104 @@ function DetailIcon() {
       <path d="M3 4.5h10M3 8h10M3 11.5h6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
+}
+
+function ModeTriggerIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="5.5" cy="4.5" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10.5" cy="8" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="6.5" cy="11.5" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function ModeIcon({ icon }: { icon?: RoomModeIcon }) {
+  switch (icon) {
+    case "report":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3.5 1.8h6.2L13 5.1v9.1a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1Z" />
+          <path d="M9.5 1.8v3.5H13M5.2 8h5.6M5.2 10.6h5.6M5.2 13h3.4" />
+        </svg>
+      );
+    case "planning":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="3.2" cy="3.5" r="1.6" />
+          <circle cx="3.2" cy="12.5" r="1.6" />
+          <circle cx="12.8" cy="8" r="1.6" />
+          <path d="M4.8 3.5h3a2 2 0 0 1 2 2v2.5h1.4M4.8 12.5h3a2 2 0 0 0 2-2V8" />
+        </svg>
+      );
+    case "design":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2.2" width="12" height="11.6" rx="1.8" />
+          <path d="M2 6h12M6.5 6v7.8" />
+          <circle cx="10.3" cy="10" r="1.5" />
+        </svg>
+      );
+    case "study":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3.6c-1.6-1.1-3.8-1.3-6-.8v9.5c2.2-.5 4.4-.3 6 .8 1.6-1.1 3.8-1.3 6-.8V2.8c-2.2-.5-4.4-.3-6 .8Z" />
+          <path d="M8 3.6v9.5" />
+        </svg>
+      );
+    case "coding":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5.2 4.8 1.8 8l3.4 3.2M10.8 4.8 14.2 8l-3.4 3.2M9.2 3.2 6.8 12.8" />
+        </svg>
+      );
+    case "debug":
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="7.2" cy="7.2" r="4.6" />
+          <path d="m10.6 10.6 3.4 3.4M7.2 4.8v4.8M4.8 7.2h4.8" />
+        </svg>
+      );
+    case "discuss":
+    default:
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 3.2h7.5a1.3 1.3 0 0 1 1.3 1.3v3.5a1.3 1.3 0 0 1-1.3 1.3H5.2L2.6 11.5V9.3H2A1.3 1.3 0 0 1 .7 8V4.5A1.3 1.3 0 0 1 2 3.2Z" />
+          <path d="M7.5 6.8h6.5a1.2 1.2 0 0 1 1.2 1.2v3.2a1.2 1.2 0 0 1-1.2 1.2h-.8v2l-2.2-2H7.5a1.2 1.2 0 0 1-1.2-1.2V8" />
+        </svg>
+      );
+  }
+}
+
+const MODE_ICON_LABEL: Record<RoomModeIcon, string> = {
+  discuss: "토의",
+  report: "보고서",
+  planning: "플래닝",
+  design: "디자인",
+  study: "스터디",
+  coding: "코딩",
+  debug: "디버그",
+};
+
+const MODE_EXEC_LABEL: Record<RoomModeExecution, string> = {
+  read: "읽기",
+  edit: "문서",
+  apply: "실행",
+};
+
+function modeFace(mode: Pick<RoomMode, "name" | "icon" | "image" | "iconHtml">): ReactNode {
+  if (mode.iconHtml?.trim()) return <iframe className="room-chip-img room-chip-html" sandbox="" srcDoc={iconDoc(mode.iconHtml)} title="" tabIndex={-1} aria-hidden="true" />;
+  if (mode.image) return <img className="room-chip-img" src={mode.image} alt="" />;
+  if (mode.icon) return <ModeIcon icon={mode.icon} />;
+  const first = mode.name.trim();
+  return first ? Array.from(first)[0]! : <ModeIcon icon="discuss" />;
+}
+
+function modeStyle(mode: Pick<RoomMode, "color" | "image" | "iconHtml">): CSSProperties {
+  if (mode.image || mode.iconHtml?.trim()) return { padding: 0, overflow: "hidden", width: 36, minWidth: 36, flex: "none" };
+  const color = mode.color ?? CHIP_DEFAULT_COLOR;
+  return { background: color, borderColor: color, color: "#fff" };
 }
 
 const CHIP_DEFAULT_COLOR = "#2f3f8f";
@@ -164,6 +268,8 @@ interface RoomBody {
   displayTitle: string;
   kept: boolean;
   members: RoomMember[];
+  modeId?: string | null;
+  preparationStatus?: string;
   execution?: RoomExecution | null;
   error?: string;
 }
@@ -190,19 +296,24 @@ export function RoomPanel({
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [hosts, setHosts] = useState<HostRow[]>([]);
   const [agents, setAgents] = useState<RoomMember[]>([]);
+  const [modes, setModes] = useState<RoomMode[]>([]);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState<RoomBody | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [dockOpen, setDockOpen] = useState(false);
-  // + 메뉴는 바깥을 누르면 닫는다. 열어 둔 채면 보내기 버튼을 가린다.
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [llmTab, setLlmTab] = useState<"agent" | "mode">("agent");
+  // + 메뉴와 모드 메뉴는 바깥을 누르면 닫는다. 열어 둔 채면 보내기 버튼을 가린다.
   useEffect(() => {
-    if (!dockOpen) return;
+    if (!dockOpen && !modeMenuOpen) return;
     const close = (e: MouseEvent) => {
-      if (!(e.target instanceof Element) || !e.target.closest(".room-dock-add")) setDockOpen(false);
+      if (!(e.target instanceof Element)) return;
+      if (dockOpen && !e.target.closest(".room-dock-add")) setDockOpen(false);
+      if (modeMenuOpen && !e.target.closest(".room-dock-mode")) setModeMenuOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [dockOpen]);
+  }, [dockOpen, modeMenuOpen]);
   const [roomQuery, setRoomQuery] = useState("");
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -211,6 +322,8 @@ export function RoomPanel({
   const [titleFocus, setTitleFocus] = useState(false);
   const [copied, setCopied] = useState(false);
   const [face, setFace] = useState<"chat" | "llm">("chat");
+  const [preparationView, setPreparationView] = useState(true);
+  useEffect(() => { setPreparationView(true); }, [project, roomId]);
   const [plusOpen, setPlusOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
   const [projectFiles, setProjectFiles] = useState<string[] | null>(null);
@@ -273,6 +386,12 @@ export function RoomPanel({
       .then((res) => res.json() as Promise<{ agents?: RoomMember[] }>)
       .then((body) => {
         if (!cancelled) setAgents(body.agents ?? []);
+      })
+      .catch(() => undefined);
+    fetch(`/api/modes?alias=${encodeURIComponent(project)}`)
+      .then((res) => res.json() as Promise<{ modes?: RoomMode[] }>)
+      .then((body) => {
+        if (!cancelled && Array.isArray(body.modes)) setModes(body.modes);
       })
       .catch(() => undefined);
     return () => {
@@ -384,6 +503,52 @@ export function RoomPanel({
     const body = (await res.json()) as { agents?: RoomMember[]; error?: string };
     if (!res.ok || body.error || !body.agents) setError(body.error ?? "Agents 목록에 저장하지 못했다.");
     else setAgents(body.agents);
+  }
+
+  async function refreshModes() {
+    try {
+      const res = await fetch(`/api/modes?alias=${encodeURIComponent(project)}`);
+      const body = (await res.json()) as { modes?: RoomMode[] };
+      if (res.ok && body.modes) setModes(body.modes);
+    } catch {
+      // 목록을 못 읽으면 들고 있는 목록을 그대로 보여 준다.
+    }
+  }
+
+  async function saveModes(change: (fresh: RoomMode[]) => RoomMode[]) {
+    setError(null);
+    const got = await fetch(`/api/modes?alias=${encodeURIComponent(project)}`);
+    const current = (await got.json()) as { modes?: RoomMode[]; error?: string };
+    if (!got.ok || !current.modes) {
+      setError(current.error ?? "모드 목록을 읽지 못했다.");
+      return;
+    }
+    const res = await fetch("/api/modes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alias: project, modes: change(current.modes) }),
+    });
+    const body = (await res.json()) as { modes?: RoomMode[]; error?: string };
+    if (!res.ok || body.error || !body.modes) setError(body.error ?? "모드 목록에 저장하지 못했다.");
+    else setModes(body.modes);
+  }
+
+  async function selectMode(nextModeId: string | null) {
+    if (kept || waiting) return;
+    setError(null);
+    const res = await fetch("/api/room/mode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alias: project, ...(roomId ? { roomId } : {}), modeId: nextModeId }),
+    });
+    const body = (await res.json()) as { roomId?: string; modeId?: string | null; members?: RoomMember[]; error?: string };
+    if (!res.ok || body.error || !body.roomId) {
+      setError(body.error ?? "모드를 바꾸지 못했다.");
+    } else {
+      setRoom((cur) => (cur ? { ...cur, modeId: body.modeId ?? null, ...(body.members ? { members: body.members } : {}) } : cur));
+      show(body.roomId);
+    }
+    setTick((n) => n + 1);
   }
 
   async function send(text: string, round?: "talk" | "discuss") {
@@ -539,6 +704,7 @@ export function RoomPanel({
   }
 
   const enabled = members.filter((member) => member.enabled !== false);
+  const currentMode = room?.modeId ? modes.find((m) => m.id === room.modeId) ?? null : null;
 
   function patchMember(index: number, patch: Partial<RoomMember>, save = false) {
     const next = members.map((row, i) => (i === index ? { ...row, ...patch } : row));
@@ -555,7 +721,7 @@ export function RoomPanel({
   }
 
   return (
-    <div className="thread room">
+    <div className={`thread room${room?.preparationStatus ? " is-prepared-room" : ""}`}>
       <div className="room-split">
         <div className="room-main">
           <div className="room-switch">
@@ -564,7 +730,9 @@ export function RoomPanel({
               <input
                 aria-label="방 제목"
                 disabled={readOnly}
-                value={titleDraft}
+                title={titleDraft}
+                // 머리가 좁아 7글자가 넘으면 「...」로 — 눌러 고칠 때는 전체를 보인다.
+                value={titleFocus ? titleDraft : shortLabel(titleDraft)}
                 onFocus={() => setTitleFocus(true)}
                 onBlur={() => {
                   setTitleFocus(false);
@@ -636,7 +804,7 @@ export function RoomPanel({
                   <li key={row.id}>
                     <button
                       type="button"
-                      className={row.id === roomId ? "is-on" : ""}
+                      className={`${row.id === roomId ? "is-on" : ""}${row.preparationStatus ? " is-prepared-room" : ""}`}
                       onClick={() => {
                         setQuickOpen(false);
                         setFace("chat");
@@ -644,7 +812,7 @@ export function RoomPanel({
                       }}
                     >
                       <b>{row.running ? <span className="room-running" role="img" aria-label="LLM 실행 중" /> : null}{row.title}</b>
-                      <small>{row.running ? "LLM 일하는 중 · " : ""}{row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : ""}</small>
+                      <small>{row.preparationStatus ? "미리 준비 · " : ""}{row.running ? "LLM 일하는 중 · " : ""}{row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : ""}</small>
                     </button>
                     <button
                       type="button"
@@ -690,7 +858,9 @@ export function RoomPanel({
 
           {face === "chat" ? (
             <>
+              {room?.preparationStatus ? <div className="prep-room-tabs" role="group" aria-label="준비 대화 보기"><button type="button" className={preparationView ? "is-on" : ""} aria-pressed={preparationView} onClick={() => setPreparationView(true)}>준비 결과</button><button type="button" className={!preparationView ? "is-on" : ""} aria-pressed={!preparationView} onClick={() => setPreparationView(false)}>대화 기록</button></div> : null}
               <div className="thread-body room-stage">
+                {room?.preparationStatus && preparationView ? <TodoPreparationReview key={`${project}/${roomId}`} project={project} roomId={roomId} readOnly={readOnly || !!room?.kept} /> : <>
                 {(!roomId || room) && !room?.messages.length && !room?.execution && !waiting ? (
                   <div className="msg room-welcome">안녕하세요. 무엇을 도와드릴까요?</div>
                 ) : null}
@@ -700,11 +870,12 @@ export function RoomPanel({
                 {room?.messages.map((m) => (
                   <RoomLine key={m.seq} message={m} />
                 ))}
-                {waiting ? <p className="thread-note">{room?.execution ? "운영 실행 처리 중" : enabled.some((m) => m.speaker === "claude-code" || m.speaker === "codex") ? "답하는 중 · 고쳐 달라는 요청이면 직접 고치고 검사한다 (몇 분 걸릴 수 있다)" : "한 바퀴를 말하는 중"}</p> : null}
+                {waiting ? <p className="thread-note">{room?.execution ? "테스트 실행 처리 중" : enabled.some((m) => m.speaker === "claude-code" || m.speaker === "codex") ? "답하는 중 · 고쳐 달라는 요청이면 직접 고치고 검사한다 (몇 분 걸릴 수 있다)" : "한 바퀴를 말하는 중"}</p> : null}
                 <div ref={endRef} />
+                </>}
               </div>
-              {readOnly ? <div className="room-compose"><p className="thread-note">조회 전용 연결 · 대화와 실행 기록을 확인한다.</p></div> : room?.execution ? (
-                <div className="room-compose"><p className="thread-note">운영 실행은 위의 단계 버튼으로 이어간다. 요구사항 변경은 상담으로 보낸다.</p>{error ? <p className="thread-err">{error}</p> : null}</div>
+              {room?.preparationStatus && preparationView ? <div className="room-compose"><p className="thread-note">준비 결과에서 산출물을 확인하고 승인·수정·보류할 수 있습니다. 준비 과정은 대화 기록에 남습니다.</p></div> : readOnly ? <div className="room-compose"><p className="thread-note">조회 전용 연결 · 대화와 실행 기록을 확인한다.</p></div> : room?.execution ? (
+                <div className="room-compose"><p className="thread-note">테스트 실행은 위의 단계 버튼으로 이어간다. 요구사항 변경은 상담으로 보낸다.</p>{error ? <p className="thread-err">{error}</p> : null}</div>
               ) : (
                 <div className="room-compose">
                   {error ? <p className="thread-err">{error}</p> : null}
@@ -779,9 +950,10 @@ export function RoomPanel({
                     <input ref={docRef} type="file" accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain" hidden onChange={(e) => void onPickedFile(e)} />
                   </div>
                   <div className="room-call-actions">
-                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || !draft.trim()} onClick={() => void send(draft)}>기록하기</button>
-                    <button type="button" className="flow-btn primary" disabled={busy || waiting || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>보내기</button>
-                    <button type="button" className="flow-btn room-stop" disabled={room?.running !== true} onClick={() => void stopTurn()}>중단하기</button>
+                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || !draft.trim()} onClick={() => void send(draft)}>Record</button>
+                    <button type="button" className="flow-btn room-stop" disabled={room?.running !== true} onClick={() => void stopTurn()}>Stop</button>
+                    {/* 보내기는 맨 오른쪽 (사용자 요청 2026-10-16) */}
+                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
                   </div>
                   </div>
                 </div>
@@ -794,70 +966,166 @@ export function RoomPanel({
                     className="room-chip"
                     style={chipStyle(member)}
                     title={`${personLabel(member)}${member.name?.trim() ? ` · ${member.name.trim()}` : ""}`}
-                    onClick={() => setFace("llm")}
+                    onClick={() => {
+                      setLlmTab("agent");
+                      setFace("llm");
+                    }}
                   >
                     {chipFace(member)}
                   </button>
                 ))}
-                <span className="room-dock-add">
-                  <button type="button" className="room-plus is-add" aria-label="LLM 추가" aria-expanded={dockOpen} onClick={() => {
-                    if (!dockOpen) void refreshAgents();
-                    setDockOpen((cur) => !cur);
-                  }}>
-                    <PlusIcon />
-                  </button>
-                  {dockOpen ? (
-                    <div className="room-plus-menu room-dock-menu" role="menu">
-                      {agents.map((agent) => {
-                        const at = members.findIndex((member) => member.id === agent.id || sameAgent(member, agent));
-                        const on = at >= 0 && members[at]!.enabled !== false;
-                        return (
-                          <button
-                            key={agent.id ?? `${agent.speaker}-${agent.model}-${agent.name}`}
-                            type="button"
-                            role="menuitemcheckbox"
-                            aria-checked={on}
-                            className="room-dock-agent"
-                            disabled={kept || !!waiting}
-                            onClick={() => {
-                              // 켜면 이 대화에 들어오고(처음이면 Agents 목록에서 복사), 끄면 꺼진 채로 남는다.
-                              if (at < 0) void cast([...members, { ...agent, enabled: true }]);
-                              else patchMember(at, { enabled: !on }, true);
-                            }}
-                          >
-                            <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
-                            {agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}
-                            <span className={`room-icon room-power${on ? " is-on" : ""}`} aria-hidden="true"><PowerIcon /></span>
-                          </button>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setDockOpen(false);
-                          setFace("llm");
-                        }}
-                      >
-                        새 Agent 등록
-                      </button>
-                    </div>
-                  ) : null}
-                </span>
+                {currentMode ? (
+                  <>
+                    {enabled.length > 0 ? <span className="room-dock-sep" aria-hidden="true" /> : null}
+                    <button
+                      type="button"
+                      className="room-chip is-mode-chip"
+                      style={modeStyle(currentMode)}
+                      aria-label={`현재 모드 ${currentMode.name} 해제`}
+                      title={`${currentMode.name} (${MODE_EXEC_LABEL[currentMode.execution]}) · 누르면 해제`}
+                      disabled={kept || !!waiting}
+                      onClick={() => void selectMode(null)}
+                    >
+                      {modeFace(currentMode)}
+                    </button>
+                  </>
+                ) : null}
+                <div className="room-dock-controls">
+                  <span className="room-dock-add">
+                    <button type="button" className="room-plus is-add" aria-label="LLM 추가" aria-expanded={dockOpen} onClick={() => {
+                      if (!dockOpen) void refreshAgents();
+                      setModeMenuOpen(false);
+                      setDockOpen((cur) => !cur);
+                    }}>
+                      <PlusIcon />
+                    </button>
+                    {dockOpen ? (
+                      <div className="room-plus-menu room-dock-menu" role="menu">
+                        {agents.map((agent) => {
+                          const at = members.findIndex((member) => member.id === agent.id || sameAgent(member, agent));
+                          const on = at >= 0 && members[at]!.enabled !== false;
+                          return (
+                            <button
+                              key={agent.id ?? `${agent.speaker}-${agent.model}-${agent.name}`}
+                              type="button"
+                              role="menuitemcheckbox"
+                              aria-checked={on}
+                              className="room-dock-agent"
+                              disabled={kept || !!waiting}
+                              onClick={() => {
+                                // 켜면 이 대화에 들어오고(처음이면 Agents 목록에서 복사), 끄면 꺼진 채로 남는다.
+                                if (at < 0) void cast([...members, { ...agent, enabled: true }]);
+                                else patchMember(at, { enabled: !on }, true);
+                              }}
+                            >
+                              <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
+                              {agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}
+                              <span className={`room-icon room-power${on ? " is-on" : ""}`} aria-hidden="true"><PowerIcon /></span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setDockOpen(false);
+                            setLlmTab("agent");
+                            setFace("llm");
+                          }}
+                        >
+                          새 Agent 등록
+                        </button>
+                      </div>
+                    ) : null}
+                  </span>
+                  <span className="room-dock-mode">
+                    <button
+                      type="button"
+                      className={`room-plus is-mode${currentMode ? " is-active" : ""}`}
+                      style={currentMode ? { background: currentMode.color ?? CHIP_DEFAULT_COLOR, borderColor: currentMode.color ?? CHIP_DEFAULT_COLOR, color: "#fff" } : undefined}
+                      aria-label="모드"
+                      aria-expanded={modeMenuOpen}
+                      title={currentMode ? `모드 · ${currentMode.name} (${MODE_EXEC_LABEL[currentMode.execution]})` : "모드"}
+                      onClick={() => {
+                        if (!modeMenuOpen) {
+                          void refreshModes();
+                          void refreshAgents();
+                        }
+                        setDockOpen(false);
+                        setModeMenuOpen((cur) => !cur);
+                      }}
+                    >
+                      {currentMode ? modeFace(currentMode) : <ModeTriggerIcon />}
+                    </button>
+                    {modeMenuOpen ? (
+                      <div className="room-plus-menu room-dock-menu room-mode-menu" role="menu">
+                        {modes.map((mode) => {
+                          const on = room?.modeId === mode.id;
+                          const bound = (mode.agentIds ?? [])
+                            .map((id) => agents.find((a) => a.id === id) ?? members.find((m) => m.id === id))
+                            .filter((a): a is RoomMember => Boolean(a))
+                            .map((a) => a.name?.trim() || ROOM_SPEAKER_LABEL[a.speaker])
+                            .join(" · ");
+                          return (
+                            <button
+                              key={mode.id}
+                              type="button"
+                              role="menuitemcheckbox"
+                              aria-checked={on}
+                              className={`room-dock-agent room-dock-mode-item${on ? " is-on" : ""}`}
+                              disabled={kept || !!waiting}
+                              onClick={() => void selectMode(on ? null : mode.id)}
+                            >
+                              <span className="room-chip" style={modeStyle(mode)}>{modeFace(mode)}</span>
+                              <span className="room-mode-item-body">
+                                <b>{mode.name}</b>
+                                <small>{bound || "현재 켜진 LLM"}</small>
+                              </span>
+                              <span className={`room-mode-exec is-${mode.execution}`}>{MODE_EXEC_LABEL[mode.execution]}</span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setModeMenuOpen(false);
+                            setLlmTab("mode");
+                            setFace("llm");
+                          }}
+                        >
+                          새 모드 추가
+                        </button>
+                      </div>
+                    ) : null}
+                  </span>
+                </div>
               </div>
             </>
           ) : (
             <LlmFace
               hosts={hosts}
               members={members}
+              agents={agents}
+              modes={modes}
+              activeModeId={room?.modeId ?? null}
+              tab={llmTab}
               messages={room?.messages ?? []}
               localId={localId}
               kept={kept}
               waiting={!!waiting || !!room?.execution && !["done", "failed", "consult"].includes(room.execution.phase)}
+              onTab={setLlmTab}
               onLocalId={setLocalId}
               onPatch={patchMember}
               onRemove={(index) => void cast(members.filter((_, i) => i !== index))}
               onAddAgent={(agent) => void saveAgents((fresh) => [...fresh, agent])}
+              onAddMode={(mode) => void saveModes((fresh) => [...fresh, mode])}
+              onPatchMode={(id, patch) => void saveModes((fresh) => fresh.map((row) => (row.id === id ? { ...row, ...patch } : row)))}
+              onRemoveMode={(id) => {
+                if (room?.modeId === id) void selectMode(null);
+                void saveModes((fresh) => fresh.filter((row) => row.id !== id));
+              }}
+              onSelectMode={(id) => void selectMode(room?.modeId === id ? null : id)}
             />
           )}
         </div>
@@ -883,7 +1151,19 @@ function RoomLine({ message: m }: { message: RoomMessage }) {
     const to = m.to ? ` → ${ROOM_SPEAKER_LABEL[m.to]}${m.model ? ` · ${m.model}` : ""}` : "";
     return (
       <div className="msg is-user">
-        <span className="msg-meta">나{to}{m.via === "claude-session" ? " · Claude Code 세션에서" : ""}</span>
+        <span className="msg-meta">
+          나{to}{m.via === "claude-session" ? " · Claude Code 세션에서" : ""}
+          {m.modeName || m.modeIcon ? (
+            <span
+              className="room-msg-mode"
+              style={{ background: m.modeColor ?? CHIP_DEFAULT_COLOR }}
+              title={m.modeName ? `모드 · ${m.modeName}` : "모드"}
+              aria-label={m.modeName ? `모드 ${m.modeName}` : "모드"}
+            >
+              <ModeIcon icon={m.modeIcon} />
+            </span>
+          ) : null}
+        </span>
         {m.text}
       </div>
     );
@@ -923,25 +1203,43 @@ function memberUsage(member: RoomMember, messages: RoomMessage[]) {
 function LlmFace({
   hosts,
   members,
+  agents,
+  modes,
+  activeModeId,
+  tab,
   messages,
   localId,
   kept,
   waiting,
+  onTab,
   onLocalId,
   onPatch,
   onRemove,
   onAddAgent,
+  onAddMode,
+  onPatchMode,
+  onRemoveMode,
+  onSelectMode,
 }: {
   hosts: HostRow[];
   members: RoomMember[];
+  agents: RoomMember[];
+  modes: RoomMode[];
+  activeModeId: string | null;
+  tab: "agent" | "mode";
   messages: RoomMessage[];
   localId: string;
   kept: boolean;
   waiting: boolean;
+  onTab: (tab: "agent" | "mode") => void;
   onLocalId: (value: string) => void;
   onPatch: (index: number, patch: Partial<RoomMember>, save?: boolean) => void;
   onRemove: (index: number) => void;
   onAddAgent: (agent: RoomMember) => void;
+  onAddMode: (mode: RoomMode) => void;
+  onPatchMode: (id: string, patch: Partial<RoomMode>) => void;
+  onRemoveMode: (id: string) => void;
+  onSelectMode: (id: string) => void;
 }) {
   const [speaker, setSpeaker] = useState<RoomSpeaker>("claude-code");
   const [name, setName] = useState("");
@@ -955,6 +1253,18 @@ function LlmFace({
   const [open, setOpen] = useState<number | null>(null);
   const [editAt, setEditAt] = useState<number | null>(null);
 
+  const [modeName, setModeName] = useState("");
+  const [modeIcon, setModeIcon] = useState<RoomModeIcon>("discuss");
+  const [modeColor, setModeColor] = useState("#6d5efc");
+  const [modeImage, setModeImage] = useState("");
+  const [modeIconHtml, setModeIconHtml] = useState("");
+  const [modeExec, setModeExec] = useState<RoomModeExecution>("read");
+  const [modeAgents, setModeAgents] = useState<string[]>([]);
+  const [modePrompt, setModePrompt] = useState("");
+  const [modeError, setModeError] = useState<string | null>(null);
+  const [openMode, setOpenMode] = useState<string | null>(null);
+  const [editModeId, setEditModeId] = useState<string | null>(null);
+
   function resetForm() {
     setName("");
     setColor(CHIP_DEFAULT_COLOR);
@@ -966,170 +1276,519 @@ function LlmFace({
     if (speaker === "local") onLocalId("");
   }
 
+  function resetModeForm() {
+    setModeName("");
+    setModeIcon("discuss");
+    setModeColor("#6d5efc");
+    setModeImage("");
+    setModeIconHtml("");
+    setModeExec("read");
+    setModeAgents([]);
+    setModePrompt("");
+    setModeError(null);
+  }
+
   const locked = kept || waiting;
   const host = hosts.find((row) => row.speaker === speaker);
+  const previewMode: RoomMode = {
+    id: "preview",
+    name: modeName || "모드",
+    icon: modeIcon,
+    color: modeColor,
+    execution: modeExec,
+    prompt: modePrompt,
+    ...(modeImage ? { image: modeImage } : {}),
+    ...(modeIconHtml ? { iconHtml: modeIconHtml } : {}),
+  };
 
   return (
     <div className="room-llm">
       <div className="room-call-pin">
-      <section className="room-call is-new">
-        <h3>LLM 호출</h3>
+        <section className="room-call is-new">
+          <div className="room-call-tabs" role="tablist" aria-label="호출 또는 모드 추가">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "agent"}
+              className={`room-call-tab${tab === "agent" ? " is-on" : ""}`}
+              onClick={() => onTab("agent")}
+            >
+              LLM 호출
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "mode"}
+              className={`room-call-tab${tab === "mode" ? " is-on" : ""}`}
+              onClick={() => onTab("mode")}
+            >
+              모드 추가
+            </button>
+          </div>
+          {tab === "agent" ? (
+            <>
+              <label>
+                사용 가능한 LLM
+                <select aria-label="사용 가능한 LLM" value={speaker} disabled={locked} onChange={(e) => setSpeaker(e.target.value as RoomSpeaker)}>
+                  {hosts.map((row) => (
+                    <option key={row.speaker} value={row.speaker} disabled={!row.available}>
+                      {row.label}{row.available ? "" : " · 없음"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="thread-note">{host?.available ? host.loggedIn === true ? "로그인 연결됨 · 이 Mac에서 호출한다." : host.loggedIn === false ? host.hint : "실행 파일 연결됨 · 계정 또는 로컬 모델 상태는 호출 시 확인한다." : "실행 파일을 찾지 못했다."}</p>
+              {speaker === "local" ? (
+                <label>
+                  버전
+                  <input aria-label="새 LM Studio 모델 id" value={localId} disabled={locked} placeholder="LM Studio 모델 id" onChange={(e) => onLocalId(e.target.value)} />
+                </label>
+              ) : (
+                <div className="room-pair">
+                  <label>
+                    버전
+                    <input aria-label="버전" value={version} disabled={locked} placeholder="모델 이름" onChange={(e) => setVersion(e.target.value)} />
+                  </label>
+                  <label>
+                    강도
+                    <select aria-label="강도" value={effort} disabled={locked || speaker === "grok"} onChange={(e) => setEffort(e.target.value as "low" | "medium" | "high")}>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+              <div className="room-pair">
+                <label>
+                  역할명
+                  <input aria-label="새 역할명" value={name} disabled={locked} onChange={(e) => setName(e.target.value)} />
+                </label>
+                <label>
+                  아이콘 색
+                  <span className="room-color">
+                    <input type="color" aria-label="새 아이콘 색" value={color} disabled={locked} onChange={(e) => setColor(e.target.value)} />
+                    <span className="room-chip" style={chipStyle({ speaker, model: "", role: "", name: name || "?", color, ...(image ? { image } : {}), ...(iconHtml ? { iconHtml } : {}) })}>{chipFace({ speaker, model: "", role: "", name: name.trim() || "?", ...(image ? { image } : {}), ...(iconHtml ? { iconHtml } : {}) })}</span>
+                  </span>
+                </label>
+              </div>
+              <label>
+                아이콘 이미지
+                <IconPick image={image} iconHtml={iconHtml} disabled={locked} onChange={(patch) => { setImage(patch.image ?? ""); setIconHtml(patch.iconHtml ?? ""); }} onError={setFormError} />
+              </label>
+              {formError ? <p className="thread-err">{formError}</p> : null}
+              <label>
+                주요 역할
+                <textarea aria-label="새 주요 역할" rows={2} value={role} disabled={locked} placeholder="이 사람이 할 일" onChange={(e) => setRole(e.target.value)} />
+              </label>
+              <RoleAttach disabled={locked} onText={(block) => setRole((cur) => joinRole(cur, block))} />
+              <button
+                type="button"
+                className="flow-btn primary"
+                disabled={locked || (host ? !host.available : false) || (speaker === "local" && !localId.trim())}
+                onClick={() => {
+                  const problem = iconProblem({ image, iconHtml });
+                  if (problem) { setFormError(problem); return; }
+                  setFormError(null);
+                  const next: RoomMember = {
+                    speaker,
+                    model: speaker === "local" ? localId.trim() : version.trim(),
+                    role,
+                    name,
+                    color,
+                    ...(image ? { image } : {}),
+                    ...(iconHtml.trim() ? { iconHtml } : {}),
+                    ...(speaker === "local" || speaker === "grok" ? {} : { effort }),
+                  };
+                  onAddAgent({ ...next, enabled: true });
+                  resetForm();
+                }}
+              >
+                Agents 목록에 등록
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="room-pair">
+                <label>
+                  모드 이름
+                  <input aria-label="새 모드 이름" value={modeName} disabled={locked} placeholder="예: 플래닝 · 아키텍처 점검" onChange={(e) => setModeName(e.target.value)} />
+                </label>
+                <label>
+                  아이콘 색
+                  <span className="room-color">
+                    <input type="color" aria-label="새 모드 아이콘 색" value={modeColor} disabled={locked} onChange={(e) => setModeColor(e.target.value)} />
+                    <span className="room-chip" style={modeStyle(previewMode)}>{modeFace(previewMode)}</span>
+                  </span>
+                </label>
+              </div>
+              <div className="room-pair">
+                <label>
+                  모드 아이콘
+                  <div className="room-icon-grid" role="group" aria-label="모드 아이콘 선택">
+                    {ROOM_MODE_ICONS.map((iconKey) => (
+                      <button
+                        key={iconKey}
+                        type="button"
+                        className={`room-icon-pick-btn${modeIcon === iconKey ? " is-on" : ""}`}
+                        aria-label={MODE_ICON_LABEL[iconKey]}
+                        aria-pressed={modeIcon === iconKey}
+                        title={MODE_ICON_LABEL[iconKey]}
+                        disabled={locked}
+                        onClick={() => setModeIcon(iconKey)}
+                      >
+                        <ModeIcon icon={iconKey} />
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label>
+                  작업 권한
+                  <select aria-label="새 모드 작업 권한" value={modeExec} disabled={locked} onChange={(e) => setModeExec(e.target.value as RoomModeExecution)}>
+                    <option value="read">읽기 · 분석/토의</option>
+                    <option value="edit">수정 · 문서/파일 작성</option>
+                    <option value="apply">실행 · 수정 + 검증</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                아이콘 이미지 (선택)
+                <IconPick image={modeImage} iconHtml={modeIconHtml} disabled={locked} onChange={(patch) => { setModeImage(patch.image ?? ""); setModeIconHtml(patch.iconHtml ?? ""); }} onError={setModeError} />
+              </label>
+              <label>
+                참여 LLM 조합 (선택 · 비우면 현재 대화방에 켜진 LLM 유지)
+                <div className="room-agent-picks" role="group" aria-label="모드 참여 LLM">
+                  {agents.map((agent) => {
+                    const aid = agent.id ?? "";
+                    if (!aid) return null;
+                    const order = modeAgents.indexOf(aid);
+                    const picked = order >= 0;
+                    return (
+                      <button
+                        key={aid}
+                        type="button"
+                        className={`room-agent-pick${picked ? " is-on" : ""}`}
+                        aria-pressed={picked}
+                        disabled={locked}
+                        onClick={() => setModeAgents((cur) => (picked ? cur.filter((id) => id !== aid) : [...cur, aid]))}
+                      >
+                        <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
+                        <span>{agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}</span>
+                        {picked ? <small className="room-agent-order">{order + 1}</small> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </label>
+              {modeError ? <p className="thread-err">{modeError}</p> : null}
+              <label>
+                모드 규약 (절차 · 산출물 형식)
+                <textarea aria-label="새 모드 규약" rows={3} value={modePrompt} disabled={locked} placeholder="참여 LLM들이 따를 진행 순서와 출력 형식" onChange={(e) => setModePrompt(e.target.value)} />
+              </label>
+              <RoleAttach disabled={locked} onText={(block) => setModePrompt((cur) => joinRole(cur, block))} />
+              <button
+                type="button"
+                className="flow-btn primary"
+                disabled={locked || !modeName.trim()}
+                onClick={() => {
+                  const problem = iconProblem({ image: modeImage, iconHtml: modeIconHtml });
+                  if (problem) { setModeError(problem); return; }
+                  setModeError(null);
+                  const id = `mode-${Date.now().toString(36)}`;
+                  onAddMode({
+                    id,
+                    name: modeName.trim(),
+                    icon: modeIcon,
+                    color: modeColor,
+                    execution: modeExec,
+                    prompt: modePrompt,
+                    ...(modeAgents.length ? { agentIds: modeAgents } : {}),
+                    ...(modeImage ? { image: modeImage } : {}),
+                    ...(modeIconHtml.trim() ? { iconHtml: modeIconHtml } : {}),
+                  });
+                  resetModeForm();
+                }}
+              >
+                모드 목록에 등록
+              </button>
+            </>
+          )}
+        </section>
+      </div>
+      {tab === "agent" ? (
+        <>
+          <h3 className="room-roles-title">이 대화의 LLM</h3>
+          <div className="room-roles">
+            {members.map((member, index) => {
+              const used = memberUsage(member, messages);
+              const linked = hosts.find((row) => row.speaker === member.speaker);
+              const shown = open === index;
+              return (
+                <section className={`room-role${member.enabled === false ? " is-off" : ""}`} key={`${index}-${member.speaker}-${member.model}`}>
+                  <span className="room-chip" style={chipStyle(member)}>{chipFace(member)}</span>
+                  <b>{member.name?.trim() || ROOM_SPEAKER_LABEL[member.speaker]}</b>
+                  <button
+                    type="button"
+                    className={`room-icon room-power${member.enabled !== false ? " is-on" : ""}`}
+                    title={member.enabled !== false ? "켜짐 · 누르면 끈다" : "꺼짐 · 누르면 켠다"}
+                    aria-label="켜기"
+                    aria-pressed={member.enabled !== false}
+                    disabled={locked}
+                    onClick={() => onPatch(index, { enabled: member.enabled === false }, true)}
+                  >
+                    <PowerIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className={`room-icon${shown ? " is-on" : ""}`}
+                    aria-label="세부 내용"
+                    aria-expanded={shown}
+                    onClick={() => setOpen(shown ? null : index)}
+                  >
+                    <DetailIcon />
+                  </button>
+                  {shown ? (
+                    <div className="room-role-body">
+                      {editAt === index ? (
+                        <MemberEditor
+                          member={member}
+                          disabled={locked}
+                          onCancel={() => setEditAt(null)}
+                          onSave={(patch) => {
+                            onPatch(index, patch, true);
+                            setEditAt(null);
+                          }}
+                        />
+                      ) : (
+                        <dl>
+                          <div><dt>모델</dt><dd>{member.model.trim() || "모델 기본"}{member.effort ? ` · ${member.effort}` : ""}</dd></div>
+                          <div><dt>주요 역할</dt><dd className="room-role-text">{member.role.trim() || "없음"}</dd></div>
+                        </dl>
+                      )}
+                      <dl>
+                        <div>
+                          <dt>연결</dt>
+                          <dd>{linked?.loggedIn === true ? "로그인 연결됨" : linked?.loggedIn === false ? linked.hint : linked?.available ? "실행 파일을 찾았다 · 호출 시 연결 확인" : "실행 파일이 없다"}</dd>
+                        </div>
+                        <div>
+                          <dt>호출</dt>
+                          <dd>{used.calls}번 · {(used.ms / 1000).toFixed(1)}초 · 받은 글자 {used.chars}</dd>
+                        </div>
+                        <div>
+                          <dt>패킷</dt>
+                          <dd>{used.input === null ? "호출 결과에 양이 없다" : `입력 ${used.input} · 출력 ${used.output}`}</dd>
+                        </div>
+                      </dl>
+                      <div className="room-role-actions">
+                        <button type="button" className="flow-btn" disabled={locked || editAt === index} onClick={() => setEditAt(index)}>
+                          수정
+                        </button>
+                        <button type="button" className="flow-btn" disabled={locked} onClick={() => onRemove(index)}>
+                          빼기
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <h3 className="room-roles-title">등록된 모드</h3>
+          <div className="room-roles">
+            {modes.map((mode) => {
+              const isOn = activeModeId === mode.id;
+              const shown = openMode === mode.id;
+              const boundNames = (mode.agentIds ?? [])
+                .map((id) => agents.find((a) => a.id === id) ?? members.find((m) => m.id === id))
+                .filter((a): a is RoomMember => Boolean(a))
+                .map((a) => a.name?.trim() || ROOM_SPEAKER_LABEL[a.speaker])
+                .join(" → ");
+              return (
+                <section className={`room-role${isOn ? "" : " is-off"}`} key={mode.id}>
+                  <span className="room-chip" style={modeStyle(mode)}>{modeFace(mode)}</span>
+                  <b>{mode.name}</b>
+                  <span className={`room-mode-exec is-${mode.execution}`}>{MODE_EXEC_LABEL[mode.execution]}</span>
+                  <button
+                    type="button"
+                    className={`room-icon room-power${isOn ? " is-on" : ""}`}
+                    title={isOn ? "이 대화에서 사용 중 · 누르면 해제" : "이 대화의 모드로 선택"}
+                    aria-label={`${mode.name} 모드 켜기`}
+                    aria-pressed={isOn}
+                    disabled={locked}
+                    onClick={() => onSelectMode(mode.id)}
+                  >
+                    <PowerIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className={`room-icon${shown ? " is-on" : ""}`}
+                    aria-label="세부 내용"
+                    aria-expanded={shown}
+                    onClick={() => setOpenMode(shown ? null : mode.id)}
+                  >
+                    <DetailIcon />
+                  </button>
+                  {shown ? (
+                    <div className="room-role-body">
+                      {editModeId === mode.id ? (
+                        <ModeEditor
+                          mode={mode}
+                          agents={agents}
+                          disabled={locked}
+                          onCancel={() => setEditModeId(null)}
+                          onSave={(patch) => {
+                            onPatchMode(mode.id, patch);
+                            setEditModeId(null);
+                          }}
+                        />
+                      ) : (
+                        <dl>
+                          <div><dt>권한</dt><dd>{MODE_EXEC_LABEL[mode.execution]}</dd></div>
+                          <div><dt>참여 LLM</dt><dd>{boundNames || "현재 대화방에 켜진 LLM 유지"}</dd></div>
+                          <div><dt>규약</dt><dd className="room-role-text">{mode.prompt.trim() || "없음"}</dd></div>
+                        </dl>
+                      )}
+                      <div className="room-role-actions">
+                        <button type="button" className="flow-btn" disabled={locked || editModeId === mode.id} onClick={() => setEditModeId(mode.id)}>
+                          수정
+                        </button>
+                        <button type="button" className="flow-btn" disabled={locked} onClick={() => onRemoveMode(mode.id)}>
+                          빼기
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ModeEditor({
+  mode,
+  agents,
+  disabled,
+  onSave,
+  onCancel,
+}: {
+  mode: RoomMode;
+  agents: RoomMember[];
+  disabled: boolean;
+  onSave: (patch: Partial<RoomMode>) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<RoomMode>(mode);
+  const [problem, setProblem] = useState<string | null>(null);
+  const set = (patch: Partial<RoomMode>) => setDraft((cur) => ({ ...cur, ...patch }));
+  const pickedIds = draft.agentIds ?? [];
+  return (
+    <div className="room-member-edit">
+      <div className="room-pair">
         <label>
-          사용 가능한 LLM
-          <select aria-label="사용 가능한 LLM" value={speaker} disabled={locked} onChange={(e) => setSpeaker(e.target.value as RoomSpeaker)}>
-            {hosts.map((row) => (
-              <option key={row.speaker} value={row.speaker} disabled={!row.available}>
-                {row.label}{row.available ? "" : " · 없음"}
-              </option>
+          모드 이름
+          <input aria-label={`${mode.name} 모드 이름`} value={draft.name} disabled={disabled} onChange={(e) => set({ name: e.target.value })} />
+        </label>
+        <label>
+          아이콘 색
+          <span className="room-color">
+            <input type="color" aria-label={`${mode.name} 아이콘 색`} value={draft.color ?? CHIP_DEFAULT_COLOR} disabled={disabled} onChange={(e) => set({ color: e.target.value })} />
+            <span className="room-chip" style={modeStyle(draft)}>{modeFace(draft)}</span>
+          </span>
+        </label>
+      </div>
+      <div className="room-pair">
+        <label>
+          모드 아이콘
+          <div className="room-icon-grid" role="group" aria-label={`${mode.name} 아이콘`}>
+            {ROOM_MODE_ICONS.map((iconKey) => (
+              <button
+                key={iconKey}
+                type="button"
+                className={`room-icon-pick-btn${(draft.icon ?? "discuss") === iconKey ? " is-on" : ""}`}
+                aria-label={MODE_ICON_LABEL[iconKey]}
+                aria-pressed={(draft.icon ?? "discuss") === iconKey}
+                disabled={disabled}
+                onClick={() => set({ icon: iconKey })}
+              >
+                <ModeIcon icon={iconKey} />
+              </button>
             ))}
+          </div>
+        </label>
+        <label>
+          작업 권한
+          <select aria-label={`${mode.name} 작업 권한`} value={draft.execution} disabled={disabled} onChange={(e) => set({ execution: e.target.value as RoomModeExecution })}>
+            <option value="read">읽기 · 분석/토의</option>
+            <option value="edit">수정 · 문서/파일 작성</option>
+            <option value="apply">실행 · 수정 + 검증</option>
           </select>
         </label>
-        <p className="thread-note">{host?.available ? host.loggedIn === true ? "로그인 연결됨 · 이 Mac에서 호출한다." : host.loggedIn === false ? host.hint : "실행 파일 연결됨 · 계정 또는 로컬 모델 상태는 호출 시 확인한다." : "실행 파일을 찾지 못했다."}</p>
-        {speaker === "local" ? (
-          <label>
-            버전
-            <input aria-label="새 LM Studio 모델 id" value={localId} disabled={locked} placeholder="LM Studio 모델 id" onChange={(e) => onLocalId(e.target.value)} />
-          </label>
-        ) : (
-          <div className="room-pair">
-            <label>
-              버전
-              <input aria-label="버전" value={version} disabled={locked} placeholder="모델 이름" onChange={(e) => setVersion(e.target.value)} />
-            </label>
-            <label>
-              강도
-              <select aria-label="강도" value={effort} disabled={locked || speaker === "grok"} onChange={(e) => setEffort(e.target.value as "low" | "medium" | "high")}>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
-            </label>
-          </div>
-        )}
-        <div className="room-pair">
-          <label>
-            역할명
-            <input aria-label="새 역할명" value={name} disabled={locked} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label>
-            아이콘 색
-            <span className="room-color">
-              <input type="color" aria-label="새 아이콘 색" value={color} disabled={locked} onChange={(e) => setColor(e.target.value)} />
-              <span className="room-chip" style={chipStyle({ speaker, model: "", role: "", name: name || "?", color, ...(image ? { image } : {}), ...(iconHtml ? { iconHtml } : {}) })}>{chipFace({ speaker, model: "", role: "", name: name.trim() || "?", ...(image ? { image } : {}), ...(iconHtml ? { iconHtml } : {}) })}</span>
-            </span>
-          </label>
+      </div>
+      <label>
+        아이콘 이미지
+        <IconPick image={draft.image ?? ""} iconHtml={draft.iconHtml ?? ""} disabled={disabled} onChange={(patch) => set({ image: patch.image || undefined, iconHtml: patch.iconHtml || undefined })} onError={setProblem} />
+      </label>
+      <label>
+        참여 LLM 조합
+        <div className="room-agent-picks" role="group" aria-label={`${mode.name} 참여 LLM`}>
+          {agents.map((agent) => {
+            const aid = agent.id ?? "";
+            if (!aid) return null;
+            const order = pickedIds.indexOf(aid);
+            const picked = order >= 0;
+            return (
+              <button
+                key={aid}
+                type="button"
+                className={`room-agent-pick${picked ? " is-on" : ""}`}
+                aria-pressed={picked}
+                disabled={disabled}
+                onClick={() => set({ agentIds: picked ? pickedIds.filter((id) => id !== aid) : [...pickedIds, aid] })}
+              >
+                <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
+                <span>{agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}</span>
+                {picked ? <small className="room-agent-order">{order + 1}</small> : null}
+              </button>
+            );
+          })}
         </div>
-        <label>
-          아이콘 이미지
-          <IconPick image={image} iconHtml={iconHtml} disabled={locked} onChange={(patch) => { setImage(patch.image ?? ""); setIconHtml(patch.iconHtml ?? ""); }} onError={setFormError} />
-        </label>
-        {formError ? <p className="thread-err">{formError}</p> : null}
-        <label>
-          주요 역할
-          <textarea aria-label="새 주요 역할" rows={2} value={role} disabled={locked} placeholder="이 사람이 할 일" onChange={(e) => setRole(e.target.value)} />
-        </label>
-        <RoleAttach disabled={locked} onText={(block) => setRole((cur) => joinRole(cur, block))} />
+      </label>
+      <label>
+        모드 규약
+        <textarea aria-label={`${mode.name} 모드 규약`} rows={4} value={draft.prompt} disabled={disabled} onChange={(e) => set({ prompt: e.target.value })} />
+      </label>
+      <RoleAttach disabled={disabled} onText={(block) => set({ prompt: joinRole(draft.prompt, block) })} />
+      {problem ? <p className="thread-err">{problem}</p> : null}
+      <div className="room-role-actions">
         <button
           type="button"
           className="flow-btn primary"
-          disabled={locked || (host ? !host.available : false) || (speaker === "local" && !localId.trim())}
+          disabled={disabled || !draft.name.trim()}
           onClick={() => {
-            const problem = iconProblem({ image, iconHtml });
-            if (problem) { setFormError(problem); return; }
-            setFormError(null);
-            const next: RoomMember = {
-              speaker,
-              model: speaker === "local" ? localId.trim() : version.trim(),
-              role,
-              name,
-              color,
-              ...(image ? { image } : {}),
-              ...(iconHtml.trim() ? { iconHtml } : {}),
-              ...(speaker === "local" || speaker === "grok" ? {} : { effort }),
-            };
-            onAddAgent({ ...next, enabled: true });
-            resetForm();
+            const found = iconProblem({ image: draft.image, iconHtml: draft.iconHtml });
+            if (found) { setProblem(found); return; }
+            onSave({
+              name: draft.name.trim(),
+              icon: draft.icon,
+              color: draft.color,
+              execution: draft.execution,
+              prompt: draft.prompt,
+              agentIds: draft.agentIds?.length ? draft.agentIds : undefined,
+              image: draft.image || undefined,
+              iconHtml: draft.iconHtml?.trim() ? draft.iconHtml : undefined,
+            });
           }}
         >
-          Agents 목록에 등록
+          저장
         </button>
-      </section>
-      </div>
-      <h3 className="room-roles-title">이 대화의 LLM</h3>
-      <div className="room-roles">
-        {members.map((member, index) => {
-          const used = memberUsage(member, messages);
-          const linked = hosts.find((row) => row.speaker === member.speaker);
-          const shown = open === index;
-          return (
-            <section className={`room-role${member.enabled === false ? " is-off" : ""}`} key={`${index}-${member.speaker}-${member.model}`}>
-              <span className="room-chip" style={chipStyle(member)}>{chipFace(member)}</span>
-              <b>{member.name?.trim() || ROOM_SPEAKER_LABEL[member.speaker]}</b>
-              <button
-                type="button"
-                className={`room-icon room-power${member.enabled !== false ? " is-on" : ""}`}
-                title={member.enabled !== false ? "켜짐 · 누르면 끈다" : "꺼짐 · 누르면 켠다"}
-                aria-label="켜기"
-                aria-pressed={member.enabled !== false}
-                disabled={locked}
-                onClick={() => onPatch(index, { enabled: member.enabled === false }, true)}
-              >
-                <PowerIcon />
-              </button>
-              <button
-                type="button"
-                className={`room-icon${shown ? " is-on" : ""}`}
-                aria-label="세부 내용"
-                aria-expanded={shown}
-                onClick={() => setOpen(shown ? null : index)}
-              >
-                <DetailIcon />
-              </button>
-              {shown ? (
-                <div className="room-role-body">
-                  {editAt === index ? (
-                    <MemberEditor
-                      member={member}
-                      disabled={locked}
-                      onCancel={() => setEditAt(null)}
-                      onSave={(patch) => {
-                        onPatch(index, patch, true);
-                        setEditAt(null);
-                      }}
-                    />
-                  ) : (
-                    <dl>
-                      <div><dt>모델</dt><dd>{member.model.trim() || "모델 기본"}{member.effort ? ` · ${member.effort}` : ""}</dd></div>
-                      <div><dt>주요 역할</dt><dd className="room-role-text">{member.role.trim() || "없음"}</dd></div>
-                    </dl>
-                  )}
-                  <dl>
-                    <div>
-                      <dt>연결</dt>
-                      <dd>{linked?.loggedIn === true ? "로그인 연결됨" : linked?.loggedIn === false ? linked.hint : linked?.available ? "실행 파일을 찾았다 · 호출 시 연결 확인" : "실행 파일이 없다"}</dd>
-                    </div>
-                    <div>
-                      <dt>호출</dt>
-                      <dd>{used.calls}번 · {(used.ms / 1000).toFixed(1)}초 · 받은 글자 {used.chars}</dd>
-                    </div>
-                    <div>
-                      <dt>패킷</dt>
-                      <dd>{used.input === null ? "호출 결과에 양이 없다" : `입력 ${used.input} · 출력 ${used.output}`}</dd>
-                    </div>
-                  </dl>
-                  <div className="room-role-actions">
-                    <button type="button" className="flow-btn" disabled={locked || editAt === index} onClick={() => setEditAt(index)}>
-                      수정
-                    </button>
-                    <button type="button" className="flow-btn" disabled={locked} onClick={() => onRemove(index)}>
-                      빼기
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
+        <button type="button" className="flow-btn" onClick={onCancel}>취소</button>
       </div>
     </div>
   );

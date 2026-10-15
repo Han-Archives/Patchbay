@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>세부 TASK 주간표 5안</title>
+<style>
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--stroke:#333;--text:#f2f2f2;--muted:#9a9a9a;--ok:#a78bfa;--ok-fill:#2a2342;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--bad-fill:#3a1e1a;--green:#7fc8a0;--green-fill:#1b3027;font-family:system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg)}button{font:inherit;color:inherit;cursor:pointer}
+header.top{max-width:1180px;margin:auto;padding:28px 16px 12px;display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+h1{font-size:21px;margin:4px 0 0}small{color:var(--muted);font-size:12px}.tag{color:#c4b5fd;background:var(--ok-fill);border:1px solid #51436e;padding:5px 10px;border-radius:6px;font-size:12px}
+main{max-width:1180px;margin:auto;padding:0 16px 40px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}.tabs button{background:var(--elevated);border:1px solid var(--stroke);border-radius:8px;padding:8px 12px;font-size:13px}.tabs button[aria-pressed=true]{background:var(--ok-fill);border-color:#6d548b;color:#dfd0ff}
+.panel{background:var(--chrome);border:1px solid var(--stroke);border-radius:10px;overflow:hidden}
+.phead{padding:16px 18px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.phead h2{font-size:15px;margin:2px 0 0}.phead h2 span{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
+.meta{padding:12px 18px;border-bottom:1px solid var(--stroke);font-size:12px;color:#bbb;display:grid;gap:6px}.meta b{color:var(--text);font-weight:600}.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--stroke)}.chip.have{color:#c4b5fd;border-color:#51436e;background:var(--ok-fill)}.chip.need{color:var(--warn);border-color:#6a4b2a;background:var(--warn-fill)}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:640px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #2a2a2a;vertical-align:top;line-height:1.55}thead th{font-weight:500;color:#aaa;background:#1e1e1e;font-size:12px;white-space:nowrap}
+.num{color:var(--muted);font-variant-numeric:tabular-nums;width:44px}.done-text{color:#888;text-decoration:line-through}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;white-space:nowrap}.st i{width:8px;height:8px;border-radius:50%;background:#666}.st.now i{background:var(--ok);box-shadow:0 0 8px var(--ok)}.st.done i{background:#7a7a7a}.st.now{color:#c4b5fd}
+.bar{height:6px;background:var(--fill);border-radius:3px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%;background:var(--ok)}
+.foot{padding:12px 18px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--stroke)}
+/* 1 주간 보고서 */
+.v1 td.grp{background:#1e1e1e;color:#ccc;font-weight:600;width:84px}
+/* 2 PPP */
+.ppp{display:grid;grid-template-columns:repeat(3,1fr);gap:0}.ppp section{border-right:1px solid var(--stroke);min-height:280px}.ppp section:last-child{border-right:0}.ppp h3{margin:0;padding:12px 14px;font-size:13px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between}.ppp ul{list-style:none;margin:0;padding:6px 0}.ppp li{padding:10px 14px;border-bottom:1px solid #262626;font-size:12.5px;line-height:1.5}.ppp li small{display:block;margin-top:3px;font-size:11px}.ppp .p1 h3{color:#bbb}.ppp .p2 h3{color:#c4b5fd}.ppp .p3 h3{color:var(--bad)}
+/* 3 요일 격자 */
+.v3 td.day{text-align:center;padding:8px 4px;border-left:1px solid #262626;width:72px}.v3 th.day{text-align:center}.v3 th.today{color:#c4b5fd}.cell{height:22px;border-radius:4px}.cell.done{background:#3a3a3a}.cell.now{background:var(--ok-fill);border:1px solid #6d548b}.cell.plan{border:1px dashed #555}
+/* 4 진척 관리표 */
+.pri{font-size:11px;padding:2px 7px;border-radius:4px;white-space:nowrap}.pri.h{color:var(--bad);background:var(--bad-fill)}.pri.m{color:var(--warn);background:var(--warn-fill)}.pri.l{color:#aaa;background:var(--fill)}.pct{font-size:11px;color:var(--muted);margin-top:4px}
+/* 5 RAG */
+.rag{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px}.rag.g{background:var(--green)}.rag.a{background:var(--warn)}.rag.r{background:var(--bad)}.rag.n{background:#555}.summary{display:flex;gap:18px;padding:14px 18px;border-bottom:1px solid var(--stroke);flex-wrap:wrap;font-size:12.5px}
+.ref{color:#c4b5fd;font-size:12px}
+@media(max-width:700px){.ppp{grid-template-columns:1fr}.ppp section{border-right:0;border-bottom:1px solid var(--stroke);min-height:0}h1{font-size:18px}}
+</style>
+<header class="top"><div><small>PATCHBAY / 대시보드 / 설계 · 세부 TASK</small><h1>세부 TASK · 주간 업무표 5안</h1></div><span class="tag">승인 전 시안 · 예시 데이터</span></header>
+<main>
+<small>기존 1~3안(Asana · monday · Linear 참고)을 대신할 후보입니다. 모두 같은 예시 작업 6개를 보여 줍니다. 칩 색: <span class="chip have">지금 데이터로 됨</span> <span class="chip need">추가 데이터 필요</span></small>
+<div class="tabs" id="tabs"></div>
+<div class="panel" id="view"></div>
+</main>
+<script>
+const steps=[
+ {label:"목표 · 범위 정리",state:"done",task:"이번 설계가 다룰 범위와 빼는 것을 적습니다.",criterion:"PRD 목표 절이 완료로 기록됨",start:0,end:0},
+ {label:"사용자 흐름",state:"done",task:"주요 사용 흐름을 단계로 나눠 적습니다.",criterion:"PRD 흐름 절이 완료로 기록됨",start:0,end:1},
+ {label:"데이터 구조",state:"now",task:"저장할 항목과 관계, 열린 질문을 구체화합니다.",criterion:"PRD 데이터 절이 완료로 기록됨",start:1,end:3,issue:"저장 위치 결정 대기"},
+ {label:"화면 구성",state:"next",task:"화면별 구성 요소와 상태를 정리합니다.",criterion:"PRD 화면 절이 완료로 기록됨",start:3,end:4},
+ {label:"PRD 검토",state:"next",task:"요구사항의 누락과 열린 질문을 검토합니다.",criterion:"PRD 검토 항목이 모두 통과함",start:4,end:4},
+ {label:"채택",state:"next",task:"검토한 설계를 확인하고 채택합니다.",criterion:"설계 단계가 완료로 기록됨",start:4,end:4}];
+const STATUS={done:"완료",now:"진행 중",next:"예정"};
+const done=steps.filter(s=>s.state==="done").length;
+const n=i=>String(i+1).padStart(2,"0");
+const st=s=>`<span class="st ${s.state}"><i></i>${STATUS[s.state]}</span>`;
+const head=(title,ref)=>`<div class="phead"><div><small>세부 TASK</small><h2>설계<span>${done} / ${steps.length} 완료 · 2026.10.12 – 10.16 주</span></h2></div><span class="ref">${ref}</span></div>`;
+const meta=(why,have,need)=>`<div class="meta"><div><b>이런 표</b> · ${why}</div><div class="chips">${have.map(c=>`<span class="chip have">${c}</span>`).join("")}${need.map(c=>`<span class="chip need">${c}</span>`).join("")}</div></div>`;
+const VIEWS=[
+{name:"1안 · 주간 업무 보고서",ref:"국내 회사 주간보고 양식 (금주 실적 · 차주 계획)",
+ render:()=>meta("회사 주간보고에서 가장 흔한 양식. 이번 주에 끝낸 것과 다음 주에 할 것을 한 줄에 나란히 봅니다.",["작업","상태","완료 기준"],["주 단위 완료일"])+
+ `<div class="scroll"><table class="v1"><thead><tr><th>구분</th><th>업무</th><th>금주 실적</th><th>차주 계획</th><th>상태</th><th>완료 기준</th></tr></thead><tbody>${steps.map((s,i)=>`<tr>${i===0?`<td class="grp" rowspan="${steps.length}">설계</td>`:""}<td>${n(i)} ${s.label}</td><td>${s.state==="done"?"완료":s.state==="now"?"진행 중 — "+s.task:"—"}</td><td>${s.state==="done"?"—":s.state==="now"?"마무리 후 검토":s.task}</td><td>${st(s)}</td><td>${s.criterion}</td></tr>`).join("")}</tbody></table></div>`},
+{name:"2안 · 한 일 · 할 일 · 막힌 일",ref:"PPP (Progress · Plans · Problems) 주간 보고",
+ render:()=>meta("스타트업·원격 팀 주간 보고에 많이 쓰는 3칸. 표 대신 세 칸 목록이라 한눈에 읽힙니다.",["작업","상태"],["막힌 이유 (지금은 예시)"])+
+ `<div class="ppp"><section class="p1"><h3>한 일 <small>${done}</small></h3><ul>${steps.filter(s=>s.state==="done").map(s=>`<li class="done-text">${s.label}</li>`).join("")}</ul></section><section class="p2"><h3>할 일 <small>${steps.length-done}</small></h3><ul>${steps.filter(s=>s.state!=="done").map(s=>`<li>${s.label}<small>${s.state==="now"?"진행 중 · ":""}${s.criterion}</small></li>`).join("")}</ul></section><section class="p3"><h3>막힌 일 <small>${steps.filter(s=>s.issue).length}</small></h3><ul>${steps.filter(s=>s.issue).map(s=>`<li>${s.label}<small>${s.issue}</small></li>`).join("")}</ul></section></div>`},
+{name:"3안 · 요일별 주간 계획표",ref:"엑셀 주간 계획표 · 간트 (월–금 칸)",
+ render:()=>{const days=["월 10.12","화 10.13","수 10.14","목 10.15","금 10.16"],today=3;return meta("주간 플래너 그대로. 작업마다 어느 요일에 했고 할지를 칸으로 칠해 일정이 보입니다.",["작업","상태"],["시작일","완료일 (또는 예정일)"])+
+ `<div class="scroll"><table class="v3"><thead><tr><th>#</th><th>작업</th>${days.map((d,i)=>`<th class="day${i===today?" today":""}">${d}</th>`).join("")}<th>상태</th></tr></thead><tbody>${steps.map((s,i)=>`<tr><td class="num">${n(i)}</td><td class="${s.state==="done"?"done-text":""}">${s.label}</td>${days.map((_,d)=>`<td class="day">${d>=s.start&&d<=s.end?`<div class="cell ${s.state==="done"?"done":s.state==="now"?"now":"plan"}"></div>`:""}</td>`).join("")}<td>${st(s)}</td></tr>`).join("")}</tbody></table></div><div class="foot">회색 = 한 날 · 보라 = 진행 중 · 점선 = 예정. 보라 글씨 요일이 오늘입니다.</div>`}},
+{name:"4안 · 진척 관리표",ref:"Smartsheet · 엑셀 업무 관리표 (우선순위 · 진척률)",
+ render:()=>{const pr=["h","h","h","m","m","l"],pn={h:"높음",m:"보통",l:"낮음"},pc=[100,100,60,0,0,0];return meta("엑셀 업무 관리 템플릿의 기본형. 우선순위·진척률·마감으로 무엇이 급한지 봅니다.",["작업","상태","완료 기준"],["우선순위","진척률","마감일"])+
+ `<div class="scroll"><table><thead><tr><th>#</th><th>작업</th><th>우선순위</th><th>상태</th><th>진척률</th><th>마감</th><th>완료 기준</th></tr></thead><tbody>${steps.map((s,i)=>`<tr><td class="num">${n(i)}</td><td class="${s.state==="done"?"done-text":""}">${s.label}</td><td><span class="pri ${pr[i]}">${pn[pr[i]]}</span></td><td>${st(s)}</td><td><div class="bar"><i style="width:${pc[i]}%"></i></div><div class="pct">${pc[i]}%</div></td><td>10.${12+s.end}</td><td>${s.criterion}</td></tr>`).join("")}</tbody></table></div>`}},
+{name:"5안 · 신호등 상태 보고",ref:"RAG(빨강·노랑·초록) 주간 상태 보고",
+ render:()=>{const rag=s=>s.state==="done"?"g":s.issue?"a":s.state==="now"?"g":"n",rn={g:"정상",a:"주의",r:"위험",n:"시작 전"};return meta("프로젝트 관리자 주간 상태 보고 형식. 작업마다 신호등 하나로 괜찮은지 먼저 보고, 이유는 옆에 한 줄.",["작업","상태","완료 기준"],["주의 · 위험 사유"])+
+ `<div class="summary"><span><i class="rag g"></i>정상 ${steps.filter(s=>rag(s)==="g").length}</span><span><i class="rag a"></i>주의 ${steps.filter(s=>rag(s)==="a").length}</span><span><i class="rag r"></i>위험 0</span><span><i class="rag n"></i>시작 전 ${steps.filter(s=>rag(s)==="n").length}</span></div>
+ <div class="scroll"><table><thead><tr><th>신호</th><th>작업</th><th>상태</th><th>사유 · 다음 행동</th><th>완료 기준</th></tr></thead><tbody>${steps.map((s,i)=>`<tr><td style="white-space:nowrap"><i class="rag ${rag(s)}"></i>${rn[rag(s)]}</td><td>${n(i)} ${s.label}</td><td>${st(s)}</td><td>${s.issue?s.issue+" → 결정 후 진행":s.state==="done"?"—":s.state==="now"?s.task:"앞 작업 완료 후 시작"}</td><td>${s.criterion}</td></tr>`).join("")}</tbody></table></div>`}}];
+let cur=0;
+function draw(){document.getElementById("tabs").innerHTML=VIEWS.map((v,i)=>`<button aria-pressed="${i===cur}" data-i="${i}">${v.name}</button>`).join("");document.getElementById("view").innerHTML=head(VIEWS[cur].name,VIEWS[cur].ref)+VIEWS[cur].render()}
+document.getElementById("tabs").onclick=e=>{const b=e.target.closest("button");if(b){cur=+b.dataset.i;draw()}};draw();
+</script></html>

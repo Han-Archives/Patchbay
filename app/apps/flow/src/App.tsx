@@ -1,8 +1,8 @@
-import { SidebarIcon, type SidebarIconName } from "./SidebarIcon.js";
-import { ProjectLogPane } from "./ProjectLogPane.js";
+import { SidebarIcon } from "./SidebarIcon.js";
+import { LOG_OPEN_EVENT, ProjectLogPane } from "./ProjectLogPane.js";
 import { ProjectTools } from "./ProjectTools.js";
 import { SystemArchitecturePanel } from "./SystemArchitecturePanel.js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AddProjectDialog } from "./AddProjectDialog.js";
 import { BoardPane } from "./BoardPane.js";
 import { BuildPane } from "./BuildPane.js";
@@ -19,6 +19,7 @@ import { StructurePane } from "./StructurePane.js";
 import { ConsultPane } from "./ConsultPane.js";
 import { PrdPane } from "./PrdPane.js";
 import { RoomPanel } from "./RoomPanel.js";
+import { LlmHealthRail } from "./LlmHealthRail.js";
 import {
   adapterLabel,
   projectLabel,
@@ -27,6 +28,7 @@ import {
 } from "./shellContract.js";
 import {
   projectInitials,
+  projectIconColor,
   stageMeta,
   type StageId,
   type WorkspaceProject,
@@ -54,6 +56,13 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [place, setPlace] = useState<Place>("dashboard");
+  // History 칸에서 날짜를 고르면 Log 의 그날을 연다 (사용자 결정 2026-10-15 — History 는 Log 의 입력 · 요약창).
+  const [logDate, setLogDate] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (event: Event) => { setLogDate((event as CustomEvent<{ date: string }>).detail.date); setPlace("log"); };
+    window.addEventListener(LOG_OPEN_EVENT, open);
+    return () => window.removeEventListener(LOG_OPEN_EVENT, open);
+  }, []);
   const [project, setProject] = useState<string>("");
   const [revision, setRevision] = useState(0);
   // 대화방 파일만 바뀌면 대화 칸만 다시 읽는다 — 폰 세션의 말이 훅으로 들어올 때 (ROOM_EVENT_NAME).
@@ -210,12 +219,13 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
             const stage = item.stages.find((s) => s.id === item.current);
             const meta = stageMeta(item.current);
             const running = runningAliases.includes(item.alias);
-            const said = `${stage ? `${name} — ${meta.num} ${meta.label} · ${stage.status}` : name}${running ? " · LLM 실행 중" : ""}`;
+            const said = `${stage ? `${name} — ${meta.num} ${meta.label} · ${stage.status}` : name}${running ? " · LLM 실행 중" : item.attention === "blocked" ? " · 막힌 칸 있음" : ""}`;
             return (
               <div key={item.alias} className="rail-pj-wrap">
                 <button
                   type="button"
-                  className="rail-pj"
+                  className="rail-pj is-project"
+                  style={{ "--project-color": projectIconColor(item.alias) } as CSSProperties}
                   aria-current={item.alias === selected ? "true" : undefined}
                   aria-label={said}
                   title={said}
@@ -270,15 +280,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           <><div className="rail-divider" aria-hidden="true" /><ProjectTools place={place} onNavigate={setPlace} /></>
         ) : null}
         <div className="rail-foot">
-          <RailTool
-            label="대화"
-            icon="chat"
-            on={chatOpen}
-            onClick={() => {
-              if (chatOpen) setChatAside(false);
-              setChatOpen((open) => !open);
-            }}
-          />
+          <LlmHealthRail revision={revision + roomRevision} readOnly={readOnly} />
           <SidecarDot
             name="LangGraph"
             status={shell?.adapters.langgraph ?? "disconnected"}
@@ -305,6 +307,8 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           {shell && hasProjects && workspace ? (
             <PlaceBody
               place={place}
+              readOnly={readOnly}
+              logDate={logDate}
               project={selected}
               label={label}
               revision={revision}
@@ -393,6 +397,8 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
 
 function PlaceBody({
   place,
+  readOnly,
+  logDate,
   project,
   label,
   revision,
@@ -407,6 +413,8 @@ function PlaceBody({
   onConsultSent,
 }: {
   place: Place;
+  readOnly: boolean;
+  logDate: string | null;
   project: string;
   label: string;
   revision: number;
@@ -415,7 +423,7 @@ function PlaceBody({
   onOpenFile: (path: string) => void;
   onLangGraphStatus: (status: AdapterStatus) => void;
   onNeo4jStatus: (status: AdapterStatus) => void;
-  /** 단계 띠를 다시 읽는다 — 운영에서 지난 노드가 늘었을 때. */
+  /** 단계 띠를 다시 읽는다 — 테스트에서 지난 노드가 늘었을 때. */
   onWorkspaceChanged: () => void;
   onAsk: (text: string) => void;
   consultRequest?: string;
@@ -449,10 +457,10 @@ function PlaceBody({
       <KnowledgePane project={project} revision={revision} stage={place} onNeo4jStatus={onNeo4jStatus} />
     );
   }
-  if (place === "run") {
+  if (place === "test") {
     return <UsePane project={project} revision={revision} onOpenStage={onOpenStage} onPassedChange={onWorkspaceChanged} />;
   }
-  if (place === "log") return <ProjectLogPane project={project} revision={revision} workspace={projects.find(p => p.alias === project)} />;
+  if (place === "log") return <ProjectLogPane project={project} revision={revision} workspace={projects.find(p => p.alias === project)} initialDate={logDate} />;
   if (place === "architecture") {
     return <section className="project-architecture-page"><h2>아키텍처</h2><SystemArchitecturePanel /></section>;
   }
@@ -469,6 +477,8 @@ function PlaceBody({
     return (
       <DashboardPane
         project={project}
+        readOnly={readOnly}
+        onProjectRenamed={onWorkspaceChanged}
         revision={revision}
         onOpenStage={onOpenStage}
         onOpenFile={onOpenFile}
@@ -659,7 +669,7 @@ function StructureHost({ project, label, revision }: { project: string; label: s
 function PatchbayMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" width="26" height="26" role="img" aria-label="Patchbay">
-      <rect width="32" height="32" rx="7.5" fill="currentColor" />
+      <rect width="32" height="32" rx="9.6" fill="currentColor" />
       <g fill="none" stroke="var(--bg)" strokeWidth="2.2" strokeLinecap="round">
         <path d="M11.9 10.4C19.7 10.4 22.7 14.4 22.7 18.6" />
         <circle cx="9.3" cy="10.4" r="2.6" />
@@ -667,24 +677,6 @@ function PatchbayMark() {
         <circle cx="22.7" cy="21.6" r="2.6" />
       </g>
     </svg>
-  );
-}
-
-function RailTool({
-  label,
-  icon,
-  on,
-  onClick,
-}: {
-  label: string;
-  icon: SidebarIconName;
-  on: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className="rail-tool" aria-label={label} title={label} aria-pressed={on} onClick={onClick}>
-      <SidebarIcon name={icon} />
-    </button>
   );
 }
 

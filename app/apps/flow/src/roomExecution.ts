@@ -102,7 +102,7 @@ export function createRoomExecutionHost(studioHome: string, deps: {
     // A timed-out wait may still be running remotely. Never submit it a second time here.
     if (result.status !== "ok") throw new Error(result.status === "timeout" ? "LangGraph 응답 대기 시간이 지났다. 실제 상태를 확인한 뒤 이어간다." : result.error);
     await appendThreadMessage(studioHome, alias, ex.threadId, { role: "graph", assistantId: ex.assistantId,
-      status: "success", text: "운영 그래프 응답을 받았다. 다음 단계는 실제 체크포인트에서 확인한다." });
+      status: "success", text: "테스트 그래프 응답을 받았다. 다음 단계는 실제 체크포인트에서 확인한다." });
   }
   async function call(ex: RoomExecution, member: RoomMember, prompt: string, cwd: string, stage: Pending["stage"]) {
     const bin = deps.bin !== undefined ? deps.bin : resolveRoomBin(member.speaker);
@@ -141,7 +141,7 @@ export function createRoomExecutionHost(studioHome: string, deps: {
       let prompt = context;
       let tests: CommandResult | undefined;
       if (p.stage === "prepare") {
-        prompt += `너는 운영 리더다. 연결된 담당만 배정하고 요구사항 id를 모두 포함한다. 검토자는 수행에 배정하지 않는다. 사용자 모델 선택은 유지한다. 복잡도별 추론 강도를 추천하고 이유를 밝힌다. 지원 강도가 없는 공급자는 effort를 생략한다.\n담당: ${JSON.stringify(ex.members)}\n검토자: ${ex.reviewerId}\nJSON만 답한다: {"assignments":[{"id":"T-01","memberId":"연결된 id","requirementIds":["채택본 id"],"instruction":"승인 범위의 수행 지시","complexity":"low|medium|high","reason":"추천 이유","effort":"low|medium|high"}]}`;
+        prompt += `너는 테스트 리더다. 연결된 담당만 배정하고 요구사항 id를 모두 포함한다. 검토자는 수행에 배정하지 않는다. 사용자 모델 선택은 유지한다. 복잡도별 추론 강도를 추천하고 이유를 밝힌다. 지원 강도가 없는 공급자는 effort를 생략한다.\n담당: ${JSON.stringify(ex.members)}\n검토자: ${ex.reviewerId}\nJSON만 답한다: {"assignments":[{"id":"T-01","memberId":"연결된 id","requirementIds":["채택본 id"],"instruction":"승인 범위의 수행 지시","complexity":"low|medium|high","reason":"추천 이유","effort":"low|medium|high"}]}`;
       } else if (p.stage === "act") {
         if (!task || task.memberId !== member.id) throw new Error("승인된 배정과 다른 작업이다.");
         prompt += `수행할 작업: ${JSON.stringify(task)}\n앞선 산출물: ${JSON.stringify(values.outputs ?? [])}\n직전 검증: ${JSON.stringify(values.verification ?? null)}\n배포와 상담 초안 변경을 하지 않는다. 산출물과 검증 가능한 변경 내용을 답한다.`;
@@ -228,7 +228,7 @@ export function createRoomExecutionHost(studioHome: string, deps: {
       if (!deps.port || !(await deps.port.probe())) return { ok: false, status: 503, error: "프로젝트의 LangGraph 서버를 켠다." };
       const assistants = await deps.port.listAssistants();
       const assistant = assistants?.find(a => a.graphId === ROOM_WORKFLOW_GRAPH);
-      if (!assistant) return { ok: false, status: 503, error: "운영 그래프를 연결해야 한다. 실행 설정에서 ‘LangGraph 연결 준비’를 누르고 프로젝트의 그래프 서버를 다시 켠다." };
+      if (!assistant) return { ok: false, status: 503, error: "테스트 그래프를 연결해야 한다. 실행 설정에서 ‘LangGraph 연결 준비’를 누르고 프로젝트의 그래프 서버를 다시 켠다." };
       const threadId = await deps.port.createThread(ROOM_WORKFLOW_GRAPH);
       if (!threadId) throw new Error("LangGraph 실행 스레드를 만들지 못했다.");
       const ex: RoomExecution = { ...input, id: randomUUID(), threadId, assistantId: assistant.id, plan, members, phase: "prepare" };
@@ -288,18 +288,18 @@ export function createRoomExecutionHost(studioHome: string, deps: {
   }
   async function install(alias: string) {
     const repo = (await project(alias)).path;
-    const filename = "patchbay-operations.ts";
+    const filename = "patchbay-test.ts";
     const configFile = path.join(repo, "langgraph.json");
     let config: Record<string, unknown>;
     try { config = JSON.parse(await fs.readFile(configFile, "utf8")); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; config = { node_version: "20", dependencies: ["."], graphs: {} }; }
-    if (config.python_version && !config.node_version) throw new Error("현재 프로젝트는 Python LangGraph 설정이다. 운영 그래프는 기존 TypeScript 런타임에 연결해야 한다. Python 설정은 바꾸지 않는다.");
+    if (config.python_version && !config.node_version) throw new Error("현재 프로젝트는 Python LangGraph 설정이다. 테스트 그래프는 기존 TypeScript 런타임에 연결해야 한다. Python 설정은 바꾸지 않는다.");
     const graphs = config.graphs && typeof config.graphs === "object" && !Array.isArray(config.graphs) ? config.graphs as Record<string, unknown> : {};
-    if (graphs[ROOM_WORKFLOW_GRAPH] && graphs[ROOM_WORKFLOW_GRAPH] !== `./${filename}:graph`) throw new Error("같은 이름의 운영 그래프가 이미 있다. 기존 설정은 덮지 않는다.");
+    if (graphs[ROOM_WORKFLOW_GRAPH] && graphs[ROOM_WORKFLOW_GRAPH] !== `./${filename}:graph`) throw new Error("같은 이름의 테스트 그래프가 이미 있다. 기존 설정은 덮지 않는다.");
     try { await fs.writeFile(path.join(repo, filename), ROOM_WORKFLOW_SOURCE, { flag: "wx" }); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if ((await fs.readFile(path.join(repo, filename), "utf8")) !== ROOM_WORKFLOW_SOURCE) throw new Error("기존 운영 그래프 파일은 덮지 않는다.");
+      if ((await fs.readFile(path.join(repo, filename), "utf8")) !== ROOM_WORKFLOW_SOURCE) throw new Error("기존 테스트 그래프 파일은 덮지 않는다.");
     }
     await fs.writeFile(configFile, JSON.stringify({ ...config, graphs: { ...graphs, [ROOM_WORKFLOW_GRAPH]: `./${filename}:graph` } }, null, 2) + "\n");
     return { file: filename, graphId: ROOM_WORKFLOW_GRAPH, next: "프로젝트의 기존 @langchain/langgraph 환경에서 그래프 서버를 다시 켠다. 체크포인트 저장소는 기존 서버 설정을 따른다." };

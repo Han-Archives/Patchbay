@@ -378,4 +378,65 @@ describe("대화방", () => {
     const missing = await removeRoom(studioHome, { alias: "demo", roomId: cast.roomId });
     expect(missing.ok).toBe(false);
   });
+
+  it("모드를 고르면 연결된 Agent 조합이 켜지고, 보내기에서 해당 모드의 권한과 규약으로 실행된다", async () => {
+    const { studioHome } = await setup();
+    const seen: { speaker: string; execution?: string; prompt: string }[] = [];
+    const runner: RoomRunner = async (req) => {
+      seen.push({ speaker: req.speaker, execution: req.execution, prompt: req.prompt });
+      return { ok: true, text: "계획 세 줄", ms: 2 };
+    };
+    const app = createFlowApp({ studioHome, roomRunner: runner, roomBin: "claude" });
+
+    const savedAgents = await saveAgents(studioHome, {
+      alias: "demo",
+      agents: [
+        { id: "lead", speaker: "claude-code", model: "opus", name: "수리", role: "이끈다." },
+        { id: "critic", speaker: "grok", model: "grok-4", name: "비평", role: "반박한다." },
+      ],
+    });
+    if (!savedAgents.ok) throw new Error(savedAgents.error);
+
+    const modesRes = await app.request("/api/modes?alias=demo");
+    expect(modesRes.status).toBe(200);
+    const { modes } = (await modesRes.json()) as { modes: { id: string; name: string }[] };
+    expect(modes.length).toBeGreaterThanOrEqual(6);
+
+    const nextModes = modes.map((m) => (m.id === "planning" ? { ...m, icon: "planning", color: "#3b82f6", execution: "read", prompt: "목표와 검증 기준을 적는다.", agentIds: ["lead", "critic"] } : m));
+    const postModes = await app.request("/api/modes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alias: "demo", modes: nextModes }),
+    });
+    expect(postModes.status).toBe(200);
+
+    const pickMode = await app.request("/api/room/mode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alias: "demo", modeId: "planning" }),
+    });
+    expect(pickMode.status).toBe(200);
+    const picked = (await pickMode.json()) as { roomId: string; modeId: string | null; members: { id?: string; enabled?: boolean }[] };
+    expect(picked.modeId).toBe("planning");
+    expect(picked.members.filter((m) => m.enabled !== false).map((m) => m.id)).toEqual(["lead", "critic"]);
+
+    const sent = await sendRoomTurn(studioHome, { alias: "demo", roomId: picked.roomId, text: "모드 기능 설계를 쪼개 줘", round: "talk" }, { runner, bin: "claude" });
+    if (!sent.ok) throw new Error(sent.error);
+    await sent.done;
+
+    expect(seen).toHaveLength(2);
+    expect(seen[0]?.execution).toBe("read");
+    expect(seen[0]?.prompt).toContain("모드: 플래닝");
+    expect(seen[0]?.prompt).toContain("목표와 검증 기준을 적는다.");
+
+    const room = await readRoom(studioHome, "demo", picked.roomId);
+    const userMsg = room?.messages.find((m) => m.role === "user" && m.text.includes("모드 기능 설계를 쪼개 줘"));
+    expect(userMsg).toMatchObject({
+      role: "user",
+      modeId: "planning",
+      modeName: "플래닝",
+      modeIcon: "planning",
+    });
+    await app.close();
+  });
 });
