@@ -15,21 +15,23 @@ async function setup() {
 const now = new Date("2026-10-14T09:30:00.000Z");
 
 describe("할일 변경", () => {
-  it("연결된 할일은 위에서 아래 순서로 실행하고 재정렬하면 실행할 수 있다", async () => {
+  it("연결된 할일은 위에서 아래 순서로 실행하고, 위에 할일이 남아 있으면 막지 않고 읽기로만 답한다", async () => {
     const home = await setup();
     const room = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "codex", model: "", role: "작업한다" }] });
     if (!room.ok) throw new Error(room.error);
     await writeTodos(home, "demo", [{ id: "first", title: "먼저 할일", done: false, at: now.toISOString() }, { id: "second", title: "뒤의 할일", done: false, at: now.toISOString(), roomId: room.roomId }]);
-    let calls = 0;
-    const deps = { bin: "mock", snapshot: async () => null, runner: async () => { calls++; return { ok: true as const, text: "작업 결과", ms: 1 }; } };
-    const blocked = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "실행", round: "talk" }, deps);
-    expect(blocked).toMatchObject({ ok: false, status: 409 });
-    expect(calls).toBe(0);
+    const calls: { execution?: string; prompt: string }[] = [];
+    const deps = { bin: "mock", snapshot: async () => null, runner: async (req: { execution?: string; prompt: string }) => { calls.push(req); return { ok: true as const, text: "작업 결과", ms: 1 }; } };
+    const talk = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "실행", round: "talk" }, deps);
+    if (!talk.ok) throw new Error(talk.error);
+    await talk.done;
+    expect(calls[0]?.execution).toBe("read");
+    expect(calls[0]?.prompt).toContain("먼저 할일");
     await applyTodoAction(home, "demo", { action: "move", id: "second", beforeId: "first" }, () => false);
     const sent = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "실행", round: "talk" }, deps);
     if (!sent.ok) throw new Error(sent.error);
     await sent.done;
-    expect(calls).toBe(1);
+    expect(calls[1]?.execution).toBe("apply");
   });
   it("화면이 닫혀 있어도 Agent 완료 파일과 마지막 응답을 즉시 보관한다", async () => {
     const home = await setup();

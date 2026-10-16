@@ -633,17 +633,18 @@ export async function sendRoomTurn(
     return { ok: false, status: 400, error: "켜진 사람이 없다. LLM에서 사람을 켜면 대화 화면에 아이콘이 나온다." };
   }
   const preparedReview = latestPreparations(await readTodoPreparations(studioHome, input.alias)).find(v => v.roomId === roomId && v.status !== "done");
-  const activeMode = preparedReview
+  let activeMode = preparedReview
     ? { id: "preparation-review", name: "준비 결과 검토", execution: "read" as const, prompt: "준비 결과에 대한 질문에 답한다. 파일을 바꾸거나 업무를 실행하지 않는다. 실행은 준비 결과의 승인 버튼, 수정은 수정 요청을 사용하도록 안내한다." }
     : meta.modeId ? (await readModes(studioHome, input.alias)).find((m) => m.id === meta.modeId) ?? null : null;
+  // 위에 미완료 할일이 있으면 막지 않고 대화만 한다 — 파일을 바꾸는 실행은 맨 위 할일부터.
+  if (kind && (activeMode?.execution ?? "apply") !== "read" && live.some(canApply)) {
+    const queue = (await readTodos(studioHome, input.alias)).filter(todo => !todo.done && !todo.inactive);
+    const index = queue.findIndex(todo => todo.roomId === roomId);
+    if (index > 0) activeMode = { id: "todo-waiting", name: "위 할일 대기", execution: "read" as const, prompt: `${activeMode?.prompt.trim() ? `${activeMode.prompt.trim()}\n` : ""}위의 할일 「${queue[0]!.title}」이 먼저라 이번 차례는 파일을 바꾸지 않고 답만 한다. 실행이 필요한 요구면 위 할일을 끝내거나 할일 순서를 바꾸라고 안내한다.` };
+  }
   const modeExec = activeMode?.execution ?? "apply";
   const acts = Boolean(kind) && modeExec !== "read" && live.some(canApply);
   if (acts && applying.has(input.alias)) return { ok: false, status: 409, error: "이 프로젝트의 다른 대화방에서 LLM이 일하는 중이다. 끝난 뒤 보낸다." };
-  if (acts) {
-    const queue = (await readTodos(studioHome, input.alias)).filter(todo => !todo.done && !todo.inactive);
-    const index = queue.findIndex(todo => todo.roomId === roomId);
-    if (index > 0) return { ok: false, status: 409, error: `먼저 위의 할일 「${queue[0]!.title}」을 완료해주세요. 먼저 진행할 작업이면 할일 순서를 바꿔주세요.` };
-  }
 
   const modeTag = activeMode
     ? {

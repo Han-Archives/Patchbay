@@ -1151,7 +1151,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     const alias = c.req.query("alias");
     if (!alias) return c.json({ error: "alias is required." }, 400);
     const rooms = await roomListView(options.studioHome, alias);
-    const prepared = (await todoPreparation.list(alias)).items;
+    // 준비 상태는 덧붙이는 정보다 — 등록되지 않은 프로젝트면 없이 목록만 준다.
+    const prepared = (await todoPreparation.list(alias).catch((e: unknown) => { if (e instanceof PreparationError && e.status === 404) return { items: [] }; throw e; })).items;
     return c.json({ rooms: rooms.map((row) => ({ ...row, preparationStatus: prepared.find(v => v.roomId === row.id)?.status, running: row.running || roomExecution.isBusy(alias, row.id) })) });
   });
 
