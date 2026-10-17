@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patchbay · 아키텍처 칸을 세 장으로</title>
+<style>
+:root{--bg:#131416;--panel:#1a1b1e;--raised:#202125;--line:#303137;--text:#eeedf2;--sub:#b1afb9;--muted:#84838e;--violet:#baabf5;--violet-bg:#302b43;--amber:#e9b675;--amber-bg:#342c23;--green:#9ed0bc;--green-bg:#24332e;--radius:12px;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55}button{font:inherit;cursor:pointer;color:inherit}button:focus-visible{outline:2px solid var(--violet);outline-offset:3px}
+header{border-bottom:1px solid var(--line);padding:16px 28px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.brand{font-weight:650}.brand span{color:var(--muted);font-weight:400}
+.shell{max-width:1180px;margin:auto;padding:28px 28px 48px}
+.eyebrow{color:var(--violet);font-size:11px;letter-spacing:.12em;margin-bottom:6px}
+h1{font-size:28px;letter-spacing:-.04em;font-weight:650;margin:0 0 8px;line-height:1.25}
+.lead{color:var(--sub);margin:0 0 22px;max-width:68ch}
+.switch{display:flex;gap:3px;background:var(--panel);border:1px solid var(--line);padding:4px;border-radius:9px}
+.switch button{background:transparent;border:1px solid transparent;border-radius:7px;padding:8px 12px;font-size:13px}
+.switch button[aria-pressed=true]{background:var(--violet-bg);color:var(--violet);border-color:#51445f}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+.canvas{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);min-height:520px;position:relative;overflow:hidden}
+.bar{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.crumbs{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub)}
+.crumbs button{background:transparent;border:0;color:var(--violet);padding:0}
+.scope{font-size:12px;color:var(--muted);padding:0 14px 8px}
+svg{width:100%;height:460px;display:block}
+.node{cursor:pointer}.node rect,.node circle{fill:#202125;stroke:#3a3b42;stroke-width:1.4}
+.node.person rect{fill:#24332e;stroke:#3d564c}.node.store rect{fill:#342c23;stroke:#60492f}.node.external rect{fill:#1d2833;stroke:#3d5366}.node.placeholder rect{fill:transparent;stroke:#9a97a3;stroke-dasharray:2 2}.edge-label.dim{opacity:.2}
+.node.on rect{stroke:var(--violet);stroke-width:2}.node.dim{opacity:.28}.node.boundary rect{stroke-dasharray:4 3}.nav button{font-size:12px;padding:4px 8px;background:transparent}.edge.dim{opacity:.2}
+.node text{fill:var(--text);font-size:13px;font-family:inherit}
+.node .role{fill:var(--muted);font-size:10px}
+.edge{stroke:#8a8696;stroke-width:1.4;fill:none}.edge.unverified{stroke-dasharray:5 4}
+.edge-label{fill:var(--sub);font-size:10px;font-family:inherit}
+.drill{fill:var(--violet);font-size:10px;font-family:inherit}
+button.mini{font-size:10px;line-height:1.2;padding:1px 5px;background:#302b43;color:#baabf5;border:1px solid #51445f;border-radius:5px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;position:sticky;top:14px}
+.side h2{font-size:15px;margin:0 0 4px}.side .role{color:var(--muted);font-size:12px;margin-bottom:12px}
+.side p{color:var(--sub);font-size:13px;margin:0 0 12px}
+.side button.act{width:100%;background:var(--violet);color:#20192e;border:0;border-radius:8px;padding:9px 12px;font-weight:650}
+.side button.link{width:100%;margin-top:8px;background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.facts{display:grid;gap:6px;margin:12px 0;font-size:12px;color:var(--sub)}
+.facts div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:6px}
+.note{margin-top:22px;display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h2{font-size:14px;margin:0 0 8px}
+.card p,.card li{color:var(--sub);font-size:13px}
+.card ol{margin:0;padding-left:18px}
+.patterns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.patterns div{border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;color:var(--sub)}
+.patterns strong{display:block;color:var(--text);font-size:12px;margin-bottom:4px}
+.patterns .use{color:var(--green);display:block}
+.src{font-size:12px;color:var(--muted)}
+.src a{color:var(--violet)}
+.empty{padding:48px 20px;color:var(--sub);font-size:13px}
+.picks{display:grid;gap:8px;padding:8px 16px 20px}
+.picks button{text-align:left;background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px}
+.picks small{display:block;color:var(--muted);margin-top:4px}.filters{display:flex;gap:4px}.filters button{font-size:11px;padding:4px 7px;background:transparent}.filters button[aria-pressed=true]{color:var(--violet);border-color:#51445f}.unknown{color:var(--amber);font-size:10px}
+@media(max-width:860px){.stage,.note{grid-template-columns:1fr}.patterns{grid-template-columns:1fr 1fr}.side{position:static}header{padding:14px 16px}.shell{padding:20px 16px 36px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Patchbay <span>/ 아키텍처 배치 조사</span></div>
+  <div class="switch" role="group" aria-label="아키텍처 칸의 장">
+    <button type="button" data-view="run" aria-pressed="false">실행</button>
+    <button type="button" data-view="structure" aria-pressed="true">구조</button>
+    <button type="button" data-view="flow" aria-pressed="false">흐름</button>
+  </div>
+</header>
+<main class="shell">
+  <div class="eyebrow">ARCHITECTURE / THREE SHEETS</div>
+  <h1>한 장에 전부 펼치지 않고, 노드 안으로 들어간다</h1>
+  <p class="lead">실행은 이번 실행, 구조는 무엇이 어디에 있나(한 요소의 분해 포함), 흐름은 한 일이 어떻게 처리되어 저장되나. 한 번 누르면 옆 설명이고, 「안으로」는 다음 그림이다. 예시 그래프이며 제품의 실제 구조도가 아니다. 점선 선은 근거가 없는 연결이다.</p>
+  <div class="stage">
+    <section class="canvas" aria-label="그림">
+      <div class="bar">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="nav"><button type="button" id="up">위로</button><button type="button" id="back">뒤로</button></div>
+        <div class="filters" id="filters" role="group" aria-label="종류 필터"></div>
+      </div>
+      <p class="scope" id="scope"></p>
+      <div id="board"></div>
+    </section>
+    <aside class="side" id="side"></aside>
+  </div>
+  <section class="note">
+    <article class="card">
+      <h2>다른 모델이 구현할 때</h2>
+      <ol>
+        <li>상단에서 실행 · 구조 · 흐름을 바꾼다. 실행 장은 지금 LangGraph 화면을 유지한다.</li>
+        <li>구조 장은 구조 한 장과 요소의 분해, 흐름 장은 시나리오 하나. 그림은 한 번에 한 장, elkjs layered 위→아래.</li>
+        <li>요소와 관계는 모델에 한 번만 둔다. 장은 관계 id의 부분집합이다. 경계 노드와 미확인 자리는 저장하지 않고 그릴 때 계산한다.</li>
+        <li>분해 장은 초점으로 드나드는 부모 선마다 via 자식 선을 많아야 하나 둔다. 없으면 그 선은 미확인 자리에서 끝나고, 자리끼리는 잇지 않는다. 근거 없는 선은 점선이다.</li>
+      </ol>
+      <div class="patterns">
+        <div><strong>장 교체</strong>시간으로 나누기. 이 칸의 기본.<span class="use"> 씀</span></div>
+        <div><strong>옆 패널</strong>공간으로 나누기. 속성 설명에만.<span class="use"> 씀</span></div>
+        <div><strong>상자 안 펼침</strong>계층을 가로지르는 배치가 다른 순서 전략과 같이 안 돈다.<span class="use"> 안 씀</span></div>
+        <div><strong>물고기 눈</strong>방향을 왜곡한다.<span class="use"> 안 씀</span></div>
+      </div>
+    </article>
+    <article class="card">
+      <h2>근거</h2>
+      <p>Shneiderman 1996은 전체, 줌, 필터, 요청 시 상세를 서로 다른 과제로 둔다. Cockburn 외 2008은 줌을 시간의 분리로, 옆 패널을 공간의 분리로 구분한다. C4 컨테이너는 앱과 저장소를 한 단의 노드로 두고, arc42는 계층을 그림 한 장에 넣지 말라고 한다.</p>
+      <p class="src">전문과 URL은 <a href="../아키텍처-드릴다운-배치조사_20261017_v1.md">절차 기록</a>에 있다. 조사일 2026-10-17.</p>
+    </article>
+  </section>
+</main>
+<script>
+const roleText = {process:"처리",store:"저장",external:"바깥",person:"사람"};
+const roleHelp = {process:"처리. 입력을 받아 결과를 만든다.",store:"저장. 기록이 남는 곳.",external:"바깥. 이 시스템 경계 너머.",person:"사람."};
+const elements = {
+  person:{id:"person",label:"사람",role:"person",evidence:null},
+  console:{id:"console",label:"콘솔",role:"process",evidence:null},
+  kernel:{id:"kernel",label:"커널",role:"process",evidence:null},
+  workspace:{id:"workspace",label:"작업 공간",role:"store",evidence:null},
+  langgraph:{id:"langgraph",label:"LangGraph",role:"process",evidence:null},
+  outside:{id:"outside",label:"바깥",role:"external",evidence:null},
+  check:{id:"check",label:"검사",role:"process",parent:"kernel",evidence:null},
+  commit:{id:"commit",label:"기록 쓰기",role:"process",parent:"kernel",evidence:null}
+};
+const rels = {
+  r1:{id:"r1",from:"person",to:"console",label:"요청",evidence:null},
+  r2:{id:"r2",from:"console",to:"kernel",label:"작업",evidence:null},
+  r3:{id:"r3",from:"kernel",to:"workspace",label:"기록",effect:"write",evidence:null},
+  r4:{id:"r4",from:"workspace",to:"kernel",label:"조회",effect:"read",evidence:null},
+  r5:{id:"r5",from:"kernel",to:"langgraph",label:"실행 입력",evidence:null},
+  r6:{id:"r6",from:"kernel",to:"console",label:"결과",evidence:null},
+  r10:{id:"r10",from:"kernel",to:"outside",label:"신호",evidence:null},
+  r7:{id:"r7",from:"console",to:"check",label:"작업",via:"r2",evidence:null},
+  r8:{id:"r8",from:"check",to:"commit",label:"검사 결과",evidence:null},
+  r9:{id:"r9",from:"commit",to:"workspace",label:"기록",via:"r3",effect:"write",evidence:null}
+};
+const views = {
+  structure:{id:"structure",title:"구조",kind:"structure",focus:null,relationshipIds:["r1","r2","r3","r4","r5","r6","r10"],place:{person:[24,20],console:[230,20],kernel:[230,150],workspace:[24,290],langgraph:[450,150],outside:[450,290]}},
+  "kernel-parts":{id:"kernel-parts",title:"커널 분해",kind:"decomposition",focus:"kernel",relationshipIds:["r7","r8","r9"],place:{"slot:r6":[4,22],console:[160,10],"slot:r5":[376,22],"slot:r10":[548,22],check:[160,130],langgraph:[352,130],outside:[524,130],commit:[160,250],workspace:[360,300],"slot:r4":[560,312]}},
+  "kernel-write":{id:"kernel-write",title:"커널의 한 번 기록",kind:"scenario",focus:"kernel",relationshipIds:["r7","r8","r9"],steps:{r7:1,r8:2,r9:3},place:{console:[120,20],check:[120,150],commit:[120,290],workspace:[420,290]}},
+  "langgraph-run":{id:"langgraph-run",title:"실행",kind:"run",focus:"langgraph",graph:"example"}
+};
+const runNodes = [
+  {id:"load",label:"불러오기",x:220,y:40,state:"실행됨"},
+  {id:"route",label:"분기",x:220,y:170,state:"지금"},
+  {id:"finish",label:"마무리",x:220,y:300,state:"대기"}
+];
+const kindName = {decomposition:"분해",scenario:"시나리오",run:"실행"};
+const sheetName = {structure:"구조 장",flow:"흐름 장",run:"실행 장"};
+const sheetOfKind = {structure:"structure",decomposition:"structure",scenario:"flow",run:"run"};
+
+let sheet = "structure";
+let viewId = null;
+let selected = null;
+let show = {process:true,store:true,external:true,person:true};
+let history = [];
+
+function nameOf(id){ return elements[id]?.label || id; }
+function topic(word){
+  const code = word.charCodeAt(word.length-1) - 0xAC00;
+  return word + (code >= 0 && code < 11172 && code % 28 !== 0 ? "은" : "는");
+}
+function isSlot(id){ return id.startsWith("slot:"); }
+function isPart(view, id){ return !!view.focus && elements[id]?.parent === view.focus; }
+function viewsOf(id){ return Object.values(views).filter(v => v.focus === id); }
+function parentRels(focus){ return Object.values(rels).filter(r => !r.via && (r.from===focus || r.to===focus)); }
+function currentView(){ return viewId ? views[viewId] : sheet==="structure" ? views.structure : null; }
+function coveredParents(view){ return new Set(view.relationshipIds.map(id => rels[id]?.via).filter(Boolean)); }
+
+// 분해 장에서 via 자식 선이 없는 부모 선은 미확인 자리에서 끝난다. 모델에 넣지 않고 그릴 때 계산한다.
+function slotEdges(view){
+  if(view.kind!=="decomposition") return [];
+  const covered = coveredParents(view);
+  return parentRels(view.focus).filter(p => !covered.has(p.id)).map(p => {
+    const slot = "slot:"+p.id;
+    return {id:slot, from:p.from===view.focus?slot:p.from, to:p.to===view.focus?slot:p.to, label:p.label, effect:p.effect, via:p.id, evidence:null, slot:true};
+  });
+}
+function nodeFor(view, id){
+  if(isSlot(id)) return {id, label:"미확인", role:null, boundary:false, placeholder:true, w:108, h:44, evidence:null, destinations:[]};
+  const el = elements[id];
+  const boundary = view.kind!=="structure" && view.kind!=="run" && !isPart(view, id);
+  return {id, label:el.label, role:el.role, boundary, placeholder:false, w:156, h:68, evidence:el.evidence, destinations: boundary ? [] : viewsOf(id)};
+}
+function stepOf(view, id){ return view.kind==="scenario" && view.steps ? view.steps[id] : null; }
+function graphOf(view){
+  const edges = [...view.relationshipIds.map(id => rels[id]).filter(e => e && e.from!==view.focus && e.to!==view.focus), ...slotEdges(view)];
+  edges.sort((a,b)=>(stepOf(view,a.id)||0)-(stepOf(view,b.id)||0));
+  const ids = new Set();
+  edges.forEach(e => { ids.add(e.from); ids.add(e.to); });
+  if(view.kind==="decomposition") Object.values(elements).filter(el => el.parent===view.focus).forEach(el => ids.add(el.id));
+  const nodes = [...ids].map(id => { const p=view.place[id]||[40,40]; return {...nodeFor(view, id), x:p[0], y:p[1]}; });
+  return {title:view.title, nodes, edges, steps:view.kind==="scenario"?view.steps:null};
+}
+// 시나리오와 분해 공통: 장에 든 선만 센다. 경계에 닿는 선은 via가 있어야 하고, via는 초점의 부모 선과 바깥 끝·방향·effect가 같아야 한다.
+function viewIssues(view){
+  if(view.kind!=="scenario" && view.kind!=="decomposition") return [];
+  const issues = [];
+  const count = {};
+  view.relationshipIds.forEach(id => {
+    const k = rels[id];
+    if(!k){ issues.push(id+" 없음"); return; }
+    if(k.from===view.focus || k.to===view.focus){ issues.push(id+" 초점에 닿음"); return; }
+    if(!k.via){
+      if(!isPart(view,k.from) || !isPart(view,k.to)) issues.push(id+" via 없이 경계에 닿음");
+      return;
+    }
+    const p = rels[k.via];
+    if(!p || p.via || (p.from!==view.focus && p.to!==view.focus)){ issues.push(id+" via가 초점의 부모 선이 아님"); return; }
+    count[p.id] = (count[p.id]||0)+1;
+    const outer = p.from===view.focus ? p.to : p.from;
+    const ok = p.from===view.focus ? (k.to===outer && isPart(view,k.from)) : (k.from===outer && isPart(view,k.to));
+    if(!ok) issues.push(id+" 끝·방향 불일치");
+    if((p.effect||null)!==(k.effect||null)) issues.push(id+" effect 불일치");
+  });
+  Object.entries(count).forEach(([pid,n]) => { if(n>1) issues.push(pid+" via "+n); });
+  return issues;
+}
+
+function drawGraph(g, useFilter){
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns,"svg");
+  svg.setAttribute("viewBox","0 0 680 420");
+  const visible = new Set(g.nodes.filter(n => !n.placeholder && (!useFilter || show[n.role]!==false)).map(n => n.id));
+  // 미확인 자리는 필터를 받지 않고, 맞은편 끝이 보일 때만 보인다.
+  g.edges.filter(e => e.slot).forEach(e => { const slot = isSlot(e.from) ? e.from : e.to; if(visible.has(slot===e.from ? e.to : e.from)) visible.add(slot); });
+  const pos = Object.fromEntries(g.nodes.map(n => [n.id,[n.x+n.w/2,n.y+n.h/2]]));
+  const byId = Object.fromEntries(g.nodes.map(n => [n.id,n]));
+  const neighbors = selected ? new Set(g.edges.filter(e=>e.from===selected||e.to===selected).flatMap(e=>[e.from,e.to])) : null;
+  const defs=document.createElementNS(ns,"defs");
+  defs.innerHTML='<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8696"/></marker>';
+  svg.appendChild(defs);
+  const drawn = g.edges.filter(e => visible.has(e.from)&&visible.has(e.to));
+  const pairCount = {};
+  drawn.forEach(e => { const k=[e.from,e.to].sort().join("|"); pairCount[k]=(pairCount[k]||0)+1; });
+  const pairSeen = {};
+  const labels = [];
+  const border=(id, towardX, towardY)=>{
+    const node=byId[id];
+    const cx=node.x+node.w/2, cy=node.y+node.h/2;
+    const vx=towardX-cx, vy=towardY-cy;
+    const scaleX=vx===0?Infinity:(node.w/2)/Math.abs(vx), scaleY=vy===0?Infinity:(node.h/2)/Math.abs(vy), s=Math.min(scaleX,scaleY);
+    return [cx+vx*s, cy+vy*s];
+  };
+  for(const e of drawn){
+    const key=[e.from,e.to].sort().join("|");
+    const count=pairCount[key], i=pairSeen[key]||0; pairSeen[key]=i+1;
+    const offset=(i-(count-1)/2)*42;
+    const [aId,bId]=key.split("|");
+    const [ax,ay]=pos[aId],[bx,by]=pos[bId];
+    const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy)||1;
+    const ox=(-dy/len)*offset, oy=(dx/len)*offset;
+    const [sx,sy]=pos[e.from],[tx,ty]=pos[e.to];
+    const [x1,y1]=border(e.from, tx+ox, ty+oy);
+    const [x2,y2]=border(e.to, sx+ox, sy+oy);
+    let mx=(x1+x2)/2+ox, my=(y1+y2)/2+oy;
+    for(let k=0;k<6;k++){
+      const hit=g.nodes.find(node => mx>=node.x-6 && mx<=node.x+node.w+6 && my>=node.y-4 && my<=node.y+node.h+4);
+      if(!hit) break;
+      const vx=mx-(hit.x+hit.w/2), vy=my-(hit.y+hit.h/2), d=Math.hypot(vx,vy)||1;
+      mx += vx/d*16; my += vy/d*16;
+    }
+    const path=document.createElementNS(ns,"path");
+    path.setAttribute("d", `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`);
+    const lit = !selected || e.from===selected || e.to===selected;
+    path.setAttribute("class","edge"+(e.evidence?"":" unverified")+(selected && !lit ? " dim" : ""));
+    path.setAttribute("marker-end","url(#arrow)");
+    svg.appendChild(path);
+    const text=document.createElementNS(ns,"text");
+    text.setAttribute("class","edge-label"+(selected && !lit ? " dim" : ""));
+    // 세로에 가까운 선은 라벨을 선 오른쪽에, 가로에 가까운 선은 선 위에 둔다. 선과 포개지지 않게.
+    const vertical = Math.abs(y2-y1) > Math.abs(x2-x1);
+    const lx = (x1+x2)/4 + mx/2, ly = (y1+y2)/4 + my/2;
+    text.setAttribute("text-anchor", vertical ? "start" : "middle");
+    text.setAttribute("x", vertical ? lx+8 : lx); text.setAttribute("y", vertical ? ly+4 : ly-7);
+    const step = g.steps ? g.steps[e.id] : null;
+    text.textContent=(step?step+". ":"")+e.label;
+    labels.push(text);
+  }
+  for(const n of g.nodes){
+    if(!visible.has(n.id)) continue;
+    const group=document.createElementNS(ns,"g");
+    group.setAttribute("class","node"+(n.role?" "+n.role:"")+(n.boundary?" boundary":"")+(n.placeholder?" placeholder":"")+(selected===n.id?" on":"")+(neighbors && n.id!==selected && !neighbors.has(n.id)?" dim":""));
+    group.setAttribute("tabindex","0");
+    group.setAttribute("role","button");
+    group.setAttribute("aria-label", n.label);
+    const rect=document.createElementNS(ns,"rect");
+    rect.setAttribute("x",n.x);rect.setAttribute("y",n.y);rect.setAttribute("width",n.w);rect.setAttribute("height",n.h);rect.setAttribute("rx",n.placeholder?8:10);
+    group.appendChild(rect);
+    const title=document.createElementNS(ns,"text");
+    title.setAttribute("x",n.x+12);title.setAttribute("y",n.y+(n.placeholder?18:22));title.textContent=n.label;
+    group.appendChild(title);
+    const role=document.createElementNS(ns,"text");
+    role.setAttribute("class","role");role.setAttribute("x",n.x+12);role.setAttribute("y",n.y+(n.placeholder?32:40));
+    if(!n.placeholder){
+      role.textContent=(n.state?"LangGraph 노드":roleText[n.role])+(n.boundary?" · 경계":"");
+      const sub=document.createElementNS(ns,"text");
+      sub.setAttribute("class","role");sub.setAttribute("x",n.x+12);sub.setAttribute("y",n.y+54);
+      sub.textContent=(n.state?"예시 "+n.state+" · ":"")+(n.evidence?"":"미확인");
+      group.appendChild(sub);
+    } else role.textContent="요소 아님";
+    group.appendChild(role);
+    group.addEventListener("click", ()=>{ selected = n.id; render(); });
+    group.addEventListener("keydown", e=>{ if(e.key==="Enter"){ selected = n.id; render(); } });
+    if(n.destinations && n.destinations.length){
+      const fo=document.createElementNS(ns,"foreignObject");
+      fo.setAttribute("x",n.x+98);fo.setAttribute("y",n.y+36);fo.setAttribute("width",52);fo.setAttribute("height",22);
+      const button=document.createElement("button");
+      button.type="button"; button.textContent="안으로"; button.className="mini";
+      button.addEventListener("click", ev=>{ ev.stopPropagation(); drill(n.id); });
+      fo.appendChild(button);
+      group.appendChild(fo);
+    }
+    svg.appendChild(group);
+  }
+  labels.forEach(text => svg.appendChild(text));
+  return svg;
+}
+
+function goTo(target){
+  if(!target) return;
+  history.push({sheet, viewId, selected});
+  viewId = target.viewId || null;
+  sheet = viewId ? sheetOfKind[views[viewId].kind] : target.sheet;
+  selected = target.select || null;
+  render();
+}
+function openView(v){ goTo({viewId:v.id}); }
+function drill(id){
+  const list = viewsOf(id);
+  if(list.length===1) openView(list[0]);
+  else { selected = id; render(); }
+}
+// 그 요소가 노드로 보이는 위 장. 부모가 없으면 구조 장, 있으면 부모의 분해 장. 분해 장이 없으면 가장 가까운 조상을 고른다.
+function homeOf(id){
+  const el = elements[id];
+  if(!el) return null;
+  if(!el.parent) return {sheet:"structure", select:id};
+  const dec = Object.values(views).find(v => v.kind==="decomposition" && v.focus===el.parent);
+  return dec ? {viewId:dec.id, select:id} : homeOf(el.parent);
+}
+function canGoUp(){ const v=currentView(); return !!(v && v.focus && v.kind!=="run"); }
+function up(){ if(canGoUp()) goTo(homeOf(currentView().focus)); }
+function back(){
+  const prev = history.pop();
+  if(!prev) return;
+  ({sheet, viewId, selected} = prev);
+  render();
+}
+
+function renderCrumbs(){
+  const el=document.getElementById("crumbs");
+  const v=currentView();
+  const parts=[];
+  if(sheet==="run") parts.push({label:"실행"});
+  else if(!v) parts.push({label:"흐름"});
+  else {
+    parts.push({label:"구조", go: v.focus ? ()=>goTo({sheet:"structure"}) : null});
+    if(v.focus){
+      const chain=[];
+      let id=v.focus;
+      while(id){ chain.unshift(id); id=elements[id].parent || null; }
+      chain.forEach(id => parts.push({label:nameOf(id), go:()=>goTo(homeOf(id))}));
+      parts.push({label:v.title});
+    }
+  }
+  el.replaceChildren();
+  parts.forEach((p,i)=>{
+    if(i) el.append(" / ");
+    if(p.go){ const b=document.createElement("button"); b.type="button"; b.textContent=p.label; b.onclick=p.go; el.append(b); }
+    else el.append(p.label);
+  });
+}
+function storeFacts(id){
+  const all = Object.values(rels).filter(r => !r.via && (r.from===id||r.to===id) && r.effect);
+  const writes = all.filter(r => r.effect==="write" && r.to===id).map(r => nameOf(r.from));
+  const reads = all.filter(r => r.effect==="read" && r.from===id).map(r => nameOf(r.to));
+  return {writes, reads};
+}
+function scenarioScope(view){
+  const covered = coveredParents(view);
+  const ps = parentRels(view.focus);
+  const keep = ps.filter(p => covered.has(p.id)).map(p => p.label);
+  const omit = ps.filter(p => !covered.has(p.id)).map(p => p.label);
+  return "시나리오다. 부모 선 중 "+keep.join("·")+"만 쓴다."+(omit.length?" "+topic(omit.join("·"))+" 이 장에 없다.":"");
+}
+function decompositionScope(view){
+  const parts = Object.values(elements).filter(el => el.parent===view.focus).map(el => el.label);
+  const covered = coveredParents(view);
+  const ps = parentRels(view.focus);
+  const inner = ps.filter(p => covered.has(p.id)).map(p => p.label);
+  const open = ps.filter(p => !covered.has(p.id)).map(p => p.label);
+  return "분해다. "+nameOf(view.focus)+" 노드는 없다. 부분은 "+parts.join("·")+"이다."
+    +(inner.length?" 부모 선 중 "+topic(inner.join("·"))+" 부분에 닿는다.":"")
+    +(open.length?" "+topic(open.join("·"))+" 안쪽 끝이 정해지지 않아 저마다 미확인 자리에서 끝난다. 자리는 요소가 아니다.":"");
+}
+function sideFor(id, view, g){
+  const box=document.getElementById("side");
+  const here = g.edges.filter(e => e.from===id || e.to===id);
+  const row = e => { const step=stepOf(view,e.id); return `<div><span>${step?step+". ":""}${e.label}${e.evidence?"":" · 미확인"}</span><b>${e.from===id?"나감":"들어옴"}</b></div>`; };
+  if(isSlot(id)){
+    const p = rels[here[0].via];
+    box.innerHTML=`<h2>미확인</h2><div class="role">요소가 아니다. 부모 선 「${p.label}」의 안쪽 끝이 이 분해에서 정해지지 않았다. 다른 미확인 자리와 잇지 않는다.</div><p class="unknown">근거 없음 · 처리 부분이 아니다.</p><div class="facts">${here.map(row).join("")}</div>`;
+    return;
+  }
+  const el=elements[id];
+  const node=nodeFor(view, id);
+  box.innerHTML=`<h2>${el.label}</h2><div class="role">${roleHelp[el.role]}${node.boundary?" 이 장에서는 경계로 둔다.":""}</div>`;
+  const note=document.createElement("p");
+  note.className = el.evidence ? "" : "unknown";
+  note.textContent = el.evidence ? ("근거 "+el.evidence) : "근거 없음 · 미확인. 예시라 설계 IR과 연결되어 있지 않다.";
+  box.append(note);
+  const facts=document.createElement("div");
+  facts.className="facts";
+  if(el.role==="store"){
+    const s=storeFacts(id);
+    const hereWrite = here.some(e=>e.effect==="write" && e.to===id);
+    const done = s.writes.length && s.reads.length;
+    facts.innerHTML=`<div><span>이 장에서</span><b>${hereWrite?"씀":"안 씀"}</b></div><div><span>모델에서 씀</span><b>${s.writes.join(", ")||"없음"}</b></div><div><span>모델에서 읽음</span><b>${s.reads.join(", ")||"없음"}</b></div><div><span>모델 검사</span><b>${done?"완성":"미완"}</b></div>`;
+  } else {
+    facts.innerHTML = here.map(row).join("") || "<div><span>이 장</span><b>선 없음</b></div>";
+  }
+  box.append(facts);
+  if(node.boundary){
+    const upBtn=document.createElement("button");
+    upBtn.className="link"; upBtn.type="button";
+    upBtn.textContent = "위 장으로";
+    upBtn.onclick=()=>goTo(homeOf(id));
+    box.append(upBtn);
+  }
+  node.destinations.forEach(v=>{
+    const go=document.createElement("button");
+    go.className="act";
+    go.type="button";
+    go.textContent = kindName[v.kind]+" · "+v.title+" → "+sheetName[sheetOfKind[v.kind]];
+    go.style.marginTop="8px";
+    go.onclick=()=>openView(v);
+    box.append(go);
+  });
+}
+
+function renderFilters(hidden){
+  const box=document.getElementById("filters");
+  box.hidden = hidden;
+  box.replaceChildren();
+  [["process","처리"],["store","저장"],["external","바깥"],["person","사람"]].forEach(([id,label])=>{
+    const b=document.createElement("button");
+    b.type="button"; b.textContent=label; b.setAttribute("aria-pressed", String(show[id]));
+    b.onclick=()=>{ show[id]=!show[id]; render(); };
+    box.append(b);
+  });
+}
+function render(){
+  document.querySelectorAll(".switch button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.view===sheet)));
+  document.getElementById("up").disabled = !canGoUp();
+  renderCrumbs();
+  const view = currentView();
+  renderFilters(sheet==="run" || !view);
+  const board=document.getElementById("board");
+  const scope=document.getElementById("scope");
+  const side=document.getElementById("side");
+  board.replaceChildren();
+  if(sheet==="run"){
+    scope.textContent="예시 실행이다. 실제 기록이 아니므로 노드에 미확인이 있다. 상태 글자는 노드 위에 있고, 이 예시에는 서브그래프가 없다. 처리·저장 필터는 이 장에 없다.";
+    board.append(drawGraph({title:"실행",nodes:runNodes.map(n=>({...n,role:"process",w:156,h:68,evidence:null,boundary:false,placeholder:false,destinations:[]})),edges:[{id:"a",from:"load",to:"route",label:"다음",evidence:null},{id:"b",from:"route",to:"finish",label:"다음",evidence:null}]}, false));
+    const hit = runNodes.find(n=>n.id===selected);
+    side.innerHTML = hit ? `<h2>${hit.label}</h2><div class="role">LangGraph 노드 · 예시 ${hit.state}</div><p class="unknown">근거 없음 · 미확인. 이 상태는 예시이며 실제 실행 기록이 아니다.</p>` : `<h2>실행</h2><p>승인된 설계 위에 이번 실행 상태를 겹치는 장이다. 구조의 자식 장이 아니어서 「위로」가 없고, 「뒤로」만 오던 장으로 간다. 이 화면의 상태는 예시다.</p>`;
+    return;
+  }
+  if(!view){
+    scope.textContent="흐름 장은 시나리오 하나씩이다. 구조에서 고르거나 여기서 고른다. 분해는 구조 장 안에 있다.";
+    const picks=document.createElement("div");
+    picks.className="picks";
+    Object.values(views).filter(v=>v.kind==="scenario").forEach(v=>{
+      const b=document.createElement("button");
+      b.type="button";
+      b.innerHTML=`${v.title}<small>${kindName[v.kind]} · 구조의 ${nameOf(v.focus)}</small>`;
+      b.onclick=()=>openView(v);
+      picks.append(b);
+    });
+    board.append(picks);
+    side.innerHTML=`<h2>흐름</h2><p>시나리오는 초점으로 드나드는 부모 선 중 쓰는 것만 via로 둔다. 범위 문장은 쓴 선과 뺀 선에서 만든다.</p>`;
+    return;
+  }
+  const g = graphOf(view);
+  const issues = viewIssues(view);
+  const base = view.kind==="scenario" ? scenarioScope(view) : view.kind==="decomposition" ? decompositionScope(view) : "시스템 안의 처리와 저장, 바로 맞닿은 바깥. 선은 데이터이고 순서 번호는 없다.";
+  const unverified = g.edges.some(e => !e.evidence) ? " 점선 선은 근거가 없는 연결(미확인)이다." : "";
+  scope.textContent=base+unverified+(issues.length?" 검사 실패: "+issues.join(", "):"");
+  board.append(drawGraph(g, true));
+  if(selected && g.nodes.some(n => n.id===selected)) sideFor(selected, view, g);
+  else side.innerHTML=`<h2>${view.title}</h2><p>노드를 누르면 맞닿은 선이 밝아진다. 「안으로」가 다음 그림이다.</p>`;
+}
+
+document.querySelector(".switch").addEventListener("click", e=>{
+  const b=e.target.closest("button");
+  if(!b) return;
+  if(b.dataset.view==="run") goTo({viewId:Object.values(views).find(v=>v.kind==="run").id});
+  else goTo({sheet:b.dataset.view});
+});
+document.getElementById("up").onclick=up;
+document.getElementById("back").onclick=back;
+render();
+</script>
+</body>
+</html>
