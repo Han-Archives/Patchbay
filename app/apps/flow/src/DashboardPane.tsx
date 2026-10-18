@@ -197,14 +197,14 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
     </header>
     {error ? <p className="flow-error">{error}</p> : null}
 
-    {mainView === "dashboard" ? <div className="main-dashboard-grid">
+    {mainView === "dashboard" ? <div key={`dashboard:${project}`} className="main-dashboard-grid">
         <section className={`main-card main-flow is-${cycleState(flowSelected, cycle)}`}><header className="main-flow-head"><h3>Workflow</h3></header>
           <ProjectCycleFlow stages={workspace?.stages ?? []} steps={cycleSteps} selected={flowSelected} onSelect={setFlowPick} />
           <CycleTaskTable key={`${project}:${flowSelected}`} project={project} step={flowSelected} steps={cycleSteps[flowSelected]} action={flowAction[flowSelected]} onAction={() => openCycle(flowSelected)} />
         </section>
-      <TodoPane key={project} project={project} revision={revision} suggestions={todoSuggestions} />
-      <DashboardHistory key={project} project={project} revision={revision + tick} />
-    </div> : overview ? <OverviewDocument doc={overview.doc} source={overview.rel} /> : <div className="main-overview">
+      <TodoPane key={`tasks:${project}`} project={project} revision={revision} suggestions={todoSuggestions} />
+      <DashboardHistory key={`history:${project}`} project={project} revision={revision + tick} />
+    </div> : overview ? <OverviewDocument key={`overview:${project}`} doc={overview.doc} source={overview.rel} /> : <div key={`overview-fallback:${project}`} className="main-overview">
       <nav className="main-toc" aria-label="개요 목차">{["목적과 대상", "성공 기준", "범위", "구조 · LangGraph", "흐름과 결정", "산출물 · 역할 · 도구"].map((title, index) => <button type="button" key={title} onClick={() => document.getElementById(`main-section-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span>{index + 1}</span>{title}</button>)}</nav>
       <div className="main-document">
         <section id="main-section-1"><h3><span>1</span>목적과 대상</h3>{missingPrd ? fallback : <>{purposeSummary ? <p className="main-summary">{purposeSummary}</p> : null}<DocumentLines lines={prdLines(2)} open={expandedSections.has(1)} onToggle={() => toggleSection(1)} /></>}</section>

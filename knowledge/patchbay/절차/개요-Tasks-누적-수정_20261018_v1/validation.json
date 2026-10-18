@@ -1,0 +1,1003 @@
+{
+  "at": "2026-10-18T09:34:44.558Z",
+  "scenarios": 7,
+  "roundTrips": 35,
+  "modelCalls": 0,
+  "results": [
+    {
+      "name": "fallback404",
+      "mode": "none",
+      "width": 1512,
+      "live": false,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "unmounted-after-poll-period",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": 0,
+      "storedTodosUnchanged": true,
+      "blockedLiveWrites": 0,
+      "errors": []
+    },
+    {
+      "name": "fallback503",
+      "mode": "failure",
+      "width": 1512,
+      "live": false,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": true,
+      "blockedLiveWrites": 0,
+      "errors": []
+    },
+    {
+      "name": "document",
+      "mode": "document",
+      "width": 1512,
+      "live": false,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": true,
+      "blockedLiveWrites": 0,
+      "errors": []
+    },
+    {
+      "name": "refresh-race",
+      "mode": "race",
+      "width": 1512,
+      "live": false,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": true,
+      "blockedLiveWrites": 0,
+      "errors": []
+    },
+    {
+      "name": "mobile404",
+      "mode": "none",
+      "width": 390,
+      "live": false,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": true,
+      "blockedLiveWrites": 0,
+      "errors": []
+    },
+    {
+      "name": "live-fallback404",
+      "mode": "none",
+      "width": 1512,
+      "live": true,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": false,
+      "blockedLiveWrites": 5,
+      "errors": []
+    },
+    {
+      "name": "live-normal",
+      "mode": "normal",
+      "width": 1512,
+      "live": true,
+      "cycles": 5,
+      "samples": [
+        {
+          "stage": "initial",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-1-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-1",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-2-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-2",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-3-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-3",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-4-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-4",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-immediate",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "overview-5-settled",
+          "dashboard": 0,
+          "overview": 1,
+          "tasks": 0,
+          "history": 0,
+          "menus": 0
+        },
+        {
+          "stage": "dashboard-5",
+          "dashboard": 1,
+          "overview": 0,
+          "tasks": 1,
+          "history": 1,
+          "menus": 0
+        }
+      ],
+      "readsAfterUnmount": null,
+      "storedTodosUnchanged": false,
+      "blockedLiveWrites": 5,
+      "errors": []
+    }
+  ]
+}
