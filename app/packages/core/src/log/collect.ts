@@ -6,9 +6,8 @@ import { readStudio } from "../studio/studioStore.js";
 import { readTodos, readTodoHistory } from "../studio/todoStore.js";
 import { readCycleItems } from "../studio/cycleItemStore.js";
 import { readDashboardHistory } from "../studio/dashboardHistoryStore.js";
-import { ROOM_DIR_NAME, displayRoomTitle, readRoom, readRoomMeta } from "../rooms/store.js";
+import { displayRoomTitle, readRoom, readRoomMeta, roomDir as roomDirOf } from "../rooms/store.js";
 import { ROOM_SPEAKER_LABEL } from "../rooms/types.js";
-import { projectStudioDir } from "../studio/studioStore.js";
 import { readLogChanges, type LogChange } from "./changes.js";
 import { makeTagger, type LogConfig, type TagFrom } from "./config.js";
 import { addDays, zonedParts } from "./paths.js";
@@ -113,7 +112,7 @@ export async function collectLogEvents(studioHome: string, alias: string, from: 
   // 대화방 — 말한 시각(sourceAt)이 있으면 그날로, 없으면 방에 적은 시각으로.
   count = 0;
   let late = 0;
-  const roomDir = path.join(projectStudioDir(studioHome, alias), ROOM_DIR_NAME);
+  const roomDir = roomDirOf(studioHome, alias);
   let names: string[] = [];
   try { names = (await fs.readdir(roomDir)).filter((n) => n.endsWith(".jsonl")); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }

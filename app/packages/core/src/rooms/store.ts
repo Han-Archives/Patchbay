@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
+import { existsSync, readdirSync, renameSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { roomExecutionSchema, type RoomExecution } from "./execution.js";
 import { projectStudioDir } from "../studio/studioStore.js";
+import { trashRecord } from "../studio/trashStore.js";
 import {
   ROOM_SPEAKER_LABEL,
   ROOM_SPEAKERS,
@@ -16,8 +18,37 @@ import {
   type RoomStatus,
 } from "./types.js";
 
-/** 대화방이 사는 곳: `~/.patchbay/projects/<alias>/rooms/<id>.jsonl`. 덧붙이기만 한다. */
-export const ROOM_DIR_NAME = "rooms";
+/** 대화방이 사는 곳: `~/.patchbay/projects/<alias>/chats/<id>.jsonl`. 덧붙이기만 한다. */
+export const ROOM_DIR_NAME = "chats";
+/** 2026-10-16 까지의 이름. 콘솔 서버가 켜질 때 `chats/` 로 옮긴다(`migrateLegacyRoomDirs`). */
+export const LEGACY_ROOM_DIR_NAME = "rooms";
+
+/**
+ * 그 프로젝트의 대화방 폴더. 아직 옮기지 않은 작업 공간이면 옛 `rooms/` 를 그대로 쓴다 —
+ * 옮기기 전에 새 코드(미러 훅 등)가 `chats/` 를 따로 만들어 기록이 둘로 갈리지 않게.
+ */
+export function roomDir(studioHome: string, alias: string): string {
+  const base = projectStudioDir(studioHome, alias);
+  const current = path.join(base, ROOM_DIR_NAME);
+  const legacy = path.join(base, LEGACY_ROOM_DIR_NAME);
+  return !existsSync(current) && existsSync(legacy) ? legacy : current;
+}
+
+/** 프로젝트마다 `rooms/` 를 `chats/` 로 옮긴다. `chats/` 가 이미 있으면 건드리지 않는다. 옮긴 alias 를 돌려준다. */
+export function migrateLegacyRoomDirs(studioHome: string): string[] {
+  const projects = path.join(studioHome, "projects");
+  if (!existsSync(projects)) return [];
+  const moved: string[] = [];
+  for (const entry of readdirSync(projects, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const legacy = path.join(projects, entry.name, LEGACY_ROOM_DIR_NAME);
+    const current = path.join(projects, entry.name, ROOM_DIR_NAME);
+    if (!existsSync(legacy) || existsSync(current)) continue;
+    renameSync(legacy, current);
+    moved.push(entry.name);
+  }
+  return moved;
+}
 const roomWrites = new Map<string, Promise<unknown>>();
 function serialize<T>(file: string, action: () => Promise<T>): Promise<T> {
   const previous = roomWrites.get(file) ?? Promise.resolve();
@@ -69,7 +100,7 @@ export function safeRoomId(id: string): string {
 }
 
 export function roomPath(studioHome: string, alias: string, id: string): string {
-  return path.join(projectStudioDir(studioHome, alias), ROOM_DIR_NAME, `${safeRoomId(id)}.jsonl`);
+  return path.join(roomDir(studioHome, alias), `${safeRoomId(id)}.jsonl`);
 }
 
 export interface RoomRead {
@@ -165,7 +196,7 @@ export interface RoomSummary {
 }
 
 export async function listRooms(studioHome: string, alias: string): Promise<RoomSummary[]> {
-  const dir = path.join(projectStudioDir(studioHome, alias), ROOM_DIR_NAME);
+  const dir = roomDir(studioHome, alias);
   let names: string[];
   try {
     names = (await fs.readdir(dir)).filter((name) => name.endsWith(".jsonl"));
@@ -285,7 +316,7 @@ export interface RoomMeta {
 const EMPTY_META: RoomMeta = { title: null, kept: false, members: [], modeId: null };
 
 export function roomMetaPath(studioHome: string, alias: string, id: string): string {
-  return path.join(projectStudioDir(studioHome, alias), ROOM_DIR_NAME, `${safeRoomId(id)}.meta.json`);
+  return path.join(roomDir(studioHome, alias), `${safeRoomId(id)}.meta.json`);
 }
 
 export function displayRoomTitle(title: string | null, messages: readonly RoomMessage[]): string {
@@ -310,18 +341,17 @@ export async function readRoomMeta(studioHome: string, alias: string, id: string
   }
 }
 
-/** 대화방 기록과 제목 파일을 지운다. 둘 다 없으면 false. */
+/** 대화방 기록과 제목 파일을 프로젝트 휴지통에 4일 보관한 뒤 원래 자리에서 지운다. */
 export async function deleteRoom(studioHome: string, alias: string, id: string): Promise<boolean> {
-  let found = false;
+  const payload: { transcript?: string; meta?: string } = {};
+  try { payload.transcript = await fs.readFile(roomPath(studioHome, alias, id), "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  try { payload.meta = await fs.readFile(roomMetaPath(studioHome, alias, id), "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  if (payload.transcript === undefined && payload.meta === undefined) return false;
+  await trashRecord(studioHome, alias, { kind: "room", recordId: id, payload });
   for (const file of [roomPath(studioHome, alias, id), roomMetaPath(studioHome, alias, id)]) {
-    try {
-      await fs.unlink(file);
-      found = true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
+    try { await fs.unlink(file); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
-  return found;
+  return true;
 }
 
 export async function writeRoomMeta(studioHome: string, alias: string, id: string, meta: RoomMeta): Promise<void> {

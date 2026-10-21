@@ -4,7 +4,39 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { roomMemory } from "./memory.js";
 import { DEFAULT_ROOM_MODES, readModes, writeModes } from "./modes.js";
-import { appendRoomMessage, displayRoomTitle, listRooms, readRoom, readRoomMeta, roomPrompt, roomStatus, roomTitle, roundKind, roundPrompt, writeRoomMeta } from "./store.js";
+import { appendRoomMessage, displayRoomTitle, listRooms, migrateLegacyRoomDirs, readRoom, readRoomMeta, roomPath, roomPrompt, roomStatus, roomTitle, roundKind, roundPrompt, writeRoomMeta } from "./store.js";
+
+describe("대화방 폴더 chats/ 이전", () => {
+  it("새 방은 chats/ 에 쓴다", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "pb-chats-"));
+    await appendRoomMessage(home, "demo", "r1", { role: "user", text: "안녕", to: "claude-code", model: "" });
+    expect(fs.existsSync(path.join(home, "projects/demo/chats/r1.jsonl"))).toBe(true);
+    expect(fs.existsSync(path.join(home, "projects/demo/rooms"))).toBe(false);
+  });
+
+  it("옮기기 전에는 rooms/ 를 그대로 읽고 쓰고, 옮긴 뒤에는 같은 기록을 chats/ 에서 읽는다", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "pb-chats-"));
+    fs.mkdirSync(path.join(home, "projects/demo/rooms"), { recursive: true });
+    await appendRoomMessage(home, "demo", "r1", { role: "user", text: "옛 방", to: "claude-code", model: "" });
+    expect(roomPath(home, "demo", "r1")).toBe(path.join(home, "projects/demo/rooms/r1.jsonl"));
+    expect(fs.existsSync(path.join(home, "projects/demo/chats"))).toBe(false);
+
+    fs.mkdirSync(path.join(home, "projects/other/chats"), { recursive: true });
+    expect(migrateLegacyRoomDirs(home)).toEqual(["demo"]);
+    expect(fs.existsSync(path.join(home, "projects/demo/rooms"))).toBe(false);
+    expect((await readRoom(home, "demo", "r1"))?.messages[0]?.text).toBe("옛 방");
+    expect((await listRooms(home, "demo")).map((room) => room.id)).toEqual(["r1"]);
+    expect(migrateLegacyRoomDirs(home)).toEqual([]);
+  });
+
+  it("chats/ 가 이미 있으면 rooms/ 를 덮지 않는다", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "pb-chats-"));
+    fs.mkdirSync(path.join(home, "projects/demo/rooms"), { recursive: true });
+    fs.mkdirSync(path.join(home, "projects/demo/chats"), { recursive: true });
+    expect(migrateLegacyRoomDirs(home)).toEqual([]);
+    expect(fs.existsSync(path.join(home, "projects/demo/rooms"))).toBe(true);
+  });
+});
 
 describe("대화방 기록", () => {
   it("담당의 아이콘(색 · 이미지 · HTML)은 다시 읽어도 남는다", async () => {

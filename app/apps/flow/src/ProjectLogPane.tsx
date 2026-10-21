@@ -29,7 +29,7 @@ function TagChip({ tag, from }: { tag: string; from?: string }) {
   return <span className="log-chip" style={{ color, borderColor: color }} title={from ? `${tag} · ${from}` : tag}>{tag}</span>;
 }
 
-function Markdown({ text }: { text: string }) {
+export function Markdown({ text }: { text: string }) {
   const blocks = parseMiniMarkdown(text);
   return <div className="log-md">{blocks.map((b: MdBlock, i) => b.kind === "h" ? <h4 key={i} className={`is-h${b.level}`}><InlineText text={b.text} /></h4>
     : b.kind === "li" ? <p key={i} className="is-li"><InlineText text={b.text} /></p>

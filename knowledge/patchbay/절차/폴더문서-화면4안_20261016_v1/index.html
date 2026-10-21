@@ -1,0 +1,175 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>폴더 · 문서 화면 4안</title>
+<style>
+/* 콘솔 색 그대로: 다크 + 상태 색(보라 통과 · 주황 지금 · 빨강 실패). 색은 상태에만 쓴다 */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--bad-fill:#3a1e1a;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button,textarea{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.wrap{max-width:1280px;margin:auto;padding:24px 16px 40px;display:grid;gap:16px}
+h1{font-size:20px;margin:0}h2{font-size:14px;margin:0}small,.muted{color:var(--muted);font-size:12px}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.tag{color:var(--ok-text);background:var(--ok-fill);border:1px solid var(--ok-line);padding:4px 9px;border-radius:6px;font-size:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{background:var(--elevated);border:1px solid var(--stroke);border-radius:8px;padding:8px 12px;font-size:13px}.tabs button[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+.vdesc{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6}.vdesc b{color:var(--text)}
+.sim{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}.sim button{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:5px 9px;font-size:12px}.sim button[aria-pressed=true]{border-color:var(--warn);color:var(--warn)}
+/* 화면 틀 */
+.pane{background:var(--chrome);border:1px solid var(--line);border-radius:10px;height:600px;display:flex;min-width:0;overflow:hidden}
+.side{width:270px;flex:none;border-right:1px solid var(--line);overflow:auto;padding:8px 0}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.head{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;min-height:46px}.head .sp{flex:1}
+.crumb{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.crumb b{color:var(--text);font-weight:600}
+.body{flex:1;overflow:auto;padding:16px 20px}
+.btn{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:5px 11px;font-size:12.5px}.btn.pri{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}.btn:disabled{opacity:.45;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--stroke);border-radius:6px;overflow:hidden}.seg button{background:none;border:0;padding:5px 11px;font-size:12.5px}.seg button[aria-pressed=true]{background:var(--fill)}
+/* 트리 줄 */
+.row{display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;padding:4px 10px;text-align:left;font-size:13px;white-space:nowrap}
+.row:hover{background:#202020}.row[aria-selected=true]{background:var(--ok-fill);box-shadow:inset 2px 0 var(--ok)}
+.car{width:12px;color:var(--muted);flex:none;font-size:10px;transition:transform .12s}.car.open{transform:rotate(90deg)}
+.ico{width:16px;flex:none;text-align:center;color:var(--muted);font-size:12px}
+.nm{overflow:hidden;text-overflow:ellipsis}.row .meta{margin-left:auto;color:#777;font-size:11px;font-variant-numeric:tabular-nums}
+.lock{font-size:11px}.dirty{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
+/* 오른쪽 내용 */
+.md h1{font-size:19px;margin:0 0 10px}.md h2{font-size:15px;margin:18px 0 8px}.md p,.md li{font-size:13.5px;line-height:1.7;color:var(--sub)}.md ul{padding-left:20px;margin:6px 0}.md code{font-family:var(--mono);font-size:12px;background:var(--fill);padding:1px 4px;border-radius:3px}
+pre.code{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--sub);white-space:pre-wrap;counter-reset:l}
+textarea.ed{width:100%;height:100%;min-height:380px;resize:none;background:var(--bg);border:1px solid var(--stroke);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;line-height:1.65}
+.card{background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
+.card .lbl{font-size:11px;color:var(--muted)}.desc{font-size:14px;line-height:1.65}.desc.none{color:var(--muted);font-size:13px}
+.stats{display:flex;gap:18px;font-size:12px;color:var(--muted)}.stats b{color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;display:block}
+.kids{display:grid;gap:2px;margin-top:6px}.kids .row{padding:6px 8px;border-radius:6px}
+.note{border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.note.warn{background:var(--warn-fill);border:1px solid #6b4a24;color:#f0c890}.note.bad{background:var(--bad-fill);border:1px solid #6e332c;color:#f5b0a6}.note.ok{background:var(--ok-fill);border:1px solid var(--ok-line);color:var(--ok-text)}
+.empty{display:grid;place-items:center;height:100%;color:var(--muted);font-size:13px;text-align:center;line-height:1.7}
+.ktag{font-size:10.5px;border:1px solid var(--stroke);border-radius:4px;padding:0 5px;color:var(--muted)}
+/* 2안 열 보기 */
+.cols{display:flex;flex:1;min-width:0;overflow-x:auto}
+.col{width:210px;flex:none;border-right:1px solid var(--line);overflow:auto;padding:6px 0}
+.col.view{flex:1;min-width:360px;width:auto;padding:0;display:flex;flex-direction:column}
+/* 3안 지도형 */
+.mbar{display:flex;height:6px;width:54px;border-radius:3px;overflow:hidden;background:var(--fill);flex:none}.mbar i{display:block;height:100%}
+.k-doc{background:#d9d9d9}.k-code{background:#8a8a8a}.k-cfg{background:#555}.k-llm{background:repeating-linear-gradient(45deg,#cfcfcf 0 2px,#5a5a5a 2px 4px)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}.legend span{display:inline-flex;gap:5px;align-items:center}.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.bigbar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--fill)}.bigbar i{display:block;height:100%}
+/* 4안 편집기형 */
+.ftabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;background:#171717}.ftab{display:flex;gap:7px;align-items:center;padding:9px 12px;border:0;border-right:1px solid var(--line);background:none;font-size:12.5px;color:var(--muted);white-space:nowrap}.ftab[aria-selected=true]{background:var(--chrome);color:var(--text);box-shadow:inset 0 2px var(--ok)}.ftab .x{color:#777;padding:0 2px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%}.split>div{min-width:0;overflow:auto}
+</style>
+<div class="wrap">
+  <div class="top">
+    <div><small>Patchbay · 왼쪽 바 「폴더 · 문서」</small><h1>폴더 · 문서 화면 4안</h1></div>
+    <span class="tag">시안 · 예시 데이터 · 제품 코드 안 바꿈</span>
+  </div>
+  <p class="vdesc">공통: 이 프로젝트 폴더만 보인다(<code>node_modules</code>·<code>.git</code>·루트 <code>workspace</code> 숨김, <code>.claude</code>·<code>.cursor</code> 보임). 폴더를 누르면 설명(그 폴더 README 첫 단락), 파일을 누르면 미리보기. 「편집」으로 고쳐 저장. 🔒 비밀 파일은 열지 않는다. 밖에서 바뀐 파일은 덮어쓰지 않고 알린다.</p>
+  <div class="tabs" id="tabs"></div>
+  <p class="vdesc" id="vdesc"></p>
+  <div class="sim">흉내 내기:
+    <button id="ro" aria-pressed="false">조회 전용 접속</button>
+    <button id="ext">밖에서 지금 파일 고침 (Claude Code 등)</button>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+const now=Date.parse("2026-10-16T10:00:00");
+const f=(name,content,o={})=>({name,content,size:o.size??new Blob([content]).size,mtime:o.mtime??now-36e5*o.h,secret:o.secret,binary:o.binary});
+const d=(name,children,desc="")=>({name,dir:true,children,desc});
+const ROOT=d("예시-프로젝트",[
+  d(".claude",[d("skills",[f("review.md","# 리뷰 스킬\n\n바뀐 파일을 읽고 위험한 곳을 짚는다.\n\n- 시험이 있는지\n- 비밀이 새는지",{h:30})]),f("settings.json",'{\n  "model": "claude-opus-5-5",\n  "permissions": { "allow": ["Read", "Grep"] }\n}',{h:50})],"Claude Code 설정과 스킬."),
+  d(".cursor",[d("rules",[f("style.mdc","---\nalwaysApply: true\n---\n\n# 코드 모양\n\n- 함수는 짧게\n- 이름은 하는 일대로",{h:72})])]),
+  d("docs",[f("README.md","# 문서\n\n사용 설명과 설계 메모를 둔다. 결정은 `결정.md`에 날짜와 함께 남긴다.",{h:5}),f("개요.md","# 개요\n\n## 무엇을 하나\n\n질문을 받아 자료를 찾고, 요약해 돌려주는 에이전트.\n\n## 구조\n\n- `src/agent` 그래프와 도구\n- `tests` 노드별 시험",{h:2}),f("결정.md","# 결정\n\n- 2026-10-12 검색은 한 번에 5건까지",{h:96})],"사용 설명과 설계 메모를 둔다. 결정은 결정.md에 날짜와 함께 남긴다."),
+  d("src",[d("agent",[f("graph.ts",'import { StateGraph } from "@langchain/langgraph";\nimport { search, summarize } from "./tools";\n\nexport const graph = new StateGraph(State)\n  .addNode("search", search)\n  .addNode("summarize", summarize)\n  .addEdge("search", "summarize")\n  .compile();',{h:1}),f("tools.ts",'export async function search(q: string) {\n  // 한 번에 5건까지\n  return fetchDocs(q, { limit: 5 });\n}',{h:3})],"그래프와 도구."),f("index.ts",'import { graph } from "./agent/graph";\n\nawait graph.invoke({ question: process.argv[2] });',{h:20})]),
+  d("tests",[f("graph.test.ts",'test("search → summarize", async () => {\n  const out = await graph.invoke({ question: "x" });\n  expect(out.summary).toBeTruthy();\n});',{h:8})]),
+  f(".env","OPENAI_KEY=…",{h:200,secret:true}),
+  f("logo.png","",{h:400,size:184320,binary:true}),
+  f("README.md","# 예시 프로젝트\n\n질문을 받아 자료를 찾고 요약하는 LLM 에이전트.\n\n## 시작\n\n- `npm i`\n- `npm start \"질문\"`",{h:6}),
+  f("package.json",'{\n  "name": "example-agent",\n  "scripts": { "start": "tsx src/index.ts", "test": "vitest" }\n}',{h:140}),
+],"질문을 받아 자료를 찾고 요약하는 LLM 에이전트.");
+const byPath=new Map();(function walk(n,p){n.path=p;byPath.set(p,n);(n.children||[]).forEach(c=>walk(c,p?p+"/"+c.name:c.name));if(n.children)n.children.sort((a,b)=>(b.dir?1:0)-(a.dir?1:0)||a.name.localeCompare(b.name))})(ROOT,"");
+
+const S={v:0,open:new Set([""]),sel:"docs/개요.md",mode:"view",drafts:{},base:{},conflict:null,ro:false,tabs:["docs/개요.md","src/agent/graph.ts"],saved:null};
+const VERS=[
+ {name:"1안 · 두 칸 기본",desc:"<b>왼쪽 트리 | 오른쪽 보기.</b> 플랜 그대로. 폴더는 설명 카드 + 하위 목록, 파일은 렌더된 미리보기와 「보기 · 편집」 전환."},
+ {name:"2안 · 열 보기",desc:"<b>폴더 단계마다 열이 하나씩 열린다</b>(macOS Finder 열 보기). 지금 경로가 왼쪽→오른쪽으로 그대로 보이고, 마지막 칸이 미리보기."},
+ {name:"3안 · 지도형 트리",desc:"<b>트리 줄마다 하위 개수와 종류 막대</b>(문서 · 코드 · 설정 · LLM 설정). 열기 전에 어디에 무엇이 몰려 있는지 보인다. 색은 상태에만 쓰는 규칙이라 막대는 회색 농도와 빗금으로 나눈다."},
+ {name:"4안 · 편집기형",desc:"<b>트리 + 파일 탭 + 원문 | 렌더 나란히.</b> 여러 파일을 열어 두고 오간다. 저장 안 한 탭에 주황 점. 편집 도구에 가깝다."},
+];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ago=t=>{const h=Math.round((now-t)/36e5);return h<1?"방금":h<24?h+"시간 전":Math.round(h/24)+"일 전"};
+const kb=b=>b<1024?b+" B":(b/1024).toFixed(b<10240?1:0)+" KB";
+const kind=n=>n.path.startsWith(".claude")||n.path.startsWith(".cursor")?"llm":/\.(md|mdc|txt)$/.test(n.name)?"doc":/\.(ts|tsx|js|py)$/.test(n.name)?"code":"cfg";
+const KN={doc:"문서",code:"코드",cfg:"설정",llm:"LLM 설정"};
+const ico=n=>n.dir?(S.open.has(n.path)?"▾":"▸"):n.secret?"🔒":n.binary?"▣":kind(n)==="code"?"{}":kind(n)==="doc"||kind(n)==="llm"?"¶":"⚙";
+const files=n=>n.dir?n.children.flatMap(files):[n];
+const recent=n=>Math.max(...files(n).map(x=>x.mtime));
+const text=p=>S.drafts[p]??byPath.get(p).content;
+const dirty=p=>S.drafts[p]!==undefined&&S.drafts[p]!==byPath.get(p).content;
+function md(src){let out="",inList=false;for(const l of src.split("\n")){const t=l.replace(/`([^`]+)`/g,(_,c)=>`<code>${c}</code>`);
+ if(/^- /.test(l)){if(!inList){out+="<ul>";inList=true}out+=`<li>${t.slice(2)}</li>`;continue}if(inList){out+="</ul>";inList=false}
+ if(/^## /.test(l))out+=`<h2>${t.slice(3)}</h2>`;else if(/^# /.test(l))out+=`<h1>${t.slice(2)}</h1>`;else if(l.trim()&&l!=="---"&&!/^alwaysApply/.test(l))out+=`<p>${t}</p>`}
+ return out+(inList?"</ul>":"")}
+const rendered=n=>/\.(md|mdc)$/.test(n.name)?`<div class="md">${md(text(n.path))}</div>`:`<pre class="code">${esc(text(n.path))}</pre>`;
+
+/* 트리 줄 하나 — 3안은 개수와 종류 막대를 붙인다 */
+function mbar(n){const c={doc:0,code:0,cfg:0,llm:0};files(n).forEach(x=>c[kind(x)]++);const t=files(n).length;return`<span class="mbar">${Object.entries(c).filter(e=>e[1]).map(([k,v])=>`<i class="k-${k}" style="width:${v/t*100}%"></i>`).join("")}</span>`}
+function row(n,depth,map){const sel=S.sel===n.path;return`<button class="row" role="treeitem" data-p="${esc(n.path)}" aria-selected="${sel}" style="padding-left:${10+depth*14}px">${n.dir?`<span class="car${S.open.has(n.path)?" open":""}">▶</span>`:'<span class="car"></span>'}<span class="ico">${n.dir?"":ico(n)}</span><span class="nm">${esc(n.name)}${n.dir?"/":""}</span>${dirty(n.path)?'<span class="dirty" title="저장 안 함"></span>':""}${map&&n.dir?`<span class="meta">${files(n).length}</span>${mbar(n)}`:map&&!n.dir?`<span class="meta">${n.secret?"비밀":KN[kind(n)]}</span>`:""}</button>`}
+function tree(n,depth,map){if(!n.dir)return"";return n.children.map(c=>row(c,depth,map)+(c.dir&&S.open.has(c.path)?tree(c,depth+1,map):"")).join("")}
+const rootRow=map=>`<button class="row" data-p="" aria-selected="${S.sel===""}" style="font-weight:600"><span class="car open">▶</span><span class="nm">${ROOT.name}</span>${map?`<span class="meta">${files(ROOT).length}</span>${mbar(ROOT)}`:""}</button>`;
+const crumb=p=>`<span class="crumb">${[ROOT.name,...(p?p.split("/"):[])].map((x,i,a)=>i===a.length-1?`<b>${esc(x)}</b>`:esc(x)).join(" / ")}</span>`;
+
+/* 파일 머리의 버튼 — 조회 전용이면 편집 버튼이 없다 */
+function fileHead(n){if(n.secret||n.binary)return`<small>${kb(n.size)} · ${ago(n.mtime)}</small>`;
+ return`<small>${kb(n.size)} · ${ago(n.mtime)}</small>${S.ro?'<span class="ktag">조회 전용</span>':S.mode==="edit"?`<button class="btn" data-a="cancel">취소</button><button class="btn pri" data-a="save" ${dirty(n.path)?"":"disabled"}>저장</button>`:`<span class="seg"><button aria-pressed="true">보기</button><button data-a="edit">편집</button></span>`}`}
+function notes(n){let o="";
+ if(S.conflict===n.path)o+=`<div class="note warn">⚠ 이 파일이 화면 밖에서 바뀌었습니다. 저장하면 그 변경을 덮어씁니다.<span style="flex:1"></span><button class="btn" data-a="reload">바뀐 내용 다시 읽기</button><button class="btn" data-a="force">내 것으로 저장</button></div>`;
+ if(S.saved===n.path)o+=`<div class="note ok">저장했습니다 — 디스크의 파일이 바뀌었습니다.</div>`;return o}
+function fileBody(n,split){
+ if(n.secret)return`<div class="empty">🔒 비밀 파일이라 열지 않습니다.<br><small>.env · 키 파일은 화면에도 LLM에도 내용을 보내지 않습니다.</small></div>`;
+ if(n.binary)return`<div class="empty">▣ 미리보기 없음 — 이미지 · 바이너리 파일<br><small>${kb(n.size)} · ${ago(n.mtime)} 수정</small></div>`;
+ if(S.mode==="edit"&&!S.ro){const ed=`<textarea class="ed" data-a="type" aria-label="${esc(n.name)} 편집">${esc(text(n.path))}</textarea>`;
+  return notes(n)+(split?`<div class="split" style="margin-top:${S.conflict?10:0}px"><div>${ed}</div><div>${rendered(n)}</div></div>`:ed)}
+ return notes(n)+rendered(n)}
+function folderBody(n,map){const kids=n.children;
+ return`<div class="card"><span class="lbl">설명 · ${n.desc?(n.path?n.path+"/":"")+"README.md 첫 단락":"없음"}</span>${n.desc?`<div class="desc">${esc(n.desc)}</div>`:`<div class="desc none">설명 없음 — 이 폴더에 README.md를 쓰면 여기 뜹니다.</div>`}
+ <div class="stats"><span><b>${kids.filter(k=>k.dir).length}</b>폴더</span><span><b>${kids.filter(k=>!k.dir).length}</b>파일</span><span><b>${files(n).length}</b>아래 전체 파일</span><span><b>${ago(recent(n))}</b>최근 수정</span></div>
+ ${map?bigbar(n):""}</div>
+ <div class="kids">${kids.map(k=>`<button class="row" data-p="${esc(k.path)}"><span class="ico">${k.dir?"▸":ico(k)}</span><span class="nm">${esc(k.name)}${k.dir?"/":""}</span><span class="meta">${k.dir?k.children.length+"개":kb(k.size)} · ${ago(k.dir?recent(k):k.mtime)}</span></button>`).join("")}</div>`}
+function bigbar(n){const c={doc:0,code:0,cfg:0,llm:0};files(n).forEach(x=>c[kind(x)]++);const t=files(n).length;
+ return`<div class="bigbar">${Object.entries(c).filter(e=>e[1]).map(([k,v])=>`<i class="k-${k}" style="width:${v/t*100}%" title="${KN[k]} ${v}"></i>`).join("")}</div><div class="legend">${Object.entries(c).filter(e=>e[1]).map(([k,v])=>`<span><i class="k-${k}"></i>${KN[k]} ${v}</span>`).join("")}</div>`}
+function mainArea(map,split){const n=byPath.get(S.sel);
+ return`<div class="head">${crumb(n.path)}<span class="sp"></span>${n.dir?`<small>폴더</small>`:fileHead(n)}</div><div class="body">${n.dir?folderBody(n,map):fileBody(n,split)}</div>`}
+
+const R=[
+ ()=>`<div class="pane"><nav class="side" role="tree" aria-label="폴더">${rootRow()}${tree(ROOT,1)}</nav><section class="main">${mainArea()}</section></div>`,
+ ()=>{const segs=S.sel?S.sel.split("/"):[];const chain=[""];segs.forEach((s,i)=>chain.push(segs.slice(0,i+1).join("/")));const dirs=chain.filter(p=>byPath.get(p).dir);
+  return`<div class="pane"><div class="cols">${dirs.map(p=>`<div class="col" role="list">${byPath.get(p).children.map(c=>{const on=chain.includes(c.path);return`<button class="row" data-p="${esc(c.path)}" data-col="1" aria-selected="${on}"><span class="ico">${c.dir?"":ico(c)}</span><span class="nm">${esc(c.name)}</span>${dirty(c.path)?'<span class="dirty"></span>':""}<span class="meta">${c.dir?"›":""}</span></button>`}).join("")}</div>`).join("")}<section class="col view">${mainArea()}</section></div></div>`},
+ ()=>`<div class="pane"><nav class="side" style="width:320px" role="tree" aria-label="폴더">${rootRow(true)}${tree(ROOT,1,true)}<div class="legend" style="padding:12px 12px 4px;border-top:1px solid var(--line);margin-top:8px">${Object.entries(KN).map(([k,v])=>`<span><i class="k-${k}"></i>${v}</span>`).join("")}</div></nav><section class="main">${mainArea(true)}</section></div>`,
+ ()=>{const n=byPath.get(S.sel);const tabs=S.tabs.map(p=>`<button class="ftab" data-tab="${esc(p)}" aria-selected="${p===S.sel}">${esc(byPath.get(p).name)}${dirty(p)?'<span class="dirty"></span>':""}<span class="x" data-close="${esc(p)}" aria-label="닫기">×</span></button>`).join("");
+  return`<div class="pane"><nav class="side" role="tree" aria-label="폴더">${rootRow()}${tree(ROOT,1)}</nav><section class="main">${S.tabs.length?`<div class="ftabs" role="tablist">${tabs}</div>`:""}${mainArea(false,true)}</section></div>`},
+];
+
+function draw(){document.getElementById("tabs").innerHTML=VERS.map((x,i)=>`<button data-v="${i}" aria-pressed="${i===S.v}">${x.name}</button>`).join("");
+ document.getElementById("vdesc").innerHTML=VERS[S.v].desc;document.getElementById("ro").setAttribute("aria-pressed",S.ro);document.getElementById("app").innerHTML=R[S.v]();}
+function pick(p){const n=byPath.get(p);
+ if(S.mode==="edit"&&dirty(S.sel)&&p!==S.sel&&S.v!==3&&!confirm("저장하지 않은 변경이 있습니다. 버리고 옮길까요?"))return;
+ if(S.v!==3&&p!==S.sel&&S.drafts[S.sel]!==undefined){delete S.drafts[S.sel];S.mode="view"}
+ if(n.dir){if(S.v!==1&&S.sel===p&&S.open.has(p))S.open.delete(p);else S.open.add(p)}
+ let q=p;while(q.includes("/")){q=q.slice(0,q.lastIndexOf("/"));S.open.add(q)}
+ if(!n.dir&&S.v===3&&!S.tabs.includes(p))S.tabs.push(p);
+ if(S.v===3&&!n.dir&&S.drafts[p]!==undefined)S.mode="edit";else if(p!==S.sel)S.mode="view";
+ S.sel=p;S.saved=null;draw()}
+document.getElementById("tabs").onclick=e=>{const b=e.target.closest("[data-v]");if(b){S.v=+b.dataset.v;S.mode="view";S.drafts={};S.conflict=null;S.saved=null;draw()}};
+document.getElementById("ro").onclick=()=>{S.ro=!S.ro;S.mode="view";S.drafts={};draw()};
+document.getElementById("ext").onclick=()=>{const n=byPath.get(S.sel);if(n.dir||n.secret||n.binary)return alert("파일을 먼저 고르세요.");n.content+="\n\n- (밖에서 더한 줄) 2026-10-16 시험은 노드마다 하나씩";n.mtime=Date.now();if(S.mode==="edit"&&S.drafts[n.path]!==undefined)S.conflict=n.path;draw()};
+const app=document.getElementById("app");
+app.addEventListener("click",e=>{const x=e.target.closest("[data-close]");if(x){e.stopPropagation();const p=x.dataset.close;S.tabs=S.tabs.filter(t=>t!==p);delete S.drafts[p];if(S.sel===p){S.sel=S.tabs.at(-1)??"";S.mode="view"}return draw()}
+ const t=e.target.closest("[data-tab]");if(t){S.sel=t.dataset.tab;S.mode=S.drafts[S.sel]!==undefined?"edit":"view";return draw()}
+ const r=e.target.closest("[data-p]");if(r)return pick(r.dataset.p);
+ const a=e.target.closest("[data-a]")?.dataset.a,n=byPath.get(S.sel);if(!a||a==="type")return;
+ if(a==="edit"){S.mode="edit";S.drafts[n.path]=n.content;S.base[n.path]=n.mtime}
+ else if(a==="cancel"){if(dirty(n.path)&&!confirm("변경을 버릴까요?"))return;delete S.drafts[n.path];S.mode="view";S.conflict=null}
+ else if(a==="save"){if(n.mtime!==S.base[n.path]){S.conflict=n.path;return draw()}n.content=S.drafts[n.path];n.mtime=Date.now();delete S.drafts[n.path];S.mode="view";S.saved=n.path}
+ else if(a==="force"){n.content=S.drafts[n.path];n.mtime=Date.now();delete S.drafts[n.path];S.mode="view";S.conflict=null;S.saved=n.path}
+ else if(a==="reload"){S.drafts[n.path]=n.content;S.base[n.path]=n.mtime;S.conflict=null}
+ draw()});
+app.addEventListener("input",e=>{if(e.target.dataset.a!=="type")return;const p=S.sel,was=dirty(p);S.drafts[p]=e.target.value;if(was!==dirty(p)){const pos=e.target.selectionStart;draw();const ta=app.querySelector("textarea");ta.focus();ta.setSelectionRange(pos,pos)}else if(S.v===3){const pv=app.querySelector(".split>div:last-child");if(pv)pv.innerHTML=rendered(byPath.get(p))}});
+const hash=location.hash.match(/v(\d)(?:-(\w+))?/);if(hash){S.v=+hash[1]-1;if(hash[2]==="dir")S.sel="docs";if(hash[2]==="edit"){S.mode="edit";S.drafts[S.sel]=byPath.get(S.sel).content+"\n- 고치는 중";S.base[S.sel]=byPath.get(S.sel).mtime}}
+S.open.add("docs");S.open.add("src");draw();
+</script>

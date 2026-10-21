@@ -1,0 +1,175 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>폴더 · 문서 — 편집기형 시안</title>
+<style>
+/* 콘솔 색 그대로: 다크 + 상태 색(보라 통과 · 주황 지금 · 빨강 실패). 색은 상태에만 쓴다 */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--bad-fill:#3a1e1a;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button,textarea{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.wrap{max-width:1320px;margin:auto;padding:24px 16px 40px;display:grid;gap:14px}
+h1{font-size:20px;margin:0}small,.muted{color:var(--muted);font-size:12px}code{font-family:var(--mono);font-size:12px;background:var(--fill);padding:1px 4px;border-radius:3px}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.tag{color:var(--ok-text);background:var(--ok-fill);border:1px solid var(--ok-line);padding:4px 9px;border-radius:6px;font-size:12px}
+.vdesc{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6}.vdesc b{color:var(--text)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}.bar button{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:5px 9px;font-size:12px}.bar button[aria-pressed=true]{border-color:var(--ok-line);background:var(--ok-fill);color:#e4d9ff}.bar .sep{width:1px;height:18px;background:var(--stroke);margin:0 4px}
+.pane{background:var(--chrome);border:1px solid var(--line);border-radius:10px;height:640px;display:flex;min-width:0;overflow:hidden}
+.side{width:290px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column}
+.side .scroll{flex:1;overflow:auto;padding:6px 0}
+.rootbox{padding:10px 12px;border-bottom:1px solid var(--line);display:grid;gap:3px}.rootbox b{font-size:13px}.rootbox small{font-family:var(--mono);font-size:11px;word-break:break-all}
+.legend{display:grid;gap:4px;padding:10px 12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}.legend span{display:flex;gap:8px;align-items:center}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.head{padding:9px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;min-height:52px}.head .sp{flex:1}
+.crumb{display:grid;gap:2px;min-width:0}.crumb span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.crumb span b{color:var(--text);font-weight:600}.crumb em{font-style:normal;font-size:12px;color:var(--sub)}
+.body{flex:1;overflow:auto;padding:14px 18px}
+.btn{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:5px 11px;font-size:12.5px;white-space:nowrap}.btn.pri{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;padding:4px 10px;text-align:left;font-size:13px;white-space:nowrap}
+.row:hover{background:#202020}.row[aria-selected=true]{background:var(--ok-fill);box-shadow:inset 2px 0 var(--ok)}
+.car{width:12px;color:var(--muted);flex:none;font-size:10px;transition:transform .12s}.car.open{transform:rotate(90deg)}
+.ico{width:16px;flex:none;text-align:center;color:var(--muted);font-size:12px}
+.nm{overflow:hidden;text-overflow:ellipsis}.row .meta{margin-left:auto;color:#777;font-size:11px;font-variant-numeric:tabular-nums}
+.pol{font-size:10.5px;border:1px solid var(--stroke);border-radius:4px;padding:0 5px;color:var(--muted);flex:none}.pol.live{border-style:dashed}
+.dirty{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
+.ftabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;background:#171717;min-height:37px}.ftab{display:flex;gap:7px;align-items:center;padding:9px 12px;border:0;border-right:1px solid var(--line);background:none;font-size:12.5px;color:var(--muted);white-space:nowrap}.ftab[aria-selected=true]{background:var(--chrome);color:var(--text);box-shadow:inset 0 2px var(--ok)}.ftab .x{color:#777;padding:0 2px}
+.seg{display:inline-flex;border:1px solid var(--stroke);border-radius:6px;overflow:hidden}.seg button{background:none;border:0;padding:5px 11px;font-size:12.5px}.seg button[aria-pressed=true]{background:var(--fill)}
+.md h1{font-size:18px;margin:0 0 10px}.md h2{font-size:15px;margin:16px 0 8px}.md p,.md li{font-size:13.5px;line-height:1.7;color:var(--sub);margin:4px 0}.md ul{padding-left:20px;margin:6px 0}.md .fm{font-family:var(--mono);font-size:11.5px;color:var(--muted);border:1px dashed var(--stroke);border-radius:6px;padding:8px 10px;margin-bottom:12px;white-space:pre-wrap}
+pre.code{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--sub);white-space:pre-wrap;word-break:break-all}
+textarea.ed{width:100%;height:100%;min-height:440px;resize:none;background:var(--bg);border:1px solid var(--stroke);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;line-height:1.65}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%}.split>div{min-width:0;overflow:auto}.split .lbl{font-size:11px;color:var(--muted);margin-bottom:6px}
+.check{border:1px solid var(--stroke);border-radius:8px;padding:12px;display:grid;gap:8px;font-size:13px}.check.ok{border-color:var(--ok-line)}.check.bad{border-color:#6e332c;background:var(--bad-fill);color:#f5b0a6}.check ul{margin:0;padding-left:18px;color:var(--sub);font-size:12.5px;line-height:1.7}
+.note{border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.note.warn{background:var(--warn-fill);border:1px solid #6b4a24;color:#f0c890}.note.ok{background:var(--ok-fill);border:1px solid var(--ok-line);color:var(--ok-text)}.note.info{background:var(--elevated);border:1px solid var(--stroke);color:var(--sub)}
+.card{background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:14px 16px;display:grid;gap:10px}.card .lbl{font-size:11px;color:var(--muted)}.desc{font-size:14px;line-height:1.65}
+.stats{display:flex;gap:20px;font-size:12px;color:var(--muted)}.stats b{color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;display:block}
+.kids{display:grid;gap:2px;margin-top:10px}.kids .row{padding:6px 8px;border-radius:6px}
+.empty{display:grid;place-items:center;height:100%;color:var(--muted);font-size:13px;text-align:center;line-height:1.7}
+</style>
+<div class="wrap">
+  <div class="top">
+    <div><small>Patchbay · 왼쪽 바 「폴더 · 문서」 · 4안 편집기형</small><h1>폴더 · 문서 — 편집기형 최종 시안</h1></div>
+    <span class="tag">시안 · 트리의 이름 · 크기 · 시각은 2026-10-16 실제 값, 파일 내용은 예시</span>
+  </div>
+  <p class="vdesc"><b>루트 = <code>workspace/projects/patchbay</code></b> — Patchbay가 이 프로젝트에 대해 쌓는 기록 폴더. 다른 프로젝트 폴더는 보이지 않는다. 왼쪽 트리 · 위쪽 파일 탭 · 편집할 때 <b>원문 | 미리보기</b> 나란히. 파일마다 <b>무엇인지 한 줄</b>과 <b>고쳐도 되는지</b>가 붙는다.</p>
+  <div class="bar" id="bar">상태 바로 보기:
+    <button data-go="view">① 보기</button><button data-go="edit">② 편집 (todos.json)</button><button data-go="md">③ 편집 (마크다운)</button><button data-go="live">④ 읽기 전용 파일</button><button data-go="dir">⑤ 폴더 설명</button><button data-go="conflict">⑥ 저장 충돌</button>
+    <span class="sep"></span>흉내 내기:
+    <button id="ro" aria-pressed="false">조회 전용 접속</button>
+    <button id="ext">밖에서 지금 파일 고침 (에이전트 등)</button>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+const now=Date.parse("2026-10-16T15:00:00");
+const T=s=>Date.parse("2026-"+s.replace(" ","T")+":00");
+/* 편집 등급 — edit: 고칠 수 있음(저장 때 형식 검사) · auto: 자동 생성(다시 만들면 덮어씀) · live: 지금도 쓰이는 중 */
+const POL={edit:{t:"",n:"편집 가능 — 저장할 때 형식 검사"},auto:{t:"자동",n:"자동 생성 — 다시 만들면 덮어써서 읽기 전용"},live:{t:"쓰는 중",n:"지금도 쓰이는 파일 — 읽기 전용"}};
+const f=(name,size,mt,pol,what,content)=>({name,size,mtime:T(mt),pol,what,content});
+const d=(name,children,what)=>({name,dir:true,children,what});
+const roomIds=[["2026-10-08-9c5af60d",378,53,"10-08 11:56"],["2026-10-09-0722641d",0,221,"10-09 21:28"],["2026-10-09-1b46157f",141,300,"10-09 21:56"],["2026-10-09-4f5e1790",471,54,"10-09 22:26"],["2026-10-09-afb62d85",0,185,"10-09 22:37"],["2026-10-10-32e47b4a",913,493,"10-10 20:36"],["2026-10-10-6c217340",589,466,"10-10 20:35"],["2026-10-10-a6244176",619,490,"10-10 22:50"],["2026-10-13-2b228db6",0,3245,"10-13 20:02"],["2026-10-13-2cc7562a",0,25097,"10-13 21:18"],["2026-10-13-c6a78f52",32154,28961,"10-13 20:01"],["2026-10-13-dac73637",3144,15718,"10-13 21:48"],["2026-10-13-fb3c3525",0,25097,"10-13 21:20"],["2026-10-13-fd555bdc",18450,15042,"10-13 23:25"],["2026-10-14-089192f6",1650,52904,"10-14 18:15"],["2026-10-14-967246d5",2189,52881,"10-14 18:23"],["2026-10-14-edd9292c",2192,52901,"10-14 18:18"],["2026-10-15-f5bb1d02",14489,15060,"10-16 12:25"],["2026-10-16-96516c51",51775,7127,"10-16 15:00"]];
+const ROOM_SAMPLE='{"seq":0,"at":"2026-10-16T03:16:13Z","role":"user","text":"왼쪽 바 아래 폴더 · 문서를 어떻게 구성할지 의견을 줘"}\n{"seq":1,"at":"2026-10-16T03:18:40Z","role":"agent","agent":"하울","text":"# 「폴더 · 문서」 구성 제안 …"}\n{"seq":2,"at":"2026-10-16T03:20:02Z","role":"agent","agent":"수리","text":"# 수리 검토 …"}';
+const rooms=roomIds.flatMap(([id,j,m,mt])=>[f(id+".jsonl",j,mt,"live","대화방 기록 — 한 줄이 말 하나. 대화방이 쓰는 중",ROOM_SAMPLE),f(id+".meta.json",m,mt,"live","대화방 정보 — 제목 · 참여 에이전트 · 차례 상태",'{\n  "id": "'+id+'",\n  "title": "(예시) 대화방 제목",\n  "agents": ["하울", "수리"]\n}')]);
+const days=[["01",5942],["04",3644],["05",3980],["06",1947],["07",2429],["08",4672],["09",5775],["10",8584],["11",4364],["12",16031],["13",7642,"10-16 13:23"],["14",11574],["15",16287,"10-16 00:55"],["16",16250,"10-16 13:23"]];
+const LOG16='---\nproject: "patchbay"\ndate: 2026-10-16\nstate: 잠정\nevents: 48\nfiles: 272\n---\n\n# patchbay · 2026-10-16 (금)\n\n## 한눈에\n\n사건 48 · 고유 파일 272 · 가장 많이 바뀐 곳 UI 16 · 서버 8\n\n## 진행 보고\n\n- 폴더 · 문서 화면 4안 시안 (예시 줄)\n- 대화방 산출물 링크 (예시 줄)';
+const logs=days.map(([dd,s,mt])=>f(`2026-10-${dd}.md`,s,mt??"10-15 21:02","auto","하루 Log — Log 화면이 그 날 기록으로 만든다",dd==="16"?LOG16:`---\nproject: "patchbay"\ndate: 2026-10-${dd}\n---\n\n# patchbay · 2026-10-${dd}\n\n(시안: 내용 생략)`));
+const TODOS='{\n  "todos": [\n    {\n      "id": "t-20261016-folder-pick",\n      "title": "폴더 · 문서 4안 중 고르기",\n      "done": true,\n      "at": "2026-10-16T04:10:00.000Z"\n    },\n    {\n      "id": "t-20261016-folder-build",\n      "title": "고른 안(편집기형) 구현",\n      "done": false,\n      "at": "2026-10-16T04:10:00.000Z"\n    }\n  ]\n}';
+const ROOT=d("patchbay",[
+  d("log",[d("events",[f("changes.jsonl",1031,"10-16 11:42","live","변경 사건 — 한 줄이 사건 하나. 차례마다 덧붙는다",'{"at":"2026-10-16T02:42:00Z","kind":"file","path":"(예시)"}')],"Log의 원재료. 파일이 바뀔 때마다 한 줄씩 붙는다."),d("index",[f("2026-10.json",85632,"10-16 13:23","auto","10월 목록 — 달력에서 그 달을 열 때 만든다",'{ "month": "2026-10", "days": [ … ] }')],"달마다 한 파일. 달력에서 그 달을 열면 다시 만든다."),d("records",logs,"하루에 한 파일. Log 화면이 사건과 진행 보고로 만든다.")],"Log 화면의 기록. 사람이 고치지 않고 Patchbay가 쌓는다."),
+  d("rooms",rooms,"대화방마다 두 파일: 말 기록(.jsonl)과 방 정보(.meta.json). 대화가 진행되는 동안 계속 쓰인다."),
+  d("todo-history",[d("61a774e9937623af7a5152e7",[d("conversations",[f("88248e67dbe6fce99dc24da0.json",55060,"10-15 20:23","edit","그 할 일을 다룬 대화 사본",'{ "messages": [ … ] }'),f("88248e67dbe6fce99dc24da0.md",1464,"10-14 18:15","edit","그 할 일을 다룬 대화 요약 (읽기용)","# (예시) 대화 요약")],"그 할 일을 다룬 대화를 옮겨 둔다."),f("summary.md",626,"10-14 18:14","edit","끝난 할 일 하나의 요약","# (예시) 끝난 할 일 요약\n\n- 무엇을 했나\n- 어디가 바뀌었나"),f("task.json",574,"10-14 18:14","edit","끝난 할 일 원본",'{ "id": "61a774e9…", "title": "(예시)" }')],"끝난 할 일 하나."),f("index.json",633,"10-14 18:14","edit","끝난 할 일 목록",'{ "items": [ … ] }'),f("index.md",306,"10-14 18:14","edit","끝난 할 일 목록 (읽기용)","# 끝난 할 일\n\n- (예시) 사이드바 아이콘 정리")],"끝난 할 일을 하나씩 보관한다."),
+  f("agents.json",52655,"10-14 18:20","edit","에이전트 배치 — 하울 · 수리 · 구구의 역할과 모델",'{\n  "agents": [ { "name": "하울", "model": "claude-opus-5-5" } … ]\n}'),
+  f("ATLAS.digest.md",173,"10-16 12:10","auto","스캔 요약 한 단락 — 스캔할 때마다 다시 만든다","# Atlas 요약\n\n(예시) 스킬 0 · 규칙 7 · 에이전트 설정 2"),
+  f("ATLAS.md",1179,"10-16 12:10","auto","스캔 결과 — 스킬 · 규칙 · 설정 목록","# Atlas — patchbay\n\n## 규칙\n\n- (예시) storage-layout.mdc\n- (예시) visual-first.mdc"),
+  f("board.yaml",11045,"10-16 01:03","edit","대시보드 판 — 칸 배치와 내용","# (예시)\ncolumns:\n  - id: now\n    title: 지금"),
+  f("cycle-items.json",3477,"10-16 13:39","edit","흐름도 세부 항목 — 에이전트가 계획을 남긴다",'{\n  "items": [\n    { "step": "design", "task": "도구 아이콘 정비", "name": "폴더 · 문서 화면 4안 중 고르기" }\n  ]\n}'),
+  f("DASHBOARD.proposed.md",1704,"09-13 21:22","edit","대시보드 초안 — 스킬이 쓰고 사람이 고쳐 확정한다","# 대시보드 초안\n\n## 보기\n\n- (예시) 지금 진행\n- (예시) 막힌 것\n\n## 계측 갭\n\n- (예시) 시험 결과가 안 남는다"),
+  f("FLOW.md",1564,"10-16 12:10","auto","흐름 요약 — 스캔할 때마다 다시 만든다","# Flow\n\n(예시) 설계 → 구현 → 시험 → 검토"),
+  f("inferred.json",3662,"10-16 12:10","auto","스캔이 추론한 연결 — 스캔할 때마다 다시 만든다",'{ "edges": [ … ] }'),
+  f("overlay.yaml",4553,"10-16 11:25","edit","결정 기록 — patchbay decision add가 쓴다","decisions:\n  - id: dec-예시\n    summary: (예시) 결정 한 줄\n    rationale: (예시) 이유"),
+  f("PROGRESS.md",110675,"10-16 14:02","auto","진행 기록 읽기용 — progress.yaml에서 다시 만든다","# 진행\n\n(시안: 내용 생략)"),
+  f("progress.yaml",119010,"10-16 14:02","edit","진행 기록 원본 — 요구 · 구현이 여기 쌓인다","entries:\n  - at: 2026-10-16T05:02:00Z\n    request: (예시) 요구\n    done: (예시) 구현"),
+  f("todos.json",4487,"10-16 13:39","edit","할 일 목록 — 에이전트가 차례 끝마다 고친다",TODOS),
+],"Patchbay가 이 프로젝트에 대해 쌓는 기록. 대화 · Log · 진행 · 할 일 · 스캔 결과가 여기 있다. 코드와 문서는 여기 없다.");
+const byPath=new Map();(function walk(n,p){n.path=p;byPath.set(p,n);if(n.children){n.children.sort((a,b)=>(b.dir?1:0)-(a.dir?1:0)||a.name.localeCompare(b.name,"ko",{sensitivity:"base"}));n.children.forEach(c=>walk(c,p?p+"/"+c.name:c.name))}})(ROOT,"");
+
+const S={open:new Set(["","log"]),sel:"log/records/2026-10-16.md",mode:"view",drafts:{},base:{},conflict:null,ro:false,tabs:["log/records/2026-10-16.md","todos.json"],saved:null};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ago=t=>{const h=Math.round((now-t)/36e5);return h<1?"방금":h<24?h+"시간 전":Math.round(h/24)+"일 전"};
+const kb=b=>b<1024?b+" B":(b/1024).toFixed(b<10240?1:0)+" KB";
+const files=n=>n.dir?n.children.flatMap(files):[n];
+const recent=n=>Math.max(...files(n).map(x=>x.mtime));
+const text=p=>S.drafts[p]??byPath.get(p).content;
+const dirty=p=>S.drafts[p]!==undefined&&S.drafts[p]!==byPath.get(p).content;
+const canEdit=n=>!S.ro&&n.pol==="edit";
+const ico=n=>/\.md$/.test(n.name)?"¶":/\.jsonl$/.test(n.name)?"≡":/\.(json|ya?ml)$/.test(n.name)?"{}":"·";
+const polTag=n=>n.dir||!POL[n.pol].t?"":`<span class="pol${n.pol==="live"?" live":""}" title="${POL[n.pol].n}">${POL[n.pol].t}</span>`;
+
+function md(src){let out="",inList=false,body=src;const fm=src.match(/^---\n([\s\S]*?)\n---\n?/);if(fm){out+=`<div class="fm">${esc(fm[1])}</div>`;body=src.slice(fm[0].length)}
+ for(const l of body.split("\n")){const t=esc(l).replace(/`([^`]+)`/g,(_,c)=>`<code>${c}</code>`);
+  if(/^- /.test(l)){if(!inList){out+="<ul>";inList=true}out+=`<li>${t.slice(2)}</li>`;continue}if(inList){out+="</ul>";inList=false}
+  if(/^## /.test(l))out+=`<h2>${t.slice(3)}</h2>`;else if(/^# /.test(l))out+=`<h1>${t.slice(2)}</h1>`;else if(l.trim())out+=`<p>${t}</p>`}
+ return out+(inList?"</ul>":"")}
+/* 편집 중 오른쪽 칸: 마크다운은 렌더, JSON은 형식 검사 + 읽은 결과, YAML은 서버 검사 안내 */
+function preview(n){const src=text(n.path);
+ if(/\.md$/.test(n.name))return`<div class="lbl">미리보기</div><div class="md">${md(src)}</div>`;
+ if(/\.json$/.test(n.name)){try{const v=JSON.parse(src);const list=Array.isArray(v.todos)?v.todos.map(t=>`<li>${t.done?"☑":"☐"} ${esc(t.title)}</li>`).join(""):"";
+   return`<div class="lbl">형식 검사</div><div class="check ok"><span>✓ JSON 형식이 맞습니다${list?` · 할 일 ${v.todos.length}건`:""}</span>${list?`<ul>${list}</ul>`:""}</div>`}
+  catch(e){return`<div class="lbl">형식 검사</div><div class="check bad">✗ JSON 형식이 틀렸습니다 — 저장할 수 없습니다<br><small style="color:inherit">${esc(e.message)}</small></div>`}}
+ return`<div class="lbl">형식 검사</div><div class="check">YAML은 저장할 때 서버가 검사합니다. 틀리면 저장하지 않고 줄 번호를 알려 줍니다.</div>`}
+const jsonBad=n=>{if(!/\.json$/.test(n.name))return false;try{JSON.parse(text(n.path));return false}catch{return true}};
+const rendered=n=>/\.md$/.test(n.name)?`<div class="md">${md(text(n.path))}</div>`:`<pre class="code">${esc(text(n.path))}</pre>`;
+
+function row(n,depth){return`<button class="row" role="treeitem" data-p="${esc(n.path)}" aria-selected="${S.sel===n.path}" style="padding-left:${10+depth*14}px">${n.dir?`<span class="car${S.open.has(n.path)?" open":""}">▶</span>`:'<span class="car"></span>'}<span class="ico">${n.dir?"":ico(n)}</span><span class="nm">${esc(n.name)}${n.dir?"/":""}</span>${dirty(n.path)?'<span class="dirty" title="저장 안 함"></span>':""}${n.dir?`<span class="meta">${files(n).length}</span>`:`<span class="meta"></span>${polTag(n)}`}</button>`}
+function tree(n,depth){return n.children.map(c=>row(c,depth)+(c.dir&&S.open.has(c.path)?tree(c,depth+1):"")).join("")}
+const crumb=n=>`<div class="crumb"><span>${["patchbay",...(n.path?n.path.split("/"):[])].map((x,i,a)=>i===a.length-1?`<b>${esc(x)}</b>`:esc(x)).join(" / ")}</span><em>${esc(n.what)}</em></div>`;
+
+function head(n){if(n.dir)return`${crumb(n)}<span class="sp"></span><small>폴더</small>`;
+ const meta=`<small>${kb(n.size)} · ${ago(n.mtime)}</small>`;
+ let act;if(S.ro)act='<span class="pol">조회 전용</span>';
+ else if(n.pol!=="edit")act=`<span class="pol${n.pol==="live"?" live":""}">읽기 전용</span>`;
+ else if(S.mode==="edit")act=`<button class="btn" data-a="cancel">취소</button><button class="btn pri" data-a="save" ${dirty(n.path)&&!jsonBad(n)?"":"disabled"}>저장</button>`;
+ else act=`<span class="seg"><button aria-pressed="true">보기</button><button data-a="edit">편집</button></span>`;
+ return`${crumb(n)}<span class="sp"></span>${meta}${act}`}
+function notes(n){let o="";
+ if(n.pol!=="edit")o+=`<div class="note info">${n.pol==="live"?"≡ 이 파일은 지금도 쓰이고 있어서 읽기 전용입니다. 고치려면 대화방 · Log 화면에서 합니다.":"⟳ 자동으로 만들어지는 파일이라 읽기 전용입니다. 고쳐도 다음에 다시 만들 때 덮어씁니다."}</div>`;
+ if(S.conflict===n.path)o+=`<div class="note warn">⚠ 연 뒤에 이 파일이 화면 밖에서 바뀌었습니다 (에이전트가 차례 끝에 고쳤을 수 있습니다). 저장하면 그 변경을 덮어씁니다.<span style="flex:1"></span><button class="btn" data-a="reload">바뀐 내용 다시 읽기</button><button class="btn" data-a="force">내 것으로 저장</button></div>`;
+ if(S.saved===n.path)o+=`<div class="note ok">저장했습니다 — 디스크의 파일이 바뀌었습니다.</div>`;return o}
+function fileBody(n){
+ if(S.mode==="edit"&&canEdit(n))return notes(n)+`<div class="split" style="height:calc(100% - ${S.conflict||S.saved?56:0}px)"><div><div class="lbl" style="font-size:11px;color:var(--muted);margin-bottom:6px">원문 · 편집</div><textarea class="ed" data-a="type" aria-label="${esc(n.name)} 편집">${esc(text(n.path))}</textarea></div><div id="pv">${preview(n)}</div></div>`;
+ return notes(n)+rendered(n)}
+function folderBody(n){const kids=n.children,all=files(n),c={edit:0,auto:0,live:0};all.forEach(x=>c[x.pol]++);
+ return`<div class="card"><span class="lbl">이 폴더는</span><div class="desc">${esc(n.what)}</div>
+ <div class="stats"><span><b>${kids.filter(k=>k.dir).length}</b>폴더</span><span><b>${kids.filter(k=>!k.dir).length}</b>파일</span><span><b>${all.length}</b>아래 전체</span><span><b>${ago(recent(n))}</b>최근 수정</span></div>
+ <div class="stats"><span><b>${c.edit}</b>편집 가능</span><span><b>${c.auto}</b>자동 생성</span><span><b>${c.live}</b>쓰는 중</span></div></div>
+ <div class="kids">${kids.map(k=>`<button class="row" data-p="${esc(k.path)}"><span class="ico">${k.dir?"▸":ico(k)}</span><span class="nm">${esc(k.name)}${k.dir?"/":""}</span><span class="meta">${k.dir?k.children.length+"개":kb(k.size)} · ${ago(k.dir?recent(k):k.mtime)}</span>${polTag(k)}</button>`).join("")}</div>`}
+
+function draw(){const n=byPath.get(S.sel);
+ const tabs=S.tabs.map(p=>`<button class="ftab" data-tab="${esc(p)}" aria-selected="${p===S.sel}">${esc(byPath.get(p).name)}${dirty(p)?'<span class="dirty"></span>':""}<span class="x" data-close="${esc(p)}" aria-label="닫기">×</span></button>`).join("");
+ document.getElementById("ro").setAttribute("aria-pressed",S.ro);
+ document.getElementById("app").innerHTML=`<div class="pane"><nav class="side" aria-label="폴더"><div class="rootbox"><b>patchbay</b><small>workspace/projects/patchbay</small><small style="font-family:var(--font)">${files(ROOT).length}개 파일 · 이 프로젝트만</small></div><div class="scroll" role="tree">${tree(ROOT,0)}</div><div class="legend"><span><span class="pol" style="visibility:hidden">자동</span>표시 없음 — 편집 가능</span><span><span class="pol">자동</span>자동 생성 — 읽기 전용</span><span><span class="pol live">쓰는 중</span>지금도 쓰임 — 읽기 전용</span></div></nav><section class="main"><div class="ftabs" role="tablist">${tabs}</div><div class="head">${head(n)}</div><div class="body">${n.dir?folderBody(n):fileBody(n)}</div></section></div>`}
+function openParents(p){let q=p;while(q.includes("/")){q=q.slice(0,q.lastIndexOf("/"));S.open.add(q)}}
+function pick(p){const n=byPath.get(p);
+ if(n.dir){if(S.sel===p&&S.open.has(p))S.open.delete(p);else S.open.add(p)}
+ openParents(p);if(!n.dir&&!S.tabs.includes(p))S.tabs.push(p);
+ S.mode=!n.dir&&S.drafts[p]!==undefined?"edit":"view";S.sel=p;S.saved=null;S.conflict=null;draw()}
+function go(k){S.drafts={};S.base={};S.conflict=null;S.saved=null;S.mode="view";S.ro=false;
+ const at={view:"log/records/2026-10-16.md",edit:"todos.json",md:"DASHBOARD.proposed.md",live:"rooms/2026-10-16-96516c51.jsonl",dir:"rooms",conflict:"todos.json"}[k]||"log/records/2026-10-16.md";
+ S.tabs=["log/records/2026-10-16.md","todos.json"];if(k==="md"||k==="live")S.tabs.push(at);
+ if(k==="dir")S.open.add("rooms");pick(at);
+ const n=byPath.get(at);if(k==="edit"||k==="md"||k==="conflict"){S.mode="edit";S.drafts[at]=k==="md"?n.content+"\n- 고치는 중":n.content.replace('"done": false','"done": true');S.base[at]=n.mtime}
+ if(k==="conflict")S.conflict=at;draw()}
+document.getElementById("bar").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)go(b.dataset.go)});
+document.getElementById("ro").onclick=()=>{S.ro=!S.ro;S.mode="view";S.drafts={};S.conflict=null;draw()};
+document.getElementById("ext").onclick=()=>{const n=byPath.get(S.sel);if(n.dir)return alert("파일을 먼저 고르세요.");n.content+=/\.json$/.test(n.name)?"":"\n\n- (밖에서 더한 줄)";n.mtime=now;if(S.mode==="edit"&&S.drafts[n.path]!==undefined)S.conflict=n.path;draw()};
+const app=document.getElementById("app");
+app.addEventListener("click",e=>{const x=e.target.closest("[data-close]");if(x){e.stopPropagation();const p=x.dataset.close;S.tabs=S.tabs.filter(t=>t!==p);delete S.drafts[p];if(S.sel===p){S.sel=S.tabs.at(-1)??"";S.mode=S.drafts[S.sel]!==undefined?"edit":"view"}return draw()}
+ const t=e.target.closest("[data-tab]");if(t){S.sel=t.dataset.tab;S.mode=S.drafts[S.sel]!==undefined?"edit":"view";S.conflict=null;S.saved=null;return draw()}
+ const r=e.target.closest("[data-p]");if(r)return pick(r.dataset.p);
+ const a=e.target.closest("[data-a]")?.dataset.a,n=byPath.get(S.sel);if(!a||a==="type")return;
+ if(a==="edit"){S.mode="edit";S.drafts[n.path]=n.content;S.base[n.path]=n.mtime}
+ else if(a==="cancel"){if(dirty(n.path)&&!confirm("변경을 버릴까요?"))return;delete S.drafts[n.path];S.mode="view";S.conflict=null}
+ else if(a==="save"){if(n.mtime!==S.base[n.path]||S.conflict===n.path){S.conflict=n.path;return draw()}n.content=S.drafts[n.path];n.mtime=now;delete S.drafts[n.path];S.mode="view";S.saved=n.path}
+ else if(a==="force"){n.content=S.drafts[n.path];delete S.drafts[n.path];S.mode="view";S.conflict=null;S.saved=n.path}
+ else if(a==="reload"){S.drafts[n.path]=n.content;S.base[n.path]=n.mtime;S.conflict=null}
+ draw()});
+app.addEventListener("input",e=>{if(e.target.dataset.a!=="type")return;const p=S.sel,n=byPath.get(p),was=dirty(p)+"|"+jsonBad(n);S.drafts[p]=e.target.value;
+ if(was!==dirty(p)+"|"+jsonBad(n)){const pos=e.target.selectionStart;draw();const ta=app.querySelector("textarea");ta.focus();ta.setSelectionRange(pos,pos)}else{const pv=document.getElementById("pv");if(pv)pv.innerHTML=preview(n)}});
+const h=location.hash.slice(1);h?go(h):draw();
+</script>

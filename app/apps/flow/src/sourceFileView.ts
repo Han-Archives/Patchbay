@@ -156,3 +156,61 @@ export async function saveSourceFile(
     body: { alias: resolved.alias, path: resolved.rel, saved: true, bytes: Buffer.byteLength(payload.content, "utf8") },
   };
 }
+
+/**
+ * 대화방 · 상담 창의 링크가 여는 파일 (사용자 요청 2026-10-16: 시안 · 산출물을 링크로 보고 받기).
+ * `loadSourceFile` 은 편집기용이라 글자만 JSON 으로 준다. 여기는 파일을 그대로 내준다 — 이미지 · PDF · 시안 HTML.
+ */
+export const PROJECT_FILE_MAX_BYTES = 50 * 1024 * 1024;
+
+const PROJECT_FILE_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+  ".pdf": "application/pdf", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+  ".woff2": "font/woff2", ".woff": "font/woff",
+};
+
+export type ProjectFileResult =
+  | { ok: true; rel: string; data: Buffer; contentType: string }
+  | { ok: false; status: 400 | 403 | 404 | 413; error: string };
+
+/**
+ * 답에 적힌 절대 경로를 프로젝트 안 상대 경로로 바꾼다. 상대 경로로 옮겨 열어야 시안 HTML 의
+ * `style.css` 같은 옆 파일 참조가 같은 길로 풀린다. 프로젝트 밖이면 null.
+ */
+export async function projectRelFromAbsolute(studioHome: string, alias: string, abs: string): Promise<string | null> {
+  const studio = await readStudio(studioHome);
+  const registered = studio.projects.find((project) => project.alias === alias);
+  if (!registered) return null;
+  const root = path.resolve(registered.path);
+  const target = path.resolve(abs);
+  if (target === root || !isInsideRoot(root, target)) return null;
+  return path.relative(root, target).split(path.sep).join("/");
+}
+
+export async function loadProjectFile(
+  studioHome: string,
+  alias: string | undefined,
+  relRaw: string | undefined,
+): Promise<ProjectFileResult> {
+  const resolved = await resolveInsideProject(studioHome, alias, relRaw);
+  if (!resolved.ok) return resolved;
+  let realFile;
+  try {
+    realFile = await fs.realpath(resolved.abs);
+  } catch {
+    return { ok: false, status: 404, error: `파일이 없다: ${resolved.rel}` };
+  }
+  if (!isInsideRoot(await fs.realpath(resolved.root), realFile)) {
+    return { ok: false, status: 403, error: "프로젝트 밖의 파일이다." };
+  }
+  const stat = await fs.stat(realFile);
+  if (stat.isDirectory()) return { ok: false, status: 400, error: "폴더는 열지 않는다." };
+  if (stat.size > PROJECT_FILE_MAX_BYTES) return { ok: false, status: 413, error: "50MB 보다 큰 파일이다." };
+  const data = await fs.readFile(realFile);
+  const known = PROJECT_FILE_TYPES[path.extname(realFile).toLowerCase()];
+  // 모르는 확장자는 글자면 글로 보여 주고, 아니면 받게 한다.
+  const contentType = known ?? (data.includes(0) ? "application/octet-stream" : "text/plain; charset=utf-8");
+  return { ok: true, rel: resolved.rel, data, contentType };
+}
