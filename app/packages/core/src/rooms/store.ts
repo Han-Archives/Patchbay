@@ -4,7 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { roomExecutionSchema, type RoomExecution } from "./execution.js";
 import { projectStudioDir } from "../studio/studioStore.js";
-import { trashRecord } from "../studio/trashStore.js";
+import { TrashError, trashRecord } from "../studio/trashStore.js";
 import {
   ROOM_SPEAKER_LABEL,
   ROOM_SPEAKERS,
@@ -352,6 +352,14 @@ export async function deleteRoom(studioHome: string, alias: string, id: string):
     try { await fs.unlink(file); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
   return true;
+}
+
+/** 휴지통의 대화방 기록을 원래 자리로 되돌린다. 같은 ID의 대화가 이미 있으면 덮어쓰지 않는다. */
+export async function restoreRoom(studioHome: string, alias: string, id: string, payload: { transcript?: string; meta?: string }): Promise<void> {
+  const files = [[roomPath(studioHome, alias, id), payload.transcript], [roomMetaPath(studioHome, alias, id), payload.meta]] as const;
+  if (files.some(([file]) => existsSync(file))) throw new TrashError("같은 ID의 대화가 이미 있어 되살리지 않았습니다.", 409);
+  await fs.mkdir(roomDir(studioHome, alias), { recursive: true });
+  for (const [file, text] of files) if (text !== undefined) await fs.writeFile(file, text, { encoding: "utf8", flag: "wx" });
 }
 
 export async function writeRoomMeta(studioHome: string, alias: string, id: string, meta: RoomMeta): Promise<void> {

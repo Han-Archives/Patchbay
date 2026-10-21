@@ -7,6 +7,7 @@ import { useTodoReorder } from "./useTodoReorder.js";
 
 type TodoRow = TodoItem & { running?: boolean };
 type HistoryDetail = { summary: string; conversation: string };
+type TrashRow = { id: string; kind: "todo" | "room"; recordId: string; title: string; deletedAt: string; expiresAt: string };
 
 function todoError(reason: unknown) {
   const message = reason instanceof Error ? reason.message : String(reason);
@@ -42,6 +43,9 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
   const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trash, setTrash] = useState<TrashRow[]>([]);
+  const [trashError, setTrashError] = useState<string | null>(null);
   const [clock, setClock] = useState(Date.now());
   const generation = useRef(0);
   const pending = useRef(false);
@@ -49,7 +53,7 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
 
   useEffect(() => {
     ++generation.current;
-    setTodos([]); setError(null); setMenu(null); setExpanded(null); setAddOpen(false); setHistoryOpen(false);
+    setTodos([]); setError(null); setMenu(null); setExpanded(null); setAddOpen(false); setHistoryOpen(false); setTrashOpen(false);
     return () => { ++generation.current; };
   }, [project]);
 
@@ -139,8 +143,26 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
     catch (reason) { if (generation.current === token) setHistoryError(todoError(reason)); }
   }
 
+  async function openTrash() {
+    setTrashOpen(true); setTrash([]); setTrashError(null);
+    const token = generation.current;
+    try { const result = await json<{ entries: TrashRow[] }>(`/api/trash?alias=${encodeURIComponent(project)}`); if (generation.current === token) setTrash(result.entries); }
+    catch (reason) { if (generation.current === token) setTrashError(todoError(reason)); }
+  }
+  async function restore(id: string) {
+    const token = generation.current;
+    setTrashError(null); setBusy(true);
+    try {
+      await json<{ restored: TrashRow }>("/api/trash/restore", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: project, id }) });
+      if (generation.current !== token) return;
+      setTrash(rows => rows.filter(row => row.id !== id));
+      const body = await load(); if (generation.current === token) setTodos(body.todos);
+    } catch (reason) { if (generation.current === token) setTrashError(todoError(reason)); }
+    finally { if (generation.current === token) setBusy(false); }
+  }
+
   return <aside className="main-todos todo-pane">
-    <header><h3>Tasks</h3><span className="todo-count" aria-label={`진행할 할일 총 ${active.length}건`}>{active.length}건</span><div className="todo-header-actions"><TodoPreparationControls key={project} project={project} todos={todos} canWrite={canWrite} /><button type="button" className="todo-add" aria-label="신규 할일 추가" disabled={busy || !canWrite} onClick={() => { setError(null); setAddOpen(true); }}>+</button><button type="button" className="todo-search" aria-label="할일 기록 찾기" title="할일 기록 찾기" onClick={() => void openHistory()}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m12.5 12.5 4 4" /></svg></button></div></header>
+    <header><h3>Tasks</h3><span className="todo-count" aria-label={`진행할 할일 총 ${active.length}건`}>{active.length}건</span><div className="todo-header-actions"><TodoPreparationControls key={project} project={project} todos={todos} canWrite={canWrite} /><button type="button" className="todo-add" aria-label="신규 할일 추가" disabled={busy || !canWrite} onClick={() => { setError(null); setAddOpen(true); }}>+</button><button type="button" className="todo-search" aria-label="할일 기록 찾기" title="할일 기록 찾기" onClick={() => void openHistory()}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m12.5 12.5 4 4" /></svg></button><button type="button" className="todo-search todo-trash" aria-label="휴지통" title="휴지통 — 지운 할일 · 대화 4일 보관" onClick={() => void openTrash()}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" /></svg></button></div></header>
     {error ? <p className="flow-error todo-error" role="alert">{error}</p> : null}
     <div ref={reorder.list} className={`todo-active-list${reorder.drag ? " is-reordering" : ""}`} tabIndex={active.length > 6 ? 0 : undefined} aria-label="진행할 할일" onScroll={() => setMenu(null)}>{active.map(todo => {
       const index = movable.findIndex(row => row.id === todo.id);
@@ -156,5 +178,6 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
     <div className="todo-completed-list" tabIndex={completed.length > 4 ? 0 : undefined} aria-label="완료된 할일">{completed.map(todo => <div className="todo-completed-row" key={todo.id}><button type="button" title={todo.title} onClick={() => { void openHistory().then(() => showHistory(todo.id)); }}><del>{todo.title}</del></button></div>)}</div>
     {addOpen ? <TodoDialog title="신규 할일" onClose={() => setAddOpen(false)}><form onSubmit={event => { event.preventDefault(); void act({ action: "add", title: title.trim(), detail: detail.trim() }); }}><label>제목<input autoFocus required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} /></label><label>요구사항<textarea maxLength={2000} rows={4} value={detail} onChange={event => setDetail(event.target.value)} /></label>{error ? <p className="flow-error" role="alert">{error}</p> : null}<div className="todo-form-actions"><button type="button" disabled={busy} onClick={() => setAddOpen(false)}>취소</button><button type="submit" className="main-primary" disabled={busy || !title.trim()}>{busy ? "저장 중…" : "추가"}</button></div></form></TodoDialog> : null}
     {historyOpen ? <TodoDialog title="할일 기록" onClose={() => setHistoryOpen(false)}><label className="todo-history-search">기록 검색<input value={query} onChange={event => setQuery(event.target.value)} placeholder="제목 · 요구사항 · ID" /></label>{historyError ? <p className="flow-error" role="alert">{historyError}</p> : null}<div className="todo-history-table"><table><thead><tr><th>제목</th><th>등록일</th><th>완료 일시</th><th>대화</th><th>폴더</th></tr></thead><tbody>{history.filter(row => `${row.title} ${row.detail ?? ""} ${row.id} ${row.roomId ?? ""}`.toLowerCase().includes(query.toLowerCase())).map(row => <tr key={row.id}><td><button type="button" onClick={() => void showHistory(row.id)}>{row.title}</button><small>{row.id}</small></td><td>{dateText(row.at)}</td><td>{dateText(row.completedAt, true)}</td><td>{row.roomId ?? "—"}</td><td>{row.folder}</td></tr>)}</tbody></table></div>{!history.length ? <p className="main-empty">저장된 기록이 없습니다.</p> : null}{historyDetail ? <div className="todo-history-detail"><pre>{historyDetail.summary}</pre>{historyDetail.conversation ? <details open><summary>보관된 대화</summary><pre>{historyDetail.conversation}</pre></details> : null}</div> : null}</TodoDialog> : null}
+    {trashOpen ? <TodoDialog title="휴지통" onClose={() => setTrashOpen(false)}><p className="todo-trash-note">지운 할일과 대화는 4일 동안 여기 남고, 그 뒤 비워집니다.</p>{trashError ? <p className="flow-error" role="alert">{trashError}</p> : null}<div className="todo-history-table"><table><thead><tr><th>종류</th><th>제목</th><th>지운 때</th><th>비워지는 때</th><th /></tr></thead><tbody>{trash.map(row => <tr key={row.id}><td>{row.kind === "todo" ? "할일" : "대화"}</td><td>{row.title}<small>{row.recordId}</small></td><td>{dateText(row.deletedAt, true)}</td><td>{dateText(row.expiresAt, true)}</td><td><button type="button" disabled={busy || !canWrite} onClick={() => void restore(row.id)}>되살리기</button></td></tr>)}</tbody></table></div>{!trash.length && !trashError ? <p className="main-empty">휴지통이 비어 있습니다.</p> : null}</TodoDialog> : null}
   </aside>;
 }
