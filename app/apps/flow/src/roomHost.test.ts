@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readRoom, readTrash, registerProject, roomMemberSchema } from "@patchbay/core";
+import { readRoom, readRoomMeta, readTrash, registerProject, roomMemberSchema, writeRoomMeta } from "@patchbay/core";
 import { describe, expect, it } from "vitest";
 import {
   attachRoomMemory,
@@ -461,5 +461,37 @@ describe("대화방", () => {
       modeIcon: "planning",
     });
     await app.close();
+  });
+});
+
+describe("토의 역할 — 주장 · 반론 · 빠진 점 · 정리", () => {
+  it("토의 모드의 토의는 방에 적힌 순서와 관계없이 Claude → Codex → Grok → 로컬 모델 순서로 말하고, 모두에게 역할 규약을 준다", async () => {
+    const { studioHome } = await setup();
+    const order: string[] = [];
+    const prompts: string[] = [];
+    const runner: RoomRunner = async req => { order.push(req.speaker); prompts.push(req.prompt); return { ok: true, text: `${req.speaker} 차례`, ms: 1 }; };
+    const cast = await saveRoomCast(studioHome, { alias: "demo", members: [
+      { speaker: "local", model: "qwen", role: "정리" }, { speaker: "grok", model: "", role: "빠진 점" },
+      { speaker: "codex", model: "", role: "반론" }, { speaker: "claude-code", model: "", role: "주장" },
+    ] });
+    if (!cast.ok) throw new Error(cast.error);
+    await writeRoomMeta(studioHome, "demo", cast.roomId, { ...(await readRoomMeta(studioHome, "demo", cast.roomId)), modeId: "discuss" });
+    const sent = await sendRoomTurn(studioHome, { alias: "demo", roomId: cast.roomId, text: "버튼 이름을 한글로 고정할까", round: "discuss" }, { runner, bin: "mock" });
+    if (!sent.ok) throw new Error(sent.error);
+    await sent.done;
+    expect(order).toEqual(["claude-code", "codex", "grok", "local"]);
+    for (const prompt of prompts) {
+      expect(prompt).toContain("1. Claude — 결정할 질문 1줄, 주장 4문장 이내");
+      expect(prompt).toContain("2. Codex — Claude의 근거 중 1개만 골라 반론");
+      expect(prompt).toContain("3. Grok — 둘이 말하지 않은 경우 1개");
+      expect(prompt).toContain("합의된 점:");
+    }
+    // 모드 없이 하는 일반 대화는 방에 적힌 순서 그대로다.
+    order.length = 0;
+    await writeRoomMeta(studioHome, "demo", cast.roomId, { ...(await readRoomMeta(studioHome, "demo", cast.roomId)), modeId: null });
+    const talk = await sendRoomTurn(studioHome, { alias: "demo", roomId: cast.roomId, text: "", round: "talk" }, { runner, bin: "mock" });
+    if (!talk.ok) throw new Error(talk.error);
+    await talk.done;
+    expect(order).toEqual(["local", "grok", "codex", "claude-code"]);
   });
 });

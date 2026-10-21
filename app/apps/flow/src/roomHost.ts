@@ -699,7 +699,12 @@ export async function sendRoomTurn(
         '형식: {"items":[{"id":"고유한 값","step":"design|build|test|review","task":"작업 이름","name":"업무명","desc":"무엇을 하는지 짧게","tag":"UI|Agent|데이터|서버|문서","source":"llm","at":"ISO 시각"}]}',
         "task는 흐름도 표의 작업 이름(설계는 PRD 주제, 구현·테스트는 LangGraph 노드 이름)과 같게 쓴다. name은 80자, desc는 200자 이하. 새 항목은 source를 llm으로 해서 맨 아래에 추가한다. 같은 작업 아래 같은 이름이 있으면 추가하지 않는다. 기존 항목의 id·todoId와 source가 user인 항목은 그대로 둔다.",
       ].join("\n");
-      for (const member of live) {
+      // 토의 모드의 토의는 Claude 주장 → Codex 반론 → Grok 빠진 점 → 로컬 모델 정리 순서다 (R6.8, 사용자 결정 2026-10-21).
+      // 같은 종류끼리는 방에 적힌 순서를 지킨다.
+      const speakers = kind === "discuss" && activeMode?.id === "discuss"
+        ? [...live].sort((a, b) => ROOM_SPEAKERS.indexOf(a.speaker) - ROOM_SPEAKERS.indexOf(b.speaker))
+        : live;
+      for (const member of speakers) {
         if (stop.signal.aborted) break;
         const bin = deps.bin !== undefined ? deps.bin : resolveRoomBin(member.speaker);
         const label = member.speaker === "local" && member.model.trim() ? member.model.trim() : ROOM_SPEAKER_LABEL[member.speaker];
