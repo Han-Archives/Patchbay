@@ -73,4 +73,19 @@ describe("tool inventory", () => {
       await close();
     }
   });
+
+  // Codex exec(approval never)는 읽기 전용이거나 비파괴 · 외부 접속 없음 표시가 없는 도구를 거절한다 (2026-10-19).
+  it("marks the consultation tools so Codex calls them without approval", async () => {
+    const studioHome = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-mcp-home-"));
+    const { client, close } = await connectInProcess(studioHome);
+    try {
+      const byName = new Map((await client.listTools()).tools.map((tool) => [tool.name, tool.annotations]));
+      for (const name of ["get_prd", "consult_history", "get_atlas", "get_project_bundle", "find_documents"]) {
+        expect(byName.get(name)?.readOnlyHint, name).toBe(true);
+      }
+      expect(byName.get("consult_update")).toMatchObject({ destructiveHint: false, openWorldHint: false });
+    } finally {
+      await close();
+    }
+  });
 });

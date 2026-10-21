@@ -62,6 +62,7 @@ export function registerGetProjectBundleTool(server: McpServer, studioHome: stri
         "Returns proposal material for a registered project: an Atlas + Graph summary, and (scope=full, " +
         "the default) excerpts of its discovered signal files (README/AGENTS.md/CLAUDE.md/.cursor/rules).",
       inputSchema: inputShape,
+      annotations: { readOnlyHint: true },
     },
     async ({ alias, level, scope }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);

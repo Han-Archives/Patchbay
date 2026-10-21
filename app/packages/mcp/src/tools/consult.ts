@@ -33,6 +33,7 @@ export function registerConsultTools(server: McpServer, studioHome: string): voi
         "source of every line (said / inferred / default / manual), the consultation progress per topic (which " +
         "sub-items are still empty) and the review state of each section. Deterministic; read-only.",
       inputSchema: { alias: z.string().optional().describe("Registered project alias. Omitted -> the sole registered project.") },
+      annotations: { readOnlyHint: true },
     },
     async ({ alias }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);
@@ -66,6 +67,8 @@ export function registerConsultTools(server: McpServer, studioHome: string): voi
           .describe("Source per path, e.g. {path: 'goal', source: 'said'}. Unmarked keys are recorded as inferred."),
         turn: z.number().int().nonnegative().optional().describe("The consultation message seq this came from."),
       },
+      // 초안만 쓰고 승인본은 건드리지 않는다. Codex exec(approval never)는 이 표시가 없으면 호출을 거절한다.
+      annotations: { destructiveHint: false, openWorldHint: false },
     },
     async ({ alias, patch, provenance, turn }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);
@@ -105,6 +108,7 @@ export function registerConsultTools(server: McpServer, studioHome: string): voi
         fromSeq: z.number().int().nonnegative().optional().describe("With id: start from this seq. Omitted -> the last messages."),
         limit: z.number().int().positive().max(40).optional().describe("Max messages or hits (default 20)."),
       },
+      annotations: { readOnlyHint: true },
     },
     async ({ alias, query, id, fromSeq, limit }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readRoom, registerProject, roomMemberSchema } from "@patchbay/core";
+import { readRoom, readTrash, registerProject, roomMemberSchema } from "@patchbay/core";
 import { describe, expect, it } from "vitest";
 import {
   attachRoomMemory,
@@ -33,6 +33,25 @@ async function setup() {
 }
 
 describe("대화방", () => {
+  it.each(["잘못된 JSON", JSON.stringify({ todos: [{ id: "bad", title: "오류", done: false, at: "x", source: "unknown" }] })])("할일 준비 정보가 깨져도 대화 목록과 최종 답변은 열린다: %s", async broken => {
+    const { studioHome } = await setup();
+    const { appendRoomMessage, todosPath } = await import("@patchbay/core");
+    const cast = await saveRoomCast(studioHome, { alias: "demo", members: [] });
+    if (!cast.ok) throw new Error(cast.error);
+    await appendRoomMessage(studioHome, "demo", cast.roomId, { role: "speaker", speaker: "codex", model: "", text: "보존된 최종 답변", ms: 1 });
+    fs.writeFileSync(todosPath(studioHome, "demo"), broken);
+    const app = createFlowApp({ studioHome });
+    try {
+      const list = await app.request("/api/rooms?alias=demo");
+      expect(list.status).toBe(200);
+      expect(await list.json()).toMatchObject({ rooms: [expect.objectContaining({ id: cast.roomId, running: false })], preparationWarning: expect.any(String) });
+      const detail = await app.request(`/api/room?alias=demo&id=${cast.roomId}`);
+      expect(detail.status).toBe(200);
+      expect(await detail.json()).toMatchObject({ running: false, messages: [expect.objectContaining({ text: "보존된 최종 답변" })], preparationWarning: expect.any(String) });
+      expect((await app.request("/api/todos?alias=demo")).status).toBe(500);
+      expect(fs.readFileSync(todosPath(studioHome, "demo"), "utf8")).toBe(broken);
+    } finally { await app.close(); }
+  });
   it("Agent 아이콘 이미지는 http(s) 주소나 data:image 만 받는다", () => {
     const base = { speaker: "claude-code" as const, model: "", role: "" };
     expect(roomMemberSchema.safeParse({ ...base, image: "https://example.com/a.png" }).success).toBe(true);
@@ -328,6 +347,9 @@ describe("대화방", () => {
     expect(seen[0]?.timeoutMs).toBe(900_000);
     expect(seen[0]?.prompt).toContain("직접 반영한다");
     expect(seen[0]?.prompt).toContain(path.join(studioHome, "projects", "demo", "todos.json"));
+    expect(seen[0]?.prompt).toContain("이 파일을 직접 쓰거나 덮어쓰지 않는다");
+    expect(seen[0]?.prompt).toContain("todo add --project 'demo'");
+    expect(seen[0]?.prompt).toContain("todo update --project 'demo'");
     expect(seen[0]?.prompt).toContain("방금 끝낸 항목은 done=true");
     expect(seen[0]?.writeDirs).toEqual([path.join(studioHome, "projects", "demo")]);
     expect(seen[1]?.prompt).not.toContain("직접 반영한다");
@@ -375,6 +397,7 @@ describe("대화방", () => {
     if (!cast.ok) throw new Error(cast.error);
     expect(await removeRoom(studioHome, { alias: "demo", roomId: cast.roomId })).toEqual({ ok: true });
     expect(await readRoom(studioHome, "demo", cast.roomId)).toBeNull();
+    expect((await readTrash(studioHome, "demo"))[0]).toMatchObject({ kind: "room", recordId: cast.roomId });
     const missing = await removeRoom(studioHome, { alias: "demo", roomId: cast.roomId });
     expect(missing.ok).toBe(false);
   });

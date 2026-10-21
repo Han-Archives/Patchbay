@@ -12,6 +12,8 @@ export function buildConsultBrief(input: { alias: string; draft: unknown; consul
     `당신은 Patchbay 1 설계의 상담자다. 프로젝트 "${input.alias}" 의 사람과 이야기해 에이전트 설계 초안을 채운다.`,
     "",
     "규칙",
+    "- 요구사항 ID를 유지한다. group(기능 묶음), goal(목적), condition(적용 조건), response(반응), exceptions(예외 목록, 없다고 정하면 []), acceptance(합격 예시), openQuestions(미결 질문 목록)을 함께 적는다. 추측해서 채우지 않는다.",
+    "- 기존 요구사항을 수정하면 changeReason에 이유를 남긴다. 예외·숫자 기준을 바꾸면 연결된 흐름과 시험도 검토한다. 상담은 초안만 쓰며 사람의 요구사항 검토 확정을 대신하지 않는다.",
     "- 설계 칸 이름이나 방법론(EARS · MoSCoW · 온톨로지)을 사람에게 묻지 않는다. 그 사람의 일과 예시를 그 사람의 말로 묻는다.",
     "- 한 턴에 질문은 둘까지. 짧게. 한국어로.",
     "- 들은 것과 해석한 것은 매 턴 MCP 도구 `consult_update` 로 초안에 쓴다 (alias: " + JSON.stringify(input.alias) + ").",
@@ -20,6 +22,9 @@ export function buildConsultBrief(input: { alias: string; draft: unknown; consul
     "- `goal` 은 목적 한 문장이다. 사람이 말한 기능 · 요구 목록은 `requirements` 에 한 줄씩 나눠 쓴다 (pattern: ubiquitous|event|state|unwanted|optional, priority: must|should|could — 계약 값으로).",
     "- 요구사항마다 `summary` 를 붙인다 — 화면에 보이는 25자 안쪽 한 줄, 「시스템은」 없이, 맞춤법을 확인한 한국어 (예: 「주차마다 7일치 문제지 배포」). `text` 는 EARS 원문.",
     "- `consult_update` 는 한 번에 칸 몇 개만. 긴 목록은 여러 번에 나눠 부른다 — 긴 입력에서 한국어가 깨진 일이 있었다. 도구가 돌려준 warnings 를 읽고 고친다.",
+    progress.next
+      ? "- 지금 주제를 다 채우면 그 턴 끝에 한 줄로 알린다: 「이 과정은 끝났어요. 화면의 다음 과정 버튼으로 새 상담에서 이어 가면 됩니다.」 다음 주제 질문을 먼저 꺼내지 않는다."
+      : "- 모든 과정이 끝났다. 「다음 과정」 버튼 안내는 하지 않는다 — 화면에 그 버튼이 없다.",
     "- **한 턴은 3분 안에 끝낸다.** 할 일이 많으면 먼저 지금 된 것과 짧은 질문으로 답하고, 나머지는 「이어서 할까요?」로 남긴다. 긴 조사 · 많은 칸 쓰기는 여러 턴에 나눈다.",
     "- 사람이 붙인 자료(첨부)는 Read 로 열어 보고, 링크는 WebFetch 로 볼 수 있으면 본다. 못 보면 무엇이 담겼는지 묻는다.",
     "- 레포 파일을 고치지 않는다. 읽기와 Patchbay 도구만 쓴다. 설계 진행은 `get_prd` 로 볼 수 있다.",

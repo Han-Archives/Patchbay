@@ -5,7 +5,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readIrFile, parseIr, readRoom, readRoomMeta, readOverlay, registerProject, setOverlayIr } from "@patchbay/core";
+import { readIrFile, parseIr, readRoom, readRoomMeta, readOverlay, registerProject, roomPath, setOverlayIr } from "@patchbay/core";
 import { createRoomExecutionHost, type CommandRunner } from "./roomExecution.js";
 import { saveRoomCast, codexRoomArgs, type RoomRunner } from "./roomHost.js";
 import { ROOM_WORKFLOW_SOURCE } from "./roomWorkflowTemplate.js";
@@ -157,7 +157,7 @@ describe("상담 Plan을 받아 수행하는 테스트 대화", () => {
     const f = await setup(); await startAndWait(f);
     const ex = await f.read();
     const texts = (await readRoom(f.home, "demo", f.roomId))!.messages.filter(m => !(m.role === "operation" && m.status === "completed") && m.role !== "speaker");
-    await fs.writeFile(path.join(f.home, "projects/demo/rooms", `${f.roomId}.jsonl`), texts.map(m => JSON.stringify(m)).join("\n") + "\n");
+    await fs.writeFile(roomPath(f.home, "demo", f.roomId), texts.map(m => JSON.stringify(m)).join("\n") + "\n");
     // Put the graph back at the same request as a crash before resume.
     await f.port.waitRun({ threadId: ex.threadId, assistantId: ex.assistantId, input: { execution: ex, phase: "prepare" } });
     const restarted = createRoomExecutionHost(f.home, { port: f.port, runner: async () => { throw new Error("must not call"); }, bin: "fake" });

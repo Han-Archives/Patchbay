@@ -27,6 +27,7 @@ export function registerGetAtlasTool(server: McpServer, studioHome: string): voi
         "Returns a registered project's Atlas summary. level 1 (default) = digest counts, " +
         "2 = full Atlas markdown, 3 = raw inferred.json.",
       inputSchema: inputShape,
+      annotations: { readOnlyHint: true },
     },
     async ({ alias, level }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);

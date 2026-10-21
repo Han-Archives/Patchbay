@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,17 +13,21 @@ import {
   readProvenance,
   registerProject,
   searchArchivedConsults,
+  writeAgents,
 } from "@patchbay/core";
 import { describe, expect, it } from "vitest";
 import {
   claudeArgs,
+  CODEX_CONSULT_TOOLS,
   closeConsultConversation,
   codexArgs,
+  consultAgentInput,
   defaultHostRunner,
   explainHostFailure,
   parseClaudeOutput,
   readStreamLine,
   parseCodexOutput,
+  resolveHostBin,
   sendConsultTurn,
   type HostRunner,
   type HostTurnRequest,
@@ -83,12 +88,44 @@ describe("호스트 인자", () => {
 
   it("Codex — 읽기 전용 샌드박스, MCP는 -c 로, 안내는 말머리에, 다음 턴은 exec resume <id>", () => {
     const first = codexArgs(baseReq({ host: "codex", sessionId: undefined }));
-    expect(first.slice(0, 2)).toEqual(["exec", "--json"]);
+    expect(first[0]).toBe("exec");
+    expect(first).toContain("--json");
+    expect(first).not.toContain("resume");
     expect(first).toEqual(expect.arrayContaining(["--sandbox", "read-only"]));
     expect(first).toContain('mcp_servers.patchbay.command="node"');
+    expect(first).toContain(`mcp_servers.patchbay.enabled_tools=${JSON.stringify(CODEX_CONSULT_TOOLS)}`);
+    expect(first).toContain('mcp_servers.patchbay.default_tools_approval_mode="approve"');
     expect(first.at(-1)).toContain("[상담 안내]");
     const next = codexArgs(baseReq({ host: "codex", sessionId: "th_9", resume: true }));
-    expect(next.slice(0, 3)).toEqual(["exec", "resume", "th_9"]);
+    expect(next.slice(next.indexOf("resume"), next.indexOf("resume") + 2)).toEqual(["resume", "th_9"]);
+  });
+
+  it("Codex — 재개할 때 --sandbox는 resume 앞의 exec 옵션으로 전달한다", () => {
+    const next = codexArgs(baseReq({ host: "codex", sessionId: "th_9", resume: true, model: "chosen-model", effort: "medium" }));
+    const resume = next.indexOf("resume");
+    expect(next.indexOf("--sandbox")).toBeLessThan(resume);
+    expect(next[next.indexOf("--sandbox") + 1]).toBe("read-only");
+    expect(next[resume + 1]).toBe("th_9");
+    expect(next.slice(resume + 1)).toEqual(expect.arrayContaining([
+      "--json", "--skip-git-repo-check", "-m", "chosen-model",
+      'model_reasoning_effort="medium"', 'mcp_servers.patchbay.command="node"',
+      'mcp_servers.patchbay.args=["/x/mcp.js"]', 'mcp_servers.patchbay.env.PATCHBAY_HOME="/h"',
+    ]));
+    expect(next.at(-1)).toBe("[상담 안내]\n안내\n\n[사람]\n메모를 나누고 싶어");
+  });
+
+  // 선택적 설치 CLI 검사: --help로 인자만 해석하며 모델이나 MCP 서버는 실행하지 않는다.
+  it.skipIf(process.env.PATCHBAY_TEST_CODEX !== "1").each([false, true])("Codex 설치 CLI — resume=%s 인자 수용", (resume) => {
+    const bin = resolveHostBin("codex");
+    expect(bin, "PATCHBAY_TEST_CODEX=1은 설치된 Codex CLI가 필요하다").not.toBeNull();
+    const args = codexArgs(baseReq({
+      host: "codex", model: "diagnostic-model", effort: "medium", resume,
+      sessionId: resume ? "00000000-0000-4000-8000-000000000000" : undefined,
+    }));
+    const run = spawnSync(bin!, [...args, "--help"], { encoding: "utf8", timeout: 10_000 });
+    expect(run.error).toBeUndefined();
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain(resume ? "Resume a previous session" : "Run Codex non-interactively");
   });
 });
 
@@ -236,6 +273,64 @@ describe("sendConsultTurn — 한 턴의 길 (§13.5)", () => {
     const { studioHome } = await setup();
     const result = await sendConsultTurn(studioHome, { alias: "demo", text: "안녕", host: "codex", model: "" }, { bin: null });
     expect(result).toMatchObject({ ok: false, status: 503 });
+  });
+});
+
+describe("등록 LLM으로 상담 (사용자 요청 2026-10-17)", () => {
+  const leader = { id: "a-1", speaker: "claude-code" as const, model: "claude-opus-5-5", role: "리더", name: "수리", effort: "high" as const };
+  const coder = { id: "a-2", speaker: "codex" as const, model: "gpt-5.6-sol", role: "구현", name: "래서", effort: "medium" as const };
+  const local = { id: "a-3", speaker: "local" as const, model: "qwen2.5-14b-instruct-mlx", role: "요약", name: "모찌" };
+
+  it("effort 는 Claude --effort · Codex model_reasoning_effort 로 넘긴다", () => {
+    const claude = claudeArgs(baseReq({ effort: "high" }));
+    expect(claude[claude.indexOf("--effort") + 1]).toBe("high");
+    expect(claudeArgs(baseReq())).not.toContain("--effort");
+    expect(codexArgs(baseReq({ host: "codex", effort: "medium" }))).toContain('model_reasoning_effort="medium"');
+  });
+
+  it("Claude Code · Codex Agent만 상담을 맡는다 — 역할 글은 쓰지 않는다", () => {
+    expect(consultAgentInput(leader)).toEqual({ ok: true, host: "claude-code", model: "claude-opus-5-5", effort: "high", agent: { id: "a-1", name: "수리" } });
+    expect(consultAgentInput(local)).toMatchObject({ ok: false });
+  });
+
+  it("라우트 — agentId 로 그 LLM을 부르고, 누가 답했는지 남기고, 바꾸면 전환을 적는다", async () => {
+    const { studioHome } = await setup();
+    await writeAgents(studioHome, "demo", [leader, coder, local]);
+    const { calls, runner } = recorder(() => ({ ok: true, text: "누가 쓰나요?", ms: 1 }));
+    const app = createFlowApp({ studioHome, consultRunner: runner, consultBin: "fake" });
+    const send = (body: Record<string, unknown>) =>
+      app.request("/api/consult/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: "demo", ...body }) });
+    const settle = async (consultId: string) => {
+      for (let i = 0; i < 50; i += 1) {
+        const body = (await (await app.request(`/api/consult?alias=demo&id=${consultId}`)).json()) as { running: boolean };
+        if (!body.running) return;
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    };
+    try {
+      const first = await send({ text: "메모를 나누고 싶어", agentId: "a-1" });
+      expect(first.status).toBe(202);
+      const { consultId } = (await first.json()) as { consultId: string };
+      await settle(consultId);
+      expect(calls[0]).toMatchObject({ host: "claude-code", model: "claude-opus-5-5", effort: "high" });
+
+      const second = await send({ consultId, text: "나 혼자", agentId: "a-2" });
+      expect(second.status).toBe(202);
+      await settle(consultId);
+      expect(calls[1]).toMatchObject({ host: "codex", model: "gpt-5.6-sol", effort: "medium", resume: false });
+
+      const read = (await readConsult(studioHome, "demo", consultId))!;
+      expect(read.messages[0]).toMatchObject({ role: "meta", agentId: "a-1", agentName: "수리", effort: "high" });
+      expect(read.messages.find((m) => m.role === "host")).toMatchObject({ agentName: "수리" });
+      expect(read.messages.find((m) => m.role === "system" && m.kind === "host-switch")).toMatchObject({ text: expect.stringContaining("수리") });
+      expect(read.messages.at(-1)).toMatchObject({ role: "host", agentName: "래서" });
+
+      expect((await send({ text: "안녕", agentId: "a-3" })).status).toBe(400);
+      expect((await send({ text: "안녕", agentId: "nope" })).status).toBe(404);
+      expect(calls).toHaveLength(2);
+    } finally {
+      await app.close();
+    }
   });
 });
 

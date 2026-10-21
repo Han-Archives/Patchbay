@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ArchivedConsult, ConsultMessage, ConsultProgress, ConsultStatus, ConsultSummary, PrdSection } from "@patchbay/core";
+import { ROOM_SPEAKER_LABEL, type ArchivedConsult, type ConsultMessage, type ConsultProgress, type ConsultStatus, type ConsultSummary, type PrdSection, type RoomMember } from "@patchbay/core";
+import { ChatText } from "./ChatText.js";
+import { chipFace, chipStyle } from "./RoomPanel.js";
+import { doneTopics, handoffText, stageHandoff, type StageHandoff } from "./consultStage.js";
 
 /**
  * 1 설계 — 상담 (명세 20261006a §12 · 사용자 결정 2026-10-06).
  *
  * 채팅 옆에 요약 패널. 패널은 **호스트가 쓴 글이 아니라** 초안에서 Core가 계산한 것이다(`/api/prd`) —
  * 그래서 패널에 보이는 것과 채택되는 것이 같다. 이 화면은 모델을 부르지 않는다: 보내면 콘솔이 사용자가
- * 고른 호스트 CLI(Claude Code · Codex)를 같은 세션으로 부르고, 답은 `consult` 이벤트로 온다.
+ * 머리 줄 오른쪽에서 고른 등록 LLM(Agents 목록 — 사용자 요청 2026-10-17)의 호스트 CLI(Claude Code · Codex)를
+ * 같은 세션으로 부르고, 답은 `consult` 이벤트로 온다.
  */
 
 interface HostInfo {
@@ -25,7 +29,7 @@ interface ConsultBody {
   /** 도는 턴의 지금 — 시작 시각 · 하는 일 · 마지막 신호. */
   run: { startedAt: string; activity: string; lastSignalAt: string; steps: number } | null;
   messages: ConsultMessage[];
-  meta: { host: string; model: string } | null;
+  meta: { host: string; model: string; agentId?: string } | null;
   /** 끝내서 보관된 대화 — 읽기만 한다. */
   archived?: boolean;
 }
@@ -52,7 +56,44 @@ const SOURCE_LABEL: Record<string, string> = { said: "말함", inferred: "해석
 export const TIDY_REQUIREMENTS =
   "요구사항을 정리해 줘 — 뜻은 바꾸지 말고 맞춤법을 고치고, 「시스템은」을 빼고, 줄마다 summary(화면에 보이는 25자 안쪽 한 줄)를 붙여. consult_update 는 5줄씩 나눠서.";
 
-const MODEL_HINTS: Record<string, string[]> = { "claude-code": ["sonnet", "opus", "haiku"], codex: [] };
+/** 상담자는 초안을 Patchbay MCP로 쓴다 — MCP를 붙여 부를 수 있는 Claude Code · Codex Agent만 상담을 맡는다. */
+/** 상담을 열 때 이미 끝난 주제 — 「다음 과정으로」를 이 상담에서 새로 끝난 주제로만 내려고 브라우저에 기억한다. */
+function stageKey(project: string, consultId: string): string {
+  return `patchbay.consultStage.${project}.${consultId}`;
+}
+function readStageStart(project: string, consultId: string): string[] | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(stageKey(project, consultId)) ?? "null") as unknown;
+    return Array.isArray(parsed) && parsed.every((value) => typeof value === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStageStart(project: string, consultId: string, topics: readonly string[]): void {
+  try {
+    localStorage.setItem(stageKey(project, consultId), JSON.stringify(topics));
+  } catch {
+    // 사생활 보호 설정·용량 제한으로 저장할 수 없어도 상담 자체는 계속한다.
+  }
+}
+
+function canConsult(agent: RoomMember): boolean {
+  return agent.speaker === "claude-code" || agent.speaker === "codex";
+}
+
+function agentName(agent: RoomMember): string {
+  return agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker];
+}
+
+/** 이 Agent를 지금 못 부르는 이유. 부를 수 있으면 null. */
+function agentProblem(agent: RoomMember, hosts: HostInfo[] | null): string | null {
+  if (!canConsult(agent)) return "상담 불가(초안을 쓰는 도구 없음)";
+  const info = hosts?.find((h) => h.host === agent.speaker);
+  if (!info?.bin) return `${ROOM_SPEAKER_LABEL[agent.speaker]} 실행 파일이 없다`;
+  if (info.loggedIn === false) return `${ROOM_SPEAKER_LABEL[agent.speaker]} 로그인 필요`;
+  return null;
+}
 
 export function ConsultPane({
   project,
@@ -69,8 +110,9 @@ export function ConsultPane({
   onPendingSent?: () => void;
 }) {
   const [hosts, setHosts] = useState<HostInfo[] | null>(null);
-  const [host, setHost] = useState<"claude-code" | "codex">("claude-code");
-  const [model, setModel] = useState("");
+  const [agents, setAgents] = useState<RoomMember[] | null>(null);
+  const [agentId, setAgentId] = useState("");
+  const [agentOpen, setAgentOpen] = useState(false);
   const [list, setList] = useState<ConsultSummary[]>([]);
   const [archivedList, setArchivedList] = useState<ArchivedConsult[]>([]);
   const [consultId, setConsultId] = useState("");
@@ -83,6 +125,7 @@ export function ConsultPane({
   const [plusOpen, setPlusOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [advancingStage, setAdvancingStage] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -90,18 +133,29 @@ export function ConsultPane({
   useEffect(() => {
     fetch("/api/consult/hosts")
       .then((res) => res.json() as Promise<{ hosts: HostInfo[] }>)
-      .then((body) => {
-        setHosts(body.hosts);
-        const usable = body.hosts.find((h) => h.bin && h.loggedIn !== false);
-        if (usable) setHost(usable.host);
-      })
+      .then((body) => setHosts(body.hosts))
       .catch(() => setHosts([]));
   }, []);
 
   useEffect(() => {
     setConsultId("");
     setConsult(null);
+    let cancelled = false;
+    fetch(`/api/agents?alias=${encodeURIComponent(project)}`)
+      .then((res) => res.json() as Promise<{ agents?: RoomMember[] }>)
+      .then((body) => !cancelled && setAgents(body.agents ?? []))
+      .catch(() => !cancelled && setAgents([]));
+    return () => {
+      cancelled = true;
+    };
   }, [project]);
+
+  // 고른 것이 없으면 지금 부를 수 있는 첫 등록 LLM을 고른다. 이어 가는 상담이면 아래에서 그 상담의 LLM으로 바뀐다.
+  useEffect(() => {
+    if (!agents || hosts === null) return;
+    if (agents.some((a) => a.id === agentId)) return;
+    setAgentId(agents.find((a) => a.id && !agentProblem(a, hosts))?.id ?? "");
+  }, [agents, hosts, agentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,10 +190,7 @@ export function ConsultPane({
         if ("error" in body) setError(body.error);
         else {
           setConsult(body);
-          if (body.meta && (body.meta.host === "claude-code" || body.meta.host === "codex")) {
-            setHost(body.meta.host);
-            setModel(body.meta.model);
-          }
+          if (body.meta?.agentId) setAgentId(body.meta.agentId);
         }
       })
       .catch(() => undefined);
@@ -167,10 +218,34 @@ export function ConsultPane({
   const busy = Boolean(consult?.running);
   /** 보관된 대화를 보고 있으면 새로 하는 말은 새 상담으로 간다. */
   const viewingArchived = Boolean(consult?.archived);
-  const hostInfo = hosts?.find((h) => h.host === host);
-  const blocked = !hostInfo?.bin || hostInfo.loggedIn === false;
+  const agent = agents?.find((a) => a.id === agentId) ?? null;
+  const hostInfo = agent ? hosts?.find((h) => h.host === agent.speaker) : undefined;
+  const problem = agent ? agentProblem(agent, hosts) : null;
+  const blocked = !agent || Boolean(problem);
+  const agentHint =
+    agents === null || hosts === null
+      ? ""
+      : !agents.some(canConsult)
+        ? "상담을 맡을 LLM이 없다 — 대화창 「LLM 호출」에서 Claude Code · Codex Agent를 등록한다."
+        : !agent
+          ? "오른쪽 위에서 상담할 LLM을 고른다."
+          : problem
+            ? `${agentName(agent)}: ${problem}${hostInfo?.hint ? ` · ${hostInfo.hint}` : ""}`
+            : (hostInfo?.hint ?? "");
 
-  async function send(text: string, prdSection?: number) {
+  // 처음 보는 상담이면 지금 끝난 주제를 시작점으로 둔다.
+  const [stageStart, setStageStart] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!consultId || !prd?.progress || viewingArchived) return setStageStart(null);
+    const saved = readStageStart(project, consultId);
+    if (saved) return setStageStart(saved);
+    const start = doneTopics(prd.progress);
+    writeStageStart(project, consultId, start);
+    setStageStart(start);
+  }, [project, consultId, prd, viewingArchived]);
+  const handoff = busy || viewingArchived ? null : stageHandoff(stageStart, prd?.progress);
+
+  async function send(text: string, prdSection?: number, fresh = false) {
     if (!text.trim() || busy || blocked) return;
     setError(null);
     const res = await fetch("/api/consult/send", {
@@ -178,10 +253,9 @@ export function ConsultPane({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         alias: project,
-        ...(consultId && !viewingArchived ? { consultId } : {}),
+        ...(consultId && !viewingArchived && !fresh ? { consultId } : {}),
         text,
-        host,
-        model,
+        agentId,
         ...(prdSection ? { prdSection } : {}),
         ...(attachments.length ? { attachments: attachments.map((a) => a.id) } : {}),
       }),
@@ -193,6 +267,8 @@ export function ConsultPane({
     }
     setDraft("");
     setAttachments([]);
+    // 새 상담이 생겼으면 보낸 때의 진행을 시작점으로 — 첫 답이 주제를 채워도 그 상담에서 끝낸 것으로 센다.
+    if (!readStageStart(project, body.consultId)) writeStageStart(project, body.consultId, doneTopics(prd?.progress));
     setConsultId(body.consultId);
     setTick((n) => n + 1);
   }
@@ -213,6 +289,35 @@ export function ConsultPane({
     }
     setConsultId("");
     setTick((n) => n + 1);
+  }
+
+  /** 다음 과정으로 — 지금 대화를 보관하고, 다음 주제를 새 상담에서 잇는다. 매 턴 싣는 대화가 짧아진다. */
+  async function goNextStage(h: StageHandoff) {
+    if (!consultId || busy || blocked || advancingStage) return;
+    setAdvancingStage(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/consult/close", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ alias: project, consultId }),
+      });
+      if (!res.ok) {
+        setError(((await res.json()) as { error?: string }).error ?? "넘기지 못했다");
+        return;
+      }
+      const prompt = handoffText(h);
+      // 보관 뒤 새 상담 시작이 실패해도 이미 끝낸 대화를 다시 끝내려 하지 않게 한다.
+      // 이어 갈 말은 입력창에 남겨 사람이 그대로 다시 보낼 수 있다.
+      setConsultId("");
+      setDraft(prompt);
+      setTick((n) => n + 1);
+      await send(prompt, undefined, true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "넘기지 못했다");
+    } finally {
+      setAdvancingStage(false);
+    }
   }
 
   async function addFiles(files: FileList | null) {
@@ -262,12 +367,15 @@ export function ConsultPane({
   const lastSystem = [...(consult?.messages ?? [])].reverse().find((m) => m.role === "system" && m.kind !== "host-switch");
 
   // PRD에서 「고쳐 주세요」로 넘어온 말은 한 번만 보낸다.
+  // 등록 LLM 목록이 늦게 와도 보내도록 목록 · 고른 LLM이 바뀔 때도 본다. 같은 말을 두 번 보내지 않게 보낸 것을 기억한다.
+  const sentPending = useRef<typeof pending>(null);
   useEffect(() => {
-    if (!pending || busy || blocked || hosts === null) return;
+    if (!pending || busy || blocked || hosts === null || sentPending.current === pending) return;
+    sentPending.current = pending;
     const text = pending.raw || pending.note === TIDY_REQUIREMENTS ? pending.note : `PRD ${pending.n}절을 고쳐 주세요: ${pending.note}`;
     void send(text, pending.n || undefined).then(() => onPendingSent?.());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, hosts]);
+  }, [pending, hosts, agents, agentId]);
 
   const summary = useMemo(() => summarize(prd), [prd]);
 
@@ -308,33 +416,23 @@ export function ConsultPane({
               대화 끝내기
             </button>
           ) : null}
-          <select aria-label="호스트" value={host} onChange={(e) => setHost(e.target.value as "claude-code" | "codex")} disabled={busy}>
-            {(hosts ?? []).map((h) => (
-              <option key={h.host} value={h.host} disabled={!h.bin}>
-                {h.label}
-                {!h.bin ? " (없음)" : h.loggedIn === false ? " (로그인 필요)" : !h.verified ? " (실측 전)" : ""}
-              </option>
-            ))}
-          </select>
-          <input
-            aria-label="모델"
-            className="consult-model"
-            list={`consult-models-${host}`}
-            value={model}
-            placeholder="기본 모델"
-            onChange={(e) => setModel(e.target.value)}
+          <AgentPicker
+            agents={agents ?? []}
+            hosts={hosts}
+            value={agentId}
+            open={agentOpen}
             disabled={busy}
+            onToggle={() => setAgentOpen((v) => !v)}
+            onPick={(id) => {
+              setAgentId(id);
+              setAgentOpen(false);
+            }}
           />
-          <datalist id={`consult-models-${host}`}>
-            {(MODEL_HINTS[host] ?? []).map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
         </div>
         {viewingArchived ? (
           <p className="consult-hint">끝낸 대화 — 보관된 기록이다. 여기서 말하면 새 상담으로 간다. 상담자는 지난 대화를 맥락에 싣지 않고, 필요할 때만 찾아본다.</p>
         ) : null}
-        {hostInfo?.hint ? <p className={`consult-hint${blocked ? " is-bad" : ""}`}>{hostInfo.hint}</p> : null}
+        {agentHint ? <p className={`consult-hint${blocked ? " is-bad" : ""}`}>{agentHint}</p> : null}
 
         <div className="consult-body">
           {!consult || consult.messages.length === 0 ? (
@@ -359,6 +457,16 @@ export function ConsultPane({
                   같은 말 다시 보내기
                 </button>
               ) : null}
+            </div>
+          ) : null}
+          {handoff ? (
+            <div className="consult-next">
+              <span>
+                「{handoff.done}」 과정을 마쳤다. 다음은 「{handoff.next}」 — 새 상담에서 이어 가면 지난 대화를 다시 싣지 않아 토큰이 덜 든다.
+              </span>
+              <button type="button" className="flow-btn primary" onClick={() => void goNextStage(handoff)} disabled={blocked || advancingStage}>
+                {advancingStage ? "넘어가는 중…" : `「${handoff.next}」로 넘어가기`}
+              </button>
             </div>
           ) : null}
           {consult && consult.status === "waiting" && !consult.running ? (
@@ -532,7 +640,7 @@ function ConsultLine({ message, project }: { message: ConsultMessage; project: s
       <div id={`consult-msg-${message.seq}`} className="chat-row is-me">
         <div className="chat-bubble is-me">
           <span className="chat-who">나{message.prdSection ? ` · PRD ${message.prdSection}절 고침` : ""}</span>
-          <span className="chat-text">{message.text}</span>
+          <span className="chat-text"><ChatText text={message.text} project={project} /></span>
           {message.attachments?.length ? (
             <span className="chat-attach">
               {message.attachments.map((a) =>
@@ -541,10 +649,14 @@ function ConsultLine({ message, project }: { message: ConsultMessage; project: s
                     <i>링크</i> {a.title}
                   </a>
                 ) : a.kind === "image" ? (
-                  <img key={a.id} className="chat-thumb" alt={a.title} src={`/api/refs/raw?alias=${encodeURIComponent(project)}&id=${encodeURIComponent(a.id)}`} />
+                  <a key={a.id} href={refRaw(project, a.id)} target="_blank" rel="noreferrer" title="새 탭에서 열기">
+                    <img className="chat-thumb" alt={a.title} src={refRaw(project, a.id)} />
+                  </a>
                 ) : (
                   <span key={a.id} className="consult-chip is-file">
-                    <i>파일</i> {a.title}
+                    <i>파일</i>
+                    <a href={refRaw(project, a.id)} target="_blank" rel="noreferrer" title="새 탭에서 열기">{a.title}</a>
+                    <a className="chat-file-get" href={`${refRaw(project, a.id)}&download=1`} download aria-label={`${a.title} 받기`}>받기</a>
                   </span>
                 ),
               )}
@@ -562,10 +674,10 @@ function ConsultLine({ message, project }: { message: ConsultMessage; project: s
         </span>
         <div className="chat-bubble is-host">
           <span className="chat-who">
-            상담자 <small>· {message.model} · {(message.ms / 1000).toFixed(0)}초</small>
+            상담자 <small>· {message.agentName ? `${message.agentName} · ` : ""}{message.model} · {(message.ms / 1000).toFixed(0)}초</small>
           </span>
           <span className="chat-text">
-            <BoldText text={message.text} />
+            <ChatText text={message.text} project={project} bold />
           </span>
         </div>
       </div>
@@ -611,13 +723,103 @@ function Thinking({ run, now }: { run: ConsultBody["run"]; now: number }) {
 }
 
 /** 호스트는 마크다운 굵은 글씨(`**…**`)를 자주 쓴다 — 별표를 그대로 보이지 않고 굵게만 그린다. 그 밖의 마크다운은 글 그대로. */
-function BoldText({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
+/** 상담 창 머리 줄 오른쪽 — 등록한 LLM(Agents 목록)을 골라 상담을 맡긴다 (사용자 요청 2026-10-17). */
+function AgentPicker({
+  agents,
+  hosts,
+  value,
+  open,
+  disabled,
+  onToggle,
+  onPick,
+}: {
+  agents: RoomMember[];
+  hosts: HostInfo[] | null;
+  value: string;
+  open: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  onPick: (id: string) => void;
+}) {
+  const current = agents.find((a) => a.id === value);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onToggle();
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onToggle();
+    };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open, onToggle]);
   return (
-    <span>
-      {parts.map((part, i) => (/^\*\*[^*\n]+\*\*$/.test(part) ? <b key={i}>{part.slice(2, -2)}</b> : <span key={i}>{part}</span>))}
-    </span>
+    <div className="consult-agent" ref={ref}>
+      <button
+        type="button"
+        className="consult-agent-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={onToggle}
+        disabled={disabled}
+        title="상담을 맡을 등록 LLM"
+      >
+        {current ? (
+          <>
+            <span className="room-chip" style={chipStyle(current)}>{chipFace(current)}</span>
+            <span className="consult-agent-name">{agentName(current)}</span>
+            {current.model ? <small>{current.model}</small> : null}
+          </>
+        ) : (
+          <span className="consult-agent-name">LLM 고르기</span>
+        )}
+        <span className="consult-agent-caret" aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <ul className="consult-agent-menu" role="listbox" aria-label="상담할 LLM">
+          {agents.length ? (
+            agents.map((a) => {
+              const problem = agentProblem(a, hosts);
+              return (
+                <li key={a.id ?? agentName(a)}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={a.id === value}
+                    className={a.id === value ? "is-on" : ""}
+                    disabled={!a.id || Boolean(problem)}
+                    onClick={() => a.id && onPick(a.id)}
+                  >
+                    <span className="room-chip" style={chipStyle(a)}>{chipFace(a)}</span>
+                    <span className="consult-agent-text">
+                      <b>{agentName(a)}</b>
+                      <small>
+                        {ROOM_SPEAKER_LABEL[a.speaker]}
+                        {a.model ? ` · ${a.model}` : ""}
+                        {a.effort ? ` · ${a.effort}` : ""}
+                        {problem ? ` — ${problem}` : ""}
+                      </small>
+                    </span>
+                  </button>
+                </li>
+              );
+            })
+          ) : (
+            <li className="consult-agent-empty">등록된 LLM이 없다 — 대화창 「LLM 호출」에서 등록한다.</li>
+          )}
+        </ul>
+      ) : null}
+    </div>
   );
+}
+
+function refRaw(project: string, id: string): string {
+  return `/api/refs/raw?alias=${encodeURIComponent(project)}&id=${encodeURIComponent(id)}`;
 }
 
 const FIELD_WORD: Record<string, string> = {

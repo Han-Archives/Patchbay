@@ -44,6 +44,7 @@ export function registerFindDocumentsTool(server: McpServer, studioHome: string)
         "evidence path from the anchor to it. Secret-grade rows (L4) are withheld and never appear in a " +
         "path. Use this instead of a hardcoded document-routing table. Works whether or not Neo4j is running.",
       inputSchema: inputShape,
+      annotations: { readOnlyHint: true },
     },
     async ({ alias, anchor, input, hops }) => {
       const { registered } = await resolveRegisteredProject(studioHome, alias);

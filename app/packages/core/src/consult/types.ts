@@ -24,6 +24,10 @@ export const consultMetaSchema = z.object({
   model: z.string(),
   /** 호스트 쪽 세션 id — Claude `--session-id` · Codex `thread_id`. 첫 턴이 끝나기 전엔 없을 수 있다. */
   hostSessionId: z.string().optional(),
+  /** 등록한 LLM(`agents.json`)으로 불렀으면 그 Agent — 화면이 누가 상담했는지 보이고 다음 턴에 같은 LLM을 고른다. */
+  agentId: z.string().optional(),
+  agentName: z.string().optional(),
+  effort: z.enum(["low", "medium", "high"]).optional(),
 });
 export const consultUserSchema = z.object({
   ...base,
@@ -40,6 +44,8 @@ export const consultHostSchema = z.object({
   role: z.literal("host"),
   text: z.string(),
   model: z.string(),
+  /** 답한 등록 LLM의 이름. 없으면 호스트를 직접 고른 상담이다. */
+  agentName: z.string().optional(),
   ms: z.number().int().nonnegative(),
   costUsd: z.number().nonnegative().optional(),
   usage: z.object({ input: z.number().int().nonnegative(), output: z.number().int().nonnegative() }).optional(),

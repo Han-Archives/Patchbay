@@ -24,6 +24,7 @@ import {
   CONSULT_HOSTS,
   type ConsultHost,
   type ConsultMessage,
+  type RoomMember,
 } from "@patchbay/core";
 import { resolveBin } from "./processHost.js";
 
@@ -58,10 +59,22 @@ export const CLAUDE_CONSULT_TOOLS = [
   "WebFetch",
 ];
 
+/** Codex에 노출할 Patchbay 도구. 상담 초안 쓰기와 그 판단에 필요한 읽기만 허용한다. */
+export const CODEX_CONSULT_TOOLS = [
+  "consult_update",
+  "get_prd",
+  "consult_history",
+  "get_atlas",
+  "get_project_bundle",
+  "find_documents",
+];
+
 export interface HostTurnRequest {
   host: ConsultHost;
   bin: string;
   model: string;
+  /** 등록 LLM의 생각 강도. Claude `--effort` · Codex `model_reasoning_effort`. */
+  effort?: ConsultEffort;
   /** Claude: 미리 정한 uuid · Codex: 첫 턴 뒤에 받은 thread_id. */
   sessionId?: string;
   /** 이 세션으로 앞 턴이 있었나 — 있으면 이어 가고, 없으면 새로 연다. */
@@ -90,6 +103,7 @@ export function claudeArgs(req: HostTurnRequest): string[] {
     req.prompt,
     ...(req.resume ? ["--resume", req.sessionId!] : ["--session-id", req.sessionId!]),
     ...(req.model ? ["--model", req.model] : []),
+    ...(req.effort ? ["--effort", req.effort] : []),
     // stream-json: 도구 호출 · 글이 흐르는 대로 보인다 — 화면이 「지금 무엇을 하는지」를 말하고,
     // 시간 초과 때 어디서 멈췄는지 설명할 수 있다. 마지막 줄(result)은 json 형식과 같은 칸을 든다.
     "--output-format",
@@ -115,11 +129,23 @@ export function codexArgs(req: HostTurnRequest): string[] {
     "-c",
     `mcp_servers.patchbay.args=${toml(req.mcpServer.args)}`,
     ...Object.entries(req.mcpServer.env).flatMap(([k, v]) => ["-c", `mcp_servers.patchbay.env.${k}=${toml(v)}`]),
+    "-c",
+    `mcp_servers.patchbay.enabled_tools=${toml(CODEX_CONSULT_TOOLS)}`,
+    // 상담은 비대화식(approval policy=never)이다. 허용 목록 안의 도구는 승인 요청 없이 실행한다.
+    "-c",
+    `mcp_servers.patchbay.default_tools_approval_mode=${toml("approve")}`,
   ];
-  const common = ["--json", "--sandbox", "read-only", "--skip-git-repo-check", ...(req.model ? ["-m", req.model] : []), ...mcp];
+  const common = [
+    "--json",
+    "--skip-git-repo-check",
+    ...(req.model ? ["-m", req.model] : []),
+    ...(req.effort ? ["-c", `model_reasoning_effort=${toml(req.effort)}`] : []),
+    ...mcp,
+  ];
   // Codex exec 에는 시스템 안내를 덧붙이는 플래그가 없다 — 안내를 말머리에 둔다. 매 턴 진행이 바뀌므로 매 턴 넣는다.
   const prompt = `[상담 안내]\n${req.brief}\n\n[사람]\n${req.prompt}`;
-  return req.resume ? ["exec", "resume", req.sessionId!, ...common, prompt] : ["exec", ...common, prompt];
+  // --sandbox는 exec 옵션이다. resume 하위 명령은 받지 않으므로 그 앞에 둔다.
+  return ["exec", "--sandbox", "read-only", ...(req.resume ? ["resume", req.sessionId!] : []), ...common, prompt];
 }
 
 export function parseClaudeOutput(stdout: string): {
@@ -423,12 +449,44 @@ export function consultRunInfo(alias: string, consultId: string): ConsultRunInfo
   return runInfo.get(`${alias}/${consultId}`) ?? null;
 }
 
+export type ConsultEffort = "low" | "medium" | "high";
+
+/** 상담을 맡은 등록 LLM. */
+export interface ConsultAgent {
+  id: string;
+  name: string;
+}
+
+/**
+ * 등록한 LLM(Agents 목록)을 상담자로 부른다 (사용자 요청 2026-10-17). 상담자는 초안을 Patchbay MCP
+ * `consult_update` 로 쓰므로, MCP를 붙여 부를 수 있는 Claude Code · Codex Agent만 된다. 역할 글은 쓰지 않는다 —
+ * 상담의 역할은 상담 안내(`buildConsultBrief`)가 정한다.
+ */
+export function consultAgentInput(
+  agent: RoomMember,
+): { ok: true; host: ConsultHost; model: string; effort?: ConsultEffort; agent: ConsultAgent } | { ok: false; error: string } {
+  const name = agent.name?.trim() || HOST_LABEL[agent.speaker as ConsultHost] || agent.model;
+  if (agent.speaker !== "claude-code" && agent.speaker !== "codex") {
+    return { ok: false, error: `「${name}」은 상담을 맡을 수 없다 — 상담은 초안을 쓰는 도구(Patchbay MCP)가 필요해 Claude Code · Codex Agent만 된다.` };
+  }
+  return {
+    ok: true,
+    host: agent.speaker,
+    model: agent.model.trim(),
+    ...(agent.effort ? { effort: agent.effort } : {}),
+    agent: { id: agent.id ?? name, name },
+  };
+}
+
 export interface SendConsultInput {
   alias: string;
   consultId?: string;
   text: string;
   host: ConsultHost;
   model: string;
+  effort?: ConsultEffort;
+  /** 등록 LLM으로 부를 때 — 기록과 화면에 이름을 남긴다. */
+  agent?: ConsultAgent;
   prdSection?: number;
   /** 「+」로 붙인 참고 자료 id (`refs/`). */
   attachments?: string[];
@@ -478,13 +536,25 @@ export async function sendConsultTurn(
   running.add(key);
   let meta = currentConsultMeta(messages);
   let switched = false;
-  if (!meta || meta.host !== input.host || meta.model !== input.model) {
+  const agentFields = {
+    ...(input.agent ? { agentId: input.agent.id, agentName: input.agent.name } : {}),
+    ...(input.effort ? { effort: input.effort } : {}),
+  };
+  const who = (m: { host: string; model: string; agentName?: string }) =>
+    `${m.agentName ? `${m.agentName} · ` : ""}${m.host} · ${m.model || "기본 모델"}`;
+  if (
+    !meta ||
+    meta.host !== input.host ||
+    meta.model !== input.model ||
+    (meta.agentId ?? "") !== (input.agent?.id ?? "") ||
+    (meta.effort ?? "") !== (input.effort ?? "")
+  ) {
     switched = Boolean(meta);
     if (meta) {
       await appendConsultMessage(studioHome, input.alias, consultId, {
         role: "system",
         kind: "host-switch",
-        text: `${meta.host} · ${meta.model || "기본 모델"} → ${input.host} · ${input.model || "기본 모델"}`,
+        text: `${who(meta)} → ${who({ ...input, ...(input.agent ? { agentName: input.agent.name } : {}) })}`,
       }, now());
     }
     const appended = await appendConsultMessage(studioHome, input.alias, consultId, {
@@ -492,6 +562,7 @@ export async function sendConsultTurn(
       host: input.host,
       model: input.model,
       ...(input.host === "claude-code" ? { hostSessionId: randomUUID() } : {}),
+      ...agentFields,
     }, now());
     meta = appended.role === "meta" ? appended : null;
   }
@@ -543,6 +614,7 @@ export async function sendConsultTurn(
         host: input.host,
         bin,
         model: input.model,
+        ...(input.effort ? { effort: input.effort } : {}),
         ...(meta!.hostSessionId ? { sessionId: meta!.hostSessionId } : {}),
         resume,
         brief,
@@ -560,12 +632,13 @@ export async function sendConsultTurn(
       if (result.ok) {
         // Codex는 세션 id를 첫 턴이 끝나야 안다 — 그때 meta를 한 줄 더 붙여 이어 갈 수 있게 한다.
         if (!meta!.hostSessionId && result.sessionId) {
-          await appendConsultMessage(studioHome, input.alias, consultId, { role: "meta", host: input.host, model: input.model, hostSessionId: result.sessionId }, now());
+          await appendConsultMessage(studioHome, input.alias, consultId, { role: "meta", host: input.host, model: input.model, hostSessionId: result.sessionId, ...agentFields }, now());
         }
         await appendConsultMessage(studioHome, input.alias, consultId, {
           role: "host",
           text: result.text,
           model: input.model || input.host,
+          ...(input.agent ? { agentName: input.agent.name } : {}),
           ms: result.ms,
           ...(result.costUsd !== undefined ? { costUsd: result.costUsd } : {}),
           ...(result.usage ? { usage: result.usage } : {}),
@@ -578,6 +651,7 @@ export async function sendConsultTurn(
             role: "host",
             text: `${result.partial}\n\n(멈추기 전까지 쓴 답)`,
             model: input.model || input.host,
+            ...(input.agent ? { agentName: input.agent.name } : {}),
             ms: result.ms,
           }, now());
         }

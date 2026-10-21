@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ROOM_SPEAKERS,
   ROOM_SPEAKER_LABEL,
@@ -23,7 +24,6 @@ import {
   readTodoPreparations,
   latestPreparations,
   cycleItemsPath,
-  readTodos,
   updateTodos,
   recordLlmQuotaExhausted,
   writeAgents,
@@ -74,7 +74,7 @@ export interface RoomTurnRequest {
    * 일반 토의는 기본 권한. 테스트 모델 호출은 명시적으로 읽기/편집 범위를 제한한다.
    * `apply` 는 대화방 보내기 — 요청이면 그 LLM이 직접 프로젝트를 고치고 검사 명령까지 돌린다. 커밋은 열고, 푸시 · 삭제는 막는다.
    */
-  execution?: "read" | "edit" | "apply";
+  execution?: "read" | "edit" | "apply" | "text";
   bin: string;
   prompt: string;
   cwd: string;
@@ -100,7 +100,7 @@ export function claudeRoomArgs(prompt: string, model: string, effort?: string): 
  * `apply` 는 네트워크를 열고(`npm install`), `gitDir` 를 주면 샌드박스가 잠그는 `.git` 도 열어 커밋하게 한다.
  * 작업 폴더 밖은 `writeDirs` 로 넘긴 프로젝트 상태 디렉터리만 추가로 연다.
  */
-export function codexRoomArgs(prompt: string, model: string, effort?: string, execution?: "read" | "edit" | "apply", gitDir?: string, writeDirs: string[] = []): string[] {
+export function codexRoomArgs(prompt: string, model: string, effort?: string, execution?: "read" | "edit" | "apply" | "text", gitDir?: string, writeDirs: string[] = []): string[] {
   const apply = execution === "apply" ? ["-c", "sandbox_workspace_write.network_access=true", ...[...(gitDir ? [gitDir] : []), ...writeDirs].flatMap((dir) => ["--add-dir", dir])] : [];
   return ["exec", "--json", "--skip-git-repo-check", "--sandbox", execution === "edit" || execution === "apply" ? "workspace-write" : "read-only", ...apply, ...(model ? ["-m", model] : []), ...(["low", "medium", "high"].includes(effort ?? "") ? ["-c", `model_reasoning_effort=${JSON.stringify(effort)}`] : []), prompt];
 }
@@ -256,6 +256,7 @@ export function canApply(member: RoomMember): boolean {
 
 export const defaultRoomRunner: RoomRunner = async (req) => {
   const started = Date.now();
+  if (req.execution === "text" && req.speaker !== "claude-code" && req.speaker !== "local") return { ok: false, kind: "error", text: "이 공급자의 도구 없는 실행은 아직 지원하지 않습니다.", ms: 0 };
   const args =
     req.speaker === "claude-code"
       ? claudeRoomArgs(req.prompt, req.model, req.effort)
@@ -264,7 +265,11 @@ export const defaultRoomRunner: RoomRunner = async (req) => {
         : req.speaker === "grok"
           ? grokRoomArgs(req.prompt, req.model)
           : lmsRoomArgs(req.prompt, req.role, req.model);
-  if (req.execution === "apply" && req.speaker === "claude-code") {
+  if (req.execution === "text" && req.speaker === "claude-code") {
+    args.push("--safe-mode", "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--no-session-persistence", "--system-prompt", req.role);
+  } else if (req.execution === "text" && req.speaker === "local") {
+    args.push("--dont-fetch-catalog");
+  } else if (req.execution === "apply" && req.speaker === "claude-code") {
     args.push("--tools", "Read,Grep,Glob,Edit,Write,Bash", "--allowedTools", APPLY_ALLOWED, "--disallowedTools", APPLY_DENIED, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
     for (const dir of req.writeDirs ?? []) args.push("--add-dir", dir);
   } else if (req.execution && req.speaker === "claude-code") {
@@ -633,18 +638,25 @@ export async function sendRoomTurn(
     return { ok: false, status: 400, error: "켜진 사람이 없다. LLM에서 사람을 켜면 대화 화면에 아이콘이 나온다." };
   }
   const preparedReview = latestPreparations(await readTodoPreparations(studioHome, input.alias)).find(v => v.roomId === roomId && v.status !== "done");
-  let activeMode = preparedReview
+  const activeMode = preparedReview
     ? { id: "preparation-review", name: "준비 결과 검토", execution: "read" as const, prompt: "준비 결과에 대한 질문에 답한다. 파일을 바꾸거나 업무를 실행하지 않는다. 실행은 준비 결과의 승인 버튼, 수정은 수정 요청을 사용하도록 안내한다." }
     : meta.modeId ? (await readModes(studioHome, input.alias)).find((m) => m.id === meta.modeId) ?? null : null;
-  // 위에 미완료 할일이 있으면 막지 않고 대화만 한다 — 파일을 바꾸는 실행은 맨 위 할일부터.
-  if (kind && (activeMode?.execution ?? "apply") !== "read" && live.some(canApply)) {
-    const queue = (await readTodos(studioHome, input.alias)).filter(todo => !todo.done && !todo.inactive);
-    const index = queue.findIndex(todo => todo.roomId === roomId);
-    if (index > 0) activeMode = { id: "todo-waiting", name: "위 할일 대기", execution: "read" as const, prompt: `${activeMode?.prompt.trim() ? `${activeMode.prompt.trim()}\n` : ""}위의 할일 「${queue[0]!.title}」이 먼저라 이번 차례는 파일을 바꾸지 않고 답만 한다. 실행이 필요한 요구면 위 할일을 끝내거나 할일 순서를 바꾸라고 안내한다.` };
-  }
   const modeExec = activeMode?.execution ?? "apply";
   const acts = Boolean(kind) && modeExec !== "read" && live.some(canApply);
   if (acts && applying.has(input.alias)) return { ok: false, status: 409, error: "이 프로젝트의 다른 대화방에서 LLM이 일하는 중이다. 끝난 뒤 보낸다." };
+  // 채팅으로 맡긴 일이 최우선이다 — 이 대화의 할일을 Tasks 맨 위로 올리고 바로 실행한다.
+  let linked = false;
+  if (acts) {
+    await updateTodos(studioHome, input.alias, rows => {
+      const queue = rows.filter(todo => !todo.done && !todo.inactive);
+      const mine = queue.find(todo => todo.roomId === roomId);
+      linked = Boolean(mine);
+      if (!mine || queue[0] === mine) return rows;
+      const rest = rows.filter(todo => todo !== mine);
+      rest.splice(rest.indexOf(queue[0]!), 0, mine);
+      return rest;
+    }, now());
+  }
 
   const modeTag = activeMode
     ? {
@@ -667,15 +679,23 @@ export async function sendRoomTurn(
   const done = (async () => {
     try {
       const todoFile = todosPath(studioHome, input.alias);
+      const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
+      const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../packages/cli/dist/index.js");
+      const todoCommand = `env PATCHBAY_HOME=${quote(studioHome)} ${quote(process.execPath)} ${quote(cli)} todo`;
+      const projectFlag = `--project ${quote(input.alias)}`;
       const todoInstruction = [
         "실제로 작업을 수행한 차례라면 끝나기 전에 이 프로젝트의 이후 할 일 목록도 현재 상태에 맞춘다.",
-        `목록 파일: ${todoFile}`,
-        '형식: {"todos":[{"id":"고유한 값","title":"할 일","detail":"필요할 때만 설명","done":false,"at":"ISO 시각"}]}',
-        "기존 배열 순서와 id·at·roomId·source·inactive를 보존한다. 완료하면 completedAt에 현재 ISO 시각을 남긴다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
-        "사용자가 명시한 새 작업 요구사항과 실행 중 발생한 미해결 오류·후속 작업을 구체적인 할일로 목록 맨 아래에 추가한다. 같은 미완료 항목이 이미 있으면 중복 추가하지 않는다. 6건은 화면 표시 기준일 뿐 저장 개수 제한이 아니다. 기존 할일을 새 목록으로 교체하거나 6건으로 잘라내지 않는다.",
-        "방금 끝낸 항목은 done=true로 보존하고, 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다.",
+        `읽기용 목록 파일: ${todoFile}. 이 파일을 직접 쓰거나 덮어쓰지 않는다. 다음 CLI가 검증·잠금·원자 저장을 수행한다.`,
+        `목록 확인: ${todoCommand} list ${projectFlag} --json`,
+        `후속 할일 추가: ${todoCommand} add ${projectFlag} --title '할일 제목' --detail '구체적인 요구사항' --room ${quote(roomId)} --json`,
+        `완료 처리: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --done --json`,
+        `내용 수정: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --title '제목' --detail '요구사항' --json`,
+        "기존 배열 순서와 id·at·roomId·source·inactive를 보존한다. 새 일반 할일에는 source를 넣지 않는다. source의 stage·attention은 자동 추천 전용이며 llm은 할일의 유효한 값이 아니다. completedAt은 CLI가 완료 시각으로 기록한다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
+        ...(linked ? [] : [`이 대화(roomId: ${roomId})에 연결된 할일이 없다. 사용자가 이번 차례에 작업을 맡겼으면 add 명령에 --first를 붙여 첫 미완료 할일 앞에 추가하고 --room ${quote(roomId)}으로 연결한다 — 채팅으로 맡긴 일이 최우선이다.`]),
+        "실행 중 발생한 미해결 오류·후속 작업은 구체적인 할일로 목록 맨 아래에 추가한다. 같은 미완료 항목이 이미 있으면 중복 추가하지 않는다. 6건은 화면 표시 기준일 뿐 저장 개수 제한이 아니다. 기존 할일을 새 목록으로 교체하거나 6건으로 잘라내지 않는다.",
+        "방금 끝낸 항목은 done=true로 보존하고(CLI update --done), 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다.",
         "작업을 계획했다면 대시보드 흐름도의 세부 항목에도 남긴다. 사용자가 보고 무엇을 할지 알 수 있게 한다.",
-        `세부 항목 파일: ${cycleItemsPath(studioHome, input.alias)}`,
+        `세부 항목 파일: ${cycleItemsPath(studioHome, input.alias)}. 직접 덮어쓰지 않고 @patchbay/core의 updateCycleItems로 변경한다.`,
         '형식: {"items":[{"id":"고유한 값","step":"design|build|test|review","task":"작업 이름","name":"업무명","desc":"무엇을 하는지 짧게","tag":"UI|Agent|데이터|서버|문서","source":"llm","at":"ISO 시각"}]}',
         "task는 흐름도 표의 작업 이름(설계는 PRD 주제, 구현·테스트는 LangGraph 노드 이름)과 같게 쓴다. name은 80자, desc는 200자 이하. 새 항목은 source를 llm으로 해서 맨 아래에 추가한다. 같은 작업 아래 같은 이름이 있으면 추가하지 않는다. 기존 항목의 id·todoId와 source가 user인 항목은 그대로 둔다.",
       ].join("\n");
