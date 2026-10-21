@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readRoom, readTodos, readTodoHistory, registerProject, updateTodos, writeAgents, writeTodos, updateTodoPreparations } from "@patchbay/core";
+import { listRooms, readRoom, readTodoPreparations, readTodos, readTodoHistory, registerProject, updateTodos, writeAgents, writeTodos, updateTodoPreparations } from "@patchbay/core";
 import { createTodoPreparationHost, preparationFingerprint } from "./todoPreparation.js";
 import { sendRoomTurn, type RoomRunner } from "./roomHost.js";
 import { createFlowApp } from "./server.js";
@@ -142,5 +142,42 @@ describe("할일 사전 준비", () => {
       expect((await app.request("/api/todo-preparations/start",{method:"POST",headers:{authorization:"Bearer write","content-type":"application/json"},body:JSON.stringify({alias:"demo",ids:[],memberId:"lead"})})).status).toBe(400);
       expect((await app.request("/api/todo-preparations?alias=unknown",{headers:{authorization:"Bearer read"}})).status).toBe(404);
     }finally{await app.close()}
+  });
+});
+
+describe("수정 요청을 프로젝트별 기억", () => {
+  it("프로젝트 A에 남긴 수정 요청은 A의 대화와 준비 기록에 저장되고 B에는 나타나지 않는다", async () => {
+    const { home } = await setup(1);
+    await registerProject(home, { alias: "other", kind: "local_repo", path: await fs.mkdtemp(path.join(os.tmpdir(), "pb-prep-other-")) });
+    const host = createTodoPreparationHost(home, { bin: "mock", runner: runner(), fingerprint: async () => "same" });
+    await host.start("demo", ["t0"], "lead"); await host.wait("demo");
+    const v = (await host.list("demo")).items[0]!;
+    await host.action("demo", v.id, "revise", "표를 하나 더 넣어줘"); await host.wait("demo");
+    expect((await readRoom(home, "demo", v.roomId))!.messages.some(m => m.role === "user" && m.text === "준비본 수정 요청\n표를 하나 더 넣어줘")).toBe(true);
+    expect((await readTodoPreparations(home, "demo")).some(p => p.revisionNote === "표를 하나 더 넣어줘")).toBe(true);
+    expect(await listRooms(home, "other")).toEqual([]);
+    expect(await readTodoPreparations(home, "other")).toEqual([]);
+  });
+});
+
+describe("어긋난 방향은 승인 · 검증에서 멈춤", () => {
+  it("1차로 준비본은 읽기로만 만들고 사람이 승인하기 전에는 실행하지 않으며, 2차로 완료 조건의 검증 근거가 없으면 완료하지 않고 멈춰 대화에 알린다", async () => {
+    const { home } = await setup(1);
+    const executions: string[] = [];
+    const mock = runner();
+    const host = createTodoPreparationHost(home, { bin: "mock", fingerprint: async () => "same", runner: async req => {
+      executions.push(req.execution ?? "none");
+      return req.execution === "edit" ? { ok: true, ms: 1, text: JSON.stringify({ outcome: "passed", summary: "했다", checks: [{ condition: "필수 내용 포함", passed: true, evidence: "" }] }) } : mock(req);
+    } });
+    await host.start("demo", ["t0"], "lead"); await host.wait("demo");
+    const v = (await host.list("demo")).items[0]!;
+    expect(v.status).toBe("ready");
+    expect(executions).not.toContain("edit");
+    expect((await readTodos(home, "demo"))[0]!.done).toBe(false);
+    await host.action("demo", v.id, "approve"); await host.wait("demo");
+    expect(executions).toContain("edit");
+    expect((await readTodos(home, "demo"))[0]!.done).toBe(false);
+    expect((await host.list("demo")).items[0]!.status).toBe("failed");
+    expect((await readRoom(home, "demo", v.roomId))!.messages.some(m => m.role === "operation" && m.status === "failed")).toBe(true);
   });
 });

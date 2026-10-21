@@ -156,3 +156,35 @@ describe("할일 변경", () => {
     expect((await readTodos(home, "demo"))[0]).toMatchObject({ done: true, completedAt: now.toISOString(), at: now.toISOString() });
   });
 });
+
+describe("후속 작업 백로그와 완료 기록", () => {
+  it("자동 추천을 모으고, 순서를 바꾸고, 할일마다 전용 대화를 열고, 완료는 기록으로 · 삭제는 휴지통으로 남긴다", async () => {
+    const home = await setup();
+    const auto = (id: string, title: string) => ({ id, title, source: "attention" as const, done: false, at: "" });
+    // 요구사항 · 실행에서 생긴 후속 작업이 동기화로 모인다 — 같은 제목은 한 번만.
+    await applyTodoAction(home, "demo", { action: "sync", suggestions: [auto("a1", "설계 칸 채우기"), auto("a2", "테스트 보완")] }, () => false, now);
+    const manual = await applyTodoAction(home, "demo", { action: "add", title: "설계 칸 채우기" }, () => false, now);
+    expect(manual.todos.filter(row => row.title === "설계 칸 채우기")).toHaveLength(2);
+    const synced = await applyTodoAction(home, "demo", { action: "sync", suggestions: [auto("a1", "설계 칸 채우기"), auto("a2", "테스트 보완"), auto("a3", "테스트 보완")] }, () => false, now);
+    expect(synced.todos.filter(row => row.title === "테스트 보완")).toHaveLength(1);
+    // 우선순위 재정렬
+    const moved = await applyTodoAction(home, "demo", { action: "move", id: "a2", beforeId: "a1" }, () => false, now);
+    expect(moved.todos.filter(row => !row.done).map(row => row.id).slice(0, 2)).toEqual(["a2", "a1"]);
+    // 태스크별 전용 대화 — 다시 열어도 같은 대화
+    const room = await applyTodoAction(home, "demo", { action: "room", id: "a2" }, () => false, now);
+    expect((await applyTodoAction(home, "demo", { action: "room", id: "a2" }, () => false, now)).roomId).toBe(room.roomId);
+    expect((await readRoomMeta(home, "demo", room.roomId!))?.title).toBe("테스트 보완");
+    // 실행 중인 할일은 삭제 · 완료 불가
+    await expect(applyTodoAction(home, "demo", { action: "delete", id: "a2" }, id => id === room.roomId, now)).rejects.toMatchObject({ status: 409 });
+    // 완료 → 제목 · 등록일 · 완료 일시 · 연결 대화가 기록으로
+    await applyTodoAction(home, "demo", { action: "complete", id: "a2" }, () => false, now);
+    expect((await readTodoHistory(home, "demo"))[0]).toMatchObject({ id: "a2", title: "테스트 보완", at: now.toISOString(), roomId: room.roomId });
+    expect((await readTodoHistory(home, "demo"))[0]!.completedAt).toBeTruthy();
+    await expect(applyTodoAction(home, "demo", { action: "delete", id: "a2" }, () => false, now)).rejects.toMatchObject({ status: 409 });
+    // 삭제한 자동 추천은 휴지통으로 가고 다시 동기화해도 나타나지 않는다
+    await applyTodoAction(home, "demo", { action: "delete", id: "a1" }, () => false, now);
+    expect((await readTrash(home, "demo", now)).map(row => row.recordId)).toContain("a1");
+    const again = await applyTodoAction(home, "demo", { action: "sync", suggestions: [auto("a1", "설계 칸 채우기")] }, () => false, now);
+    expect(again.todos.find(row => row.id === "a1")).toMatchObject({ inactive: true });
+  });
+});

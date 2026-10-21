@@ -541,3 +541,21 @@ describe("대화 끝내기 — 보관하고 필요할 때만 찾는다 (사용�
     expect(one).toMatchObject({ status: "closed", archived: true });
   });
 });
+
+describe("대화로 요구사항 도출 — 고른 상담 모델로 7개 영역 인터뷰", () => {
+  it("사람이 고른 모델로 부르고, 안내는 일곱 영역을 순서대로 사람의 말로 묻게 한다", async () => {
+    const { studioHome } = await setup();
+    const { calls, runner } = recorder(() => ({ ok: true, text: "무엇을 만들고 싶으세요?", ms: 1 }));
+    const turn = await sendConsultTurn(studioHome, { alias: "demo", text: "시작", host: "claude-code", model: "opus", effort: "high" }, { runner, bin: "claude" });
+    if (!turn.ok) throw new Error(turn.error);
+    await turn.done;
+    expect(calls[0]!.model).toBe("opus");
+    expect(claudeArgs(calls[0]!)).toEqual(expect.arrayContaining(["--model", "opus", "--effort", "high"]));
+    expect(codexArgs({ ...calls[0]!, host: "codex", model: "gpt-5" })).toEqual(expect.arrayContaining(["-m", "gpt-5"]));
+    expect(calls[0]!.brief).toContain("주제 순서: 목표와 요구사항 → 사용 시나리오 → 환경 설정 → 제약과 규칙 → UI와 인터페이스 → 보안성 검토 → 미비사항");
+    expect(calls[0]!.brief).toContain("지금 주제: 목표와 요구사항");
+    expect(calls[0]!.brief).toContain("그 사람의 말로 묻는다");
+    const read = (await readConsult(studioHome, "demo", turn.consultId))!;
+    expect(read.messages.map((m) => m.role)).toEqual(expect.arrayContaining(["user", "host"]));
+  });
+});

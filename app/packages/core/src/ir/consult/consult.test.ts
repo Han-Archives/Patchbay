@@ -259,3 +259,18 @@ describe("검사 맞추기 · 시작 끝 이름 (2026-10-07)", async () => {
     expect(checkFixRequest(problems)).toContain("evals[kind=model].scoring");
   });
 });
+
+describe("요구사항 요약 · 정규화", async () => {
+  const { normalizeConsultPatch, consultPatchWarnings } = await import("./draftWrite.js");
+  const { buildConsultBrief } = await import("../../consult/brief.js");
+
+  it("도출한 요구사항은 EARS 패턴 · 우선순위 계약 값으로 바꾸고, 요약이 없거나 길면 다시 쓰게 한다", () => {
+    const patch = normalizeConsultPatch({ requirements: [{ id: "R1", pattern: "~하면", text: "사용자가 메모를 넣으면, 시스템은 갈래를 정한다.", priority: "꼭", summary: "메모 갈래 정하기" }] });
+    expect(patch.requirements).toEqual([{ id: "R1", pattern: "event", text: "사용자가 메모를 넣으면, 시스템은 갈래를 정한다.", priority: "must", summary: "메모 갈래 정하기" }]);
+    expect(consultPatchWarnings(patch)).toEqual([]);
+    expect(consultPatchWarnings({ requirements: [{ id: "R2", text: "x" }] })[0]).toContain("summary");
+    const brief = buildConsultBrief({ alias: "t", draft: {}, consultId: "c" });
+    expect(brief).toContain("요구사항마다 `summary` 를 붙인다");
+    expect(brief).toContain("`text` 는 EARS 원문");
+  });
+});

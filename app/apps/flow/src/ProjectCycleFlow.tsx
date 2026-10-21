@@ -61,6 +61,26 @@ export function markSteps(items: { label: string; title?: string; done: boolean 
   });
 }
 
+/** 고리의 선 — 설계 → 구현 → 테스트 → Review, Review에서 승인 → 결과 · 반려 → 설계. */
+export function cycleEdges(current: CycleStep) {
+  const arrow = { type: MarkerType.ArrowClosed, width: 14, height: 14 };
+  const edge = (id: string, source: CycleStep, target: CycleStep, label: string, back: boolean, sourceHandle = "out") => ({
+    id, source, target, sourceHandle, targetHandle: "in", label, markerEnd: arrow,
+    // 지금 단계로 들어가는 앞길만 흐르게 — 어디로 가는 중인지 눈에 띈다. 반려 선은 흐르지 않는다: 반려 기록이 없어
+    // 첫 바퀴의 설계에서도 Review → 설계가 흐르는 것처럼 보였다 (사용자 요청 2026-10-18).
+    animated: target === current && !back,
+    className: `cycle-edge${back ? " is-back" : ""}${target === current && !back ? " is-live" : ""}`,
+    ...(back ? { type: "smoothstep" } : {}),
+  });
+  return [
+    edge("e1", "design", "build", "구체화", false),
+    edge("e2", "build", "test", "실행", false),
+    edge("e3", "test", "review", "결과 확인", false),
+    edge("e4", "review", "design", "반려", true, "reject"),
+    edge("e5", "review", "result", "승인", false, "approve"),
+  ];
+}
+
 export function ProjectCycleFlow({ stages, steps, selected, onSelect }: {
   stages: StageState[];
   steps: Record<CycleStep, SubStep[]>;
@@ -97,22 +117,7 @@ export function ProjectCycleFlow({ stages, steps, selected, onSelect }: {
       className: `cycle-node is-${state}${place.id === selected ? " is-selected" : ""}`,
     };
   });
-  const arrow = { type: MarkerType.ArrowClosed, width: 14, height: 14 };
-  const edge = (id: string, source: CycleStep, target: CycleStep, label: string, back: boolean, sourceHandle = "out") => ({
-    id, source, target, sourceHandle, targetHandle: "in", label, markerEnd: arrow,
-    // 지금 단계로 들어가는 앞길만 흐르게 — 어디로 가는 중인지 눈에 띈다. 반려 선은 흐르지 않는다: 반려 기록이 없어
-    // 첫 바퀴의 설계에서도 Review → 설계가 흐르는 것처럼 보였다 (사용자 요청 2026-10-18).
-    animated: target === current && !back,
-    className: `cycle-edge${back ? " is-back" : ""}${target === current && !back ? " is-live" : ""}`,
-    ...(back ? { type: "smoothstep" } : {}),
-  });
-  const edges = [
-    edge("e1", "design", "build", "구체화", false),
-    edge("e2", "build", "test", "실행", false),
-    edge("e3", "test", "review", "결과 확인", false),
-    edge("e4", "review", "design", "반려", true, "reject"),
-    edge("e5", "review", "result", "승인", false, "approve"),
-  ];
+  const edges = cycleEdges(current);
   return (
     <div className="cycle-canvas" aria-label="프로젝트 Workflow">
       <ReactFlowProvider>

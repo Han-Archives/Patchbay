@@ -134,3 +134,26 @@ describe("상담 도구 (in-process MCP)", () => {
     }
   });
 });
+
+describe("모바일 Claude 세션의 질의응답으로 설계 초안 채우기", () => {
+  it("폰 Remote Control 세션에 규칙을 주고, 답한 요구사항을 consult_update 로 초안에 쓴다", async () => {
+    const studioHome = await setup();
+    const { client, close } = await connectInProcess(studioHome);
+    try {
+      expect(client.getInstructions()).toContain("폰의 Claude 앱 Remote Control");
+      expect((await client.listTools()).tools.map((t) => t.name)).toContain("consult_update");
+      const result = await callTool(client, "consult_update", {
+        alias: "demo",
+        patch: { requirements: [{ id: "R1", pattern: "event", text: "사용자가 메모를 넣으면, 시스템은 갈래를 정한다.", priority: "must", summary: "메모 갈래 정하기" }] },
+        provenance: [{ path: "requirements", source: "said" }],
+        turn: 2,
+      });
+      expect(result.isError).toBeFalsy();
+      const draft = await readProposedIr(studioHome, "demo");
+      expect(draft.ok && (draft.raw as { requirements: { id: string }[] }).requirements[0]!.id).toBe("R1");
+      expect((await readProvenance(studioHome, "demo")).entries).toContainEqual({ path: "requirements", source: "said", turn: 2 });
+    } finally {
+      await close();
+    }
+  });
+});
