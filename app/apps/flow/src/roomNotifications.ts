@@ -7,9 +7,13 @@ export function roomNotificationChannels(options: RoomNotificationOptions) {
 }
 export async function notifyRoom(options: RoomNotificationOptions, alias: string, roomId: string, execution: RoomExecution) {
   if (!options.discordWebhook && !(options.telegramToken && options.telegramChatId)) return [];
-  const request = options.fetch ?? fetch;
   const link = options.publicUrl ? `${options.publicUrl.replace(/\/$/, "")}#room/${encodeURIComponent(alias)}/${encodeURIComponent(roomId)}` : "";
-  const text = `Patchbay · ${alias}\n채택본 v${execution.plan.version} · 실행 상태 ${execution.phase}${link ? `\n${link}` : ""}`;
+  return notifyText(options, `Patchbay · ${alias}\n채택본 v${execution.plan.version} · 실행 상태 ${execution.phase}${link ? `\n${link}` : ""}`);
+}
+/** 설정된 채널(Discord · Telegram)로 글 한 줄을 보낸다. 채널이 없으면 아무것도 보내지 않는다. */
+export async function notifyText(options: RoomNotificationOptions, text: string) {
+  if (!options.discordWebhook && !(options.telegramToken && options.telegramChatId)) return [];
+  const request = options.fetch ?? fetch;
   const results: { channel: string; sent: boolean; error?: string }[] = [];
   const send = async (channel: string, url: string, body: unknown) => {
     try {

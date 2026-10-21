@@ -69,6 +69,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   const [tick, setTick] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<number>>(() => new Set());
   const [repoOpen, setRepoOpen] = useState(false);
+  const [timing, setTiming] = useState<{ measured: number; over: { roomId: string; title: string; startAt: string; endAt: string | null; ms: number }[] } | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setExpandedSections(new Set()); setFlowPick(null); }, [project]);
@@ -81,6 +82,13 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
       if (!res.ok || body.error) throw new Error(body.error ?? "현황을 불러오지 못했습니다.");
       if (!cancelled) setView(body);
     }).catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason)); });
+    // 맡긴 일 1시간 (R7.7) — 넘긴 구간이 있으면 Workflow 머리에 보인다.
+    setTiming(null);
+    fetch(`/api/task-timing?alias=${encodeURIComponent(project)}`).then(async res => {
+      const body = await res.json() as { measured: number; over: { roomId: string; title: string; startAt: string; endAt: string | null; ms: number }[]; error?: string };
+      if (!res.ok || body.error) throw new Error(body.error);
+      if (!cancelled) setTiming(body);
+    }).catch(() => { if (!cancelled) setTiming(null); });
     fetch(`/api/build?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as BuildViewResponse & { error?: string };
       if (!res.ok) throw new Error(body.error ?? "구조를 불러오지 못했습니다.");
@@ -214,7 +222,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
     {error ? <p className="flow-error">{error}</p> : null}
 
     {mainView === "dashboard" ? <div key={`dashboard:${project}`} className="main-dashboard-grid">
-        <section className={`main-card main-flow is-${cycleState(flowSelected, cycle)}`}><header className="main-flow-head"><h3>Workflow</h3></header>
+        <section className={`main-card main-flow is-${cycleState(flowSelected, cycle)}`}><header className="main-flow-head"><h3>Workflow</h3>{timing?.measured ? <span className={`task-timing${timing.over.length ? " is-over" : ""}`} title={timing.over.length ? timing.over.map(turn => `${turn.title} · ${Math.round(turn.ms / 60_000)}분${turn.endAt ? "" : " · 아직 결과 없음"}`).join("\n") : "최근 7일, 세션에 맡긴 일이 모두 1시간 안에 결과를 냈다"}>{timing.over.length ? `1시간 넘김 ${timing.over.length}건` : `맡긴 일 ${timing.measured}건 · 1시간 안`}</span> : null}</header>
           <ProjectCycleFlow stages={workspace?.stages ?? []} steps={cycleSteps} selected={flowSelected} onSelect={setFlowPick} />
           <CycleTaskTable key={`${project}:${flowSelected}`} project={project} step={flowSelected} steps={cycleSteps[flowSelected]} action={flowAction[flowSelected]} onAction={() => openCycle(flowSelected)} />
         </section>
