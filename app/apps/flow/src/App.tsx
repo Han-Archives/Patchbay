@@ -1,7 +1,7 @@
 import { SidebarIcon } from "./SidebarIcon.js";
 import { LOG_OPEN_EVENT, ProjectLogPane } from "./ProjectLogPane.js";
 import { ProjectTools } from "./ProjectTools.js";
-import { ArchitecturePane } from "./ArchitecturePane.js";
+import { ArchitectureViews } from "./ArchitectureViews.js";
 import { ExistingTestStage } from "./ExistingBuildPane.js";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { readLastWork, readRoomLink, rememberWork, workLocation, type ResumeAction, type WorkLocation, type WorkspacePlace } from "./workspaceNavigation.js";
@@ -502,7 +502,7 @@ function PlaceBody({
   }
   if (place === "log") return <ProjectLogPane project={project} revision={revision} workspace={projects.find(p => p.alias === project)} initialDate={logDate} />;
   if (place === "architecture") {
-    return <ArchitecturePane project={project} revision={revision} onOpenStage={onOpenStage} onLangGraphStatus={onLangGraphStatus} />;
+    return <ArchitectureViews project={project} revision={revision} onOpenStage={onOpenStage} onLangGraphStatus={onLangGraphStatus} />;
   }
   if (place === "files") {
     return <FilesPane project={project} revision={revision} readOnly={readOnly} />;
