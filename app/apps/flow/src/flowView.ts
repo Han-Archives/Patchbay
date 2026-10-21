@@ -25,7 +25,7 @@ export interface LoadFlowViewQuery {
 
 export type DelegateRunResult =
   | { ok: true; body: FlowViewResponse }
-  | { ok: false; status: 400 | 503; error: string };
+  | { ok: false; status: 400 | 409 | 503; error: string };
 
 /**
  * Assemble the 흐름 탭 payload. Probe failure is `disconnected` (shell stays up).
@@ -106,7 +106,7 @@ export async function loadFlowView(
 
 export async function delegateFlowRun(
   port: LangGraphPort | undefined,
-  payload: { assistantId?: unknown; threadId?: unknown; input?: unknown; checkpointId?: unknown },
+  payload: { assistantId?: unknown; threadId?: unknown; input?: unknown; checkpointId?: unknown; node?: unknown },
   fallbackUrl: string = DEFAULT_LANGGRAPH_URL,
 ): Promise<DelegateRunResult> {
   if (!port || !(await safeProbe(port))) {
@@ -117,6 +117,20 @@ export async function delegateFlowRun(
   }
   const assistantId = payload.assistantId.trim();
   let threadId = typeof payload.threadId === "string" && payload.threadId.trim() ? payload.threadId.trim() : "";
+
+  // 「이 노드만 실행」 — 그 노드를 다음으로 기다리던 가장 최근 체크포인트에서 갈라, 그 노드 뒤에서 멈춘다.
+  // LangGraph에 노드 하나만 부르는 API는 없다. 앞 노드들이 만든 state가 그 노드의 입력이라서다.
+  const node = typeof payload.node === "string" && payload.node.trim() ? payload.node.trim() : "";
+  if (node) {
+    if (!threadId) return { ok: false, status: 400, error: "threadId is required to run one node." };
+    const history = parseHistory((await port.listHistory(threadId)) ?? []);
+    const from = history.filter((entry) => entry.next.includes(node)).at(-1);
+    if (!from) {
+      return { ok: false, status: 409, error: `이 스레드는 아직 ${node} 노드에 닿은 적이 없습니다. 그래프를 먼저 실행하세요.` };
+    }
+    const waited = await port.waitRun({ threadId, assistantId, input: null, checkpointId: from.id, interruptAfter: [node] });
+    return finishRun(port, assistantId, threadId, waited, fallbackUrl);
+  }
 
   if (!threadId) {
     const assistants = (await port.listAssistants()) ?? [];
@@ -152,6 +166,16 @@ export async function delegateFlowRun(
     input: checkpointId ? null : input,
     checkpointId,
   });
+  return finishRun(port, assistantId, threadId, waited, fallbackUrl);
+}
+
+async function finishRun(
+  port: LangGraphPort,
+  assistantId: string,
+  threadId: string,
+  waited: WaitRunResult,
+  fallbackUrl: string,
+): Promise<DelegateRunResult> {
   const body = await loadFlowView(port, { assistantId, threadId }, fallbackUrl);
   if (body.status !== "connected") return { ok: true, body };
 

@@ -70,6 +70,11 @@ describe("parsers", () => {
       id: "t1",
       updatedAt: "2026-09-18T00:00:00Z",
     });
+    expect(parseThread({ thread_id: "t2", updated_at: null, metadata: { graph_id: "triage" } })).toEqual({
+      id: "t2",
+      updatedAt: null,
+      graphId: "triage",
+    });
     expect(listFromSearchBody({ assistants: [{ assistant_id: "a" }] }, "assistants")).toHaveLength(1);
   });
 

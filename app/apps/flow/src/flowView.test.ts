@@ -112,6 +112,34 @@ describe("delegateFlowRun", () => {
     }
   });
 
+  it("runs one node from the newest checkpoint that was waiting on it", async () => {
+    let waited: unknown;
+    const view = await delegateFlowRun(
+      fakePort({
+        // LangGraph hands history newest first.
+        listHistory: async () => [
+          { checkpoint: { checkpoint_id: "c3" }, next: [] },
+          { checkpoint: { checkpoint_id: "c2" }, next: ["draft"] },
+          { checkpoint: { checkpoint_id: "c1" }, next: ["draft"] },
+        ],
+        waitRun: async (input) => {
+          waited = input;
+          return { status: "ok", body: {} };
+        },
+      }),
+      { assistantId: "agent", threadId: "t1", node: "draft" },
+    );
+    expect(view.ok).toBe(true);
+    expect(waited).toEqual({ threadId: "t1", assistantId: "agent", input: null, checkpointId: "c2", interruptAfter: ["draft"] });
+  });
+
+  it("refuses to run one node the thread never reached", async () => {
+    const view = await delegateFlowRun(fakePort(), { assistantId: "agent", threadId: "t1", node: "draft" });
+    expect(view).toMatchObject({ ok: false, status: 409 });
+    const noThread = await delegateFlowRun(fakePort(), { assistantId: "agent", node: "draft" });
+    expect(noThread).toMatchObject({ ok: false, status: 400 });
+  });
+
   it("keeps the shell payload connected when a run times out", async () => {
     const view = await delegateFlowRun(
       fakePort({

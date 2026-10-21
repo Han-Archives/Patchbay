@@ -37,6 +37,8 @@ export interface LangGraphPort {
      * Sent instead of `input`; the value becomes `interrupt()`'s return value.
      */
     command?: { resume: unknown };
+    /** Stop right after these nodes -- with `checkpointId`, the whole of 「이 노드만 실행」. */
+    interruptAfter?: string[];
   }): Promise<WaitRunResult>;
 }
 
@@ -132,7 +134,7 @@ export function createLangGraphHttpPort(options: LangGraphHttpOptions = {}): Lan
       const threadId = typeof rec.thread_id === "string" ? rec.thread_id : null;
       return threadId;
     },
-    async waitRun({ threadId, assistantId, input, checkpointId, command }) {
+    async waitRun({ threadId, assistantId, input, checkpointId, command, interruptAfter }) {
       const path = `/threads/${encodeURIComponent(threadId)}/runs/wait`;
       // `checkpoint` makes LangGraph fork the thread from that snapshot
       // instead of appending to its tip -- the whole of "여기서 다시".
@@ -140,6 +142,7 @@ export function createLangGraphHttpPort(options: LangGraphHttpOptions = {}): Lan
         ? { assistant_id: assistantId, command }
         : { assistant_id: assistantId, input };
       if (checkpointId) payload.checkpoint = { checkpoint_id: checkpointId };
+      if (interruptAfter?.length) payload.interrupt_after = interruptAfter;
       const waited = await request("POST", path, payload, runTimeoutMs);
       if (waited.status === 0) return { status: "timeout" };
       if (waited.status === 404) {

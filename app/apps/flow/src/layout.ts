@@ -17,8 +17,8 @@ export interface Position {
   y: number;
 }
 
-const COLUMN_WIDTH = 260;
-const ROW_HEIGHT = 90;
+export const COLUMN_WIDTH = 260;
+export const ROW_HEIGHT = 90;
 
 /**
  * Deterministic layered layout, pure/no-JSX so it's testable on its own

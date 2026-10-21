@@ -114,6 +114,27 @@ describe("createLangGraphHttpPort", () => {
     });
   });
 
+  it("forks from a checkpoint and stops after the given node", async () => {
+    const port = createLangGraphHttpPort({
+      url: BASE,
+      fetch: mockFetch((url, _method, body) => {
+        if (url.pathname === "/threads/t1/runs/wait") {
+          expect(body).toEqual({
+            assistant_id: "agent",
+            input: null,
+            checkpoint: { checkpoint_id: "ckpt-2" },
+            interrupt_after: ["draft"],
+          });
+          return jsonResponse({});
+        }
+        return jsonResponse({ detail: url.pathname }, 404);
+      }),
+    });
+    expect(
+      await port.waitRun({ threadId: "t1", assistantId: "agent", input: null, checkpointId: "ckpt-2", interruptAfter: ["draft"] }),
+    ).toEqual({ status: "ok", body: {} });
+  });
+
   it("maps a wait __error__ body to status error", async () => {
     const port = createLangGraphHttpPort({
       url: BASE,

@@ -37,6 +37,8 @@ export interface FlowAssistantView {
 export interface FlowThreadView {
   id: string;
   updatedAt: string | null;
+  /** `metadata.graph_id` — 스레드 목록은 그래프를 가리지 않아서, 어느 그래프의 스레드인지는 이것으로만 안다. */
+  graphId?: string;
 }
 
 export interface FlowCheckpointView {
@@ -149,7 +151,9 @@ export function parseThread(raw: unknown): FlowThreadView | null {
       : typeof rec.created_at === "string"
         ? rec.created_at
         : null;
-  return { id, updatedAt };
+  const metadata = rec.metadata && typeof rec.metadata === "object" ? (rec.metadata as Record<string, unknown>) : {};
+  const graphId = typeof metadata.graph_id === "string" && metadata.graph_id ? metadata.graph_id : undefined;
+  return graphId ? { id, updatedAt, graphId } : { id, updatedAt };
 }
 
 /**

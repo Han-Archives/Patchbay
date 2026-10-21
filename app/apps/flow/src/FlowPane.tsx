@@ -463,7 +463,7 @@ function Connected({
  * LangGraph to fork the thread there and replay forward -- no input is sent,
  * the values already stored at that snapshot are the input.
  */
-function CheckpointRail({
+export function CheckpointRail({
   entries,
   currentId,
   busy,
