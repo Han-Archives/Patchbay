@@ -29,6 +29,7 @@ import {
   appendDashboardHistory,
   dashboardHistoryInputSchema,
   todoItemSchema,
+  TrashError,
   writeTodos,
   updateTodos,
   readTodoHistory,
@@ -93,6 +94,9 @@ import { collectLangGraphRuns } from "./langgraphRuns.js";
 import { loadDashboard, runProjectTests } from "./dashboardView.js";
 import { registerLogRoutes } from "./logHost.js";
 import { applyTodoAction, TodoActionError } from "./todoActions.js";
+import { listTrash, restoreTrash } from "./trashActions.js";
+import { alertOverdueTasks, loadTaskTiming, TASK_CHECK_MS } from "./taskTiming.js";
+import { loadStructureModel } from "./structureFile.js";
 import { applyCycleItemAction, CycleItemActionError, listCycleItems } from "./cycleItemActions.js";
 import { readTestActivity } from "./testActivity.js";
 import { loadRunsView, writeDraftEvalsView } from "./runsView.js";
@@ -306,6 +310,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
 
   let studioWatch: StudioWatch | undefined;
   let overdueTimer: ReturnType<typeof setInterval> | undefined;
+  let taskTimer: ReturnType<typeof setInterval> | undefined;
   if (options.watch) {
     studioWatch = startStudioWatch(options.studioHome, (event) => {
       emit(event);
@@ -331,6 +336,13 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     sweep(true);
     overdueTimer = setInterval(() => sweep(false), THREAD_OVERDUE_CHECK_MS);
     overdueTimer.unref?.();
+    // 맡긴 일이 1시간을 넘기면 폰 알림 채널로 한 번 알린다 (R7.7). 채널이 없으면 돌지 않는다.
+    const channels = roomNotificationChannels(options.roomNotifications ?? {});
+    if (channels.discord || channels.telegram) {
+      const sent = new Set<string>();
+      taskTimer = setInterval(() => void alertOverdueTasks(options.studioHome, options.roomNotifications!, sent).catch(() => undefined), TASK_CHECK_MS);
+      taskTimer.unref?.();
+    }
   }
 
   app.get("/api/shell", async (c) => {
@@ -816,6 +828,13 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     const result = await loadArchitectureMap(options.studioHome, c.req.query("alias"));
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ map: result.raw });
+  });
+
+  // 아키텍처 드릴다운의 구조 · 흐름 장 (R3.4). 실행 장은 /api/ir · /api/flow 를 그대로 쓴다.
+  app.get("/api/structure", async (c) => {
+    const result = await loadStructureModel(options.studioHome, c.req.query("alias") ?? "");
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json(result.body);
   });
 
   app.post("/api/board/architecture", async (c) => {
@@ -1486,6 +1505,32 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     } catch (error) { return c.json({ error: (error as Error).message }, error instanceof TodoActionError ? error.status : 500); }
   });
 
+  // 맡긴 일 1시간 — 최근 7일 구간과 넘긴 구간 (R7.7).
+  app.get("/api/task-timing", async c => {
+    const alias = c.req.query("alias") ?? "";
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try { return c.json(await loadTaskTiming(options.studioHome, alias)); }
+    catch (error) { return c.json({ error: `시간 조회 실패: ${(error as Error).message}` }, 500); }
+  });
+
+  // 프로젝트 휴지통 — 지운 할일 · 대화를 4일 동안 보고 되살린다 (R9.6a · R9.6b).
+  app.get("/api/trash", async c => {
+    const alias = c.req.query("alias") ?? "";
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try { return c.json({ entries: await listTrash(options.studioHome, alias) }); }
+    catch (error) { return c.json({ error: `휴지통 조회 실패: ${(error as Error).message}` }, 500); }
+  });
+
+  app.post("/api/trash/restore", async c => {
+    const rec = await jsonRecord(c);
+    const alias = typeof rec?.alias === "string" ? rec.alias : "";
+    const id = typeof rec?.id === "string" ? rec.id : "";
+    if (!id) return c.json({ error: "되살릴 기록 id가 필요합니다." }, 400);
+    if (!(await readStudio(options.studioHome)).projects.some(p => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    try { return c.json({ restored: await restoreTrash(options.studioHome, alias, id) }); }
+    catch (error) { return c.json({ error: (error as Error).message }, error instanceof TrashError ? error.status : 500); }
+  });
+
   // 흐름도 작업 아래 세부 항목. 상태는 연결된 할일과 실제 대화 실행에서 계산한다.
   app.get("/api/cycle-items", async c => {
     const alias = c.req.query("alias") ?? "";
@@ -1703,6 +1748,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     watchReady: studioWatch?.ready ?? Promise.resolve(),
     close: async () => {
       if (overdueTimer) clearInterval(overdueTimer);
+      if (taskTimer) clearInterval(taskTimer);
       todoPreparation.stopAll();
       await studioWatch?.close();
       studioWatch = undefined;

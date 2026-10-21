@@ -6184,6 +6184,48 @@ textarea.cell-input {
 .arch-run { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
 .arch-run small { color: var(--muted); font-size: 11px; }
 .arch-hint { margin: 0; color: var(--muted); font-size: 13px; }
+/* 아키텍처 세 장 (R3.4) — 실행 · 구조 · 흐름 */
+.arch-views { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+.arch-views > .arch-page { flex: 1; min-height: 0; }
+.arch-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.arch-tabs button { display: inline-flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--elevated); color: var(--muted); cursor: pointer; font-size: 13px; }
+.arch-tabs button small { font-size: 11.5px; color: var(--muted); }
+.arch-tabs button[aria-pressed="true"] { color: var(--text); border-color: var(--text); background: var(--fill); }
+.arch-tabs button:focus-visible, .structure-crumb:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+@media (max-width: 700px) { .arch-tabs button small { display: none; } }
+.structure-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.structure-crumbs i { color: var(--muted); font-style: normal; margin-right: 8px; }
+.structure-crumb { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+.structure-scope { margin: 0; color: var(--muted); font-size: 13px; max-width: 90ch; }
+.structure-issues { font-size: 12px; color: var(--warn); }
+.structure-issues ul { margin: 6px 0 0; padding-left: 18px; }
+.structure-legend label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.structure-node { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 6px 10px; border: 1.5px solid var(--stroke); border-radius: 8px; background: var(--elevated); color: var(--text); font-size: 12.5px; cursor: pointer; }
+.structure-node b { font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.structure-node small { font-size: 10.5px; color: var(--muted); }
+.structure-node.role-process { border-color: var(--ok); }
+.structure-node.role-store { border-color: var(--warn); border-radius: 2px; border-left-width: 5px; }
+.structure-node.role-external { border-style: dashed; }
+.structure-node.role-person { border-radius: 999px; text-align: center; align-items: center; }
+.structure-node.is-boundary { background: var(--chrome); opacity: 0.85; }
+.structure-node.is-gap { border-style: dotted; background: transparent; color: var(--muted); align-items: center; font-size: 11px; }
+.structure-node.is-selected { box-shadow: 0 0 0 2px var(--text); }
+.structure-node.is-dim, .structure-edge-label.is-dim { opacity: 0.25; }
+.structure-node .structure-incomplete { color: var(--warn); }
+.structure-node .structure-inside { color: var(--ok); }
+.structure-handle { opacity: 0; pointer-events: none; }
+.structure-edge { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.structure-edge.is-dashed { stroke-dasharray: 5 4; }
+.structure-edge.is-dim { opacity: 0.2; }
+.structure-arrow { fill: var(--muted); }
+.structure-edge-label { position: absolute; box-sizing: border-box; text-align: center; padding: 1px 4px; border-radius: 4px; background: var(--bg); color: var(--text); font-size: 11px; line-height: 16px; white-space: nowrap; pointer-events: none; }
+.structure-edge-label b { display: inline-block; margin-right: 4px; padding: 0 5px; border-radius: 999px; background: var(--ok-fill); color: var(--ok); }
+.structure-edge-label small { color: var(--muted); }
+.structure-side-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+.structure-edge-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; }
+.structure-edge-list small { color: var(--muted); overflow-wrap: anywhere; }
+.structure-dest { display: flex; flex-direction: column; gap: 6px; }
+.structure-dest small { color: var(--muted); margin-left: 6px; }
 .arch-empty { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
 .arch-empty h3 { margin: 0; }
 .arch-empty-act { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -6339,6 +6381,8 @@ textarea.cell-input {
 .todo-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .main-shell .todo-header-actions .todo-auto-icon, .main-shell .todo-search { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid var(--stroke); border-radius: 7px; background: var(--elevated); color: var(--muted); cursor: pointer; }
 .todo-search svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.todo-search svg path { stroke-linejoin: round; }
+.todo-trash-note { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .todo-search:hover { color: var(--text); }
 .todo-search:focus-visible, .todo-title:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
 .todo-pane button:disabled { opacity: .4; cursor: default; }
@@ -6455,6 +6499,8 @@ textarea.cell-input {
 /* 흐름도 — 설계 · 구현 · 테스트 고리 (2026-10-12). 색: 지남 보라 · 지금 주황 · 남음 점선 */
 .main-flow-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
 .main-flow-head small { color: var(--muted); font-size: 12px; }
+.task-timing { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.task-timing.is-over { color: var(--warn); background: var(--warn-fill); border-radius: 999px; padding: 1px 8px; font-weight: 600; }
 .cycle-canvas { height: 230px; margin-top: 8px; }
 .cycle-canvas .react-flow__node.cycle-node { width: 180px; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--chrome); color: var(--text); text-align: left; cursor: pointer; box-shadow: none; transition: transform .25s ease, border-color .25s ease, background-color .25s ease; }
 .cycle-canvas .react-flow__node.cycle-node:hover { transform: translateY(-2px); }
