@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="400" viewBox="0 0 1240 400" role="img" aria-labelledby="title desc">
+<title id="title">Neo4j 지식 그래프의 공통 기반 제안</title><desc id="desc">선택한 원문을 버전별로 분할하고 호스트에서 관계 후보를 추출한다. 사람이 근거를 검토하면 커널이 기록하고 Neo4j에 투영한다. Neo4j에서 탐색, 근거 답변, 그래프 분석을 수행한다. 기존 스캔 그래프와 의미 그래프는 분리한다.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#687785"/></marker></defs>
+<rect width="1240" height="400" rx="20" fill="#f6f7f9"/>
+<g font-family="-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif" fill="#24323f">
+<text x="32" y="40" font-size="15" font-weight="700">공통 기반 · 설계 제안</text><text x="32" y="65" font-size="13" fill="#677786">원문과 검토 기록은 보존하고, 관계 탐색은 Neo4j에서 수행한다</text>
+<g stroke="#687785" stroke-width="1.7" marker-end="url(#arrow)"><path d="M210 167H246"/><path d="M430 167H466"/><path d="M650 167H686"/><path d="M870 167H906"/><path d="M1000 215V260"/></g>
+<g stroke="#c9d1da" fill="white"><rect x="30" y="110" width="180" height="105" rx="12"/><rect x="250" y="110" width="180" height="105" rx="12"/><rect x="470" y="110" width="180" height="105" rx="12"/><rect x="690" y="110" width="180" height="105" rx="12"/></g>
+<rect x="910" y="110" width="290" height="105" rx="12" fill="#e9f1fe" stroke="#9eb9e9"/>
+<g font-size="17" font-weight="650"><text x="48" y="143">선택한 자료</text><text x="268" y="143">관계 후보 추출</text><text x="488" y="143">근거 검토</text><text x="708" y="143">커널 기록</text><text x="930" y="143">Neo4j 의미 그래프</text></g>
+<g font-size="13" fill="#637485"><text x="48" y="171">문서 · 선택한 대화</text><text x="48" y="194">버전 · 문단 · 접근 등급</text><text x="268" y="171">호스트 작업자 · 스키마</text><text x="268" y="194">개체 · 관계 · 인용 위치</text><text x="488" y="171">승인 · 수정 · 기각</text><text x="488" y="194">별칭 병합 · 상충 확인</text><text x="708" y="171">검토 이력 · 변경 기록</text><text x="708" y="194">재시도 · 재구축의 원본</text><text x="930" y="171">승인 상태 · 출처 · 최신 버전 필터</text><text x="930" y="194">기존 :Knowledge 복제 영역과 분리</text></g>
+<rect x="690" y="265" width="510" height="94" rx="12" fill="white" stroke="#c9d1da"/>
+<text x="710" y="296" font-size="16" font-weight="650">의미 탐색 → 근거 답변 → 선택적 GDS 분석</text><text x="710" y="323" font-size="13" fill="#637485">Cypher 경로 · 문단 인용 · 승인 관계의 분석용 투영</text><text x="32" y="290" font-size="14" font-weight="650">문서 → 버전 → 문단 ← 근거 ← 주장</text><text x="32" y="319" font-size="13" fill="#637485">주장: 주어 개체 · 관계 · 목적어/값 · 검토 상태</text><text x="32" y="345" font-size="13" fill="#637485">문서 개정 시 이전 근거는 남기고 최신 유효성을 다시 확인</text>
+</g></svg>

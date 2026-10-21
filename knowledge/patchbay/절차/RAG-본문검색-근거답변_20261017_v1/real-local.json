@@ -1,0 +1,17 @@
+{
+  "model": "local · qwen2.5-14b-instruct-mlx",
+  "status": "supported",
+  "claims": [
+    {
+      "text": "운영 로그는 90일 보관한다.",
+      "citations": [
+        {
+          "id": "1",
+          "quote": "운영 로그는 90일 보관한다."
+        }
+      ]
+    }
+  ],
+  "ms": 47077,
+  "scope": "synthetic document only"
+}

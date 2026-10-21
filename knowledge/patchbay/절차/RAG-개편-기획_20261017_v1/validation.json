@@ -1,0 +1,202 @@
+{
+  "url": "http://127.0.0.1:4318/api/project-file/patchbay/knowledge/patchbay/%EC%A0%88%EC%B0%A8/RAG-%EA%B0%9C%ED%8E%B8-%EA%B8%B0%ED%9A%8D_20261017_v1/index.html",
+  "checkedAt": "2026-10-17T00:09:44.365Z",
+  "checks": [
+    {
+      "name": "실제 4318 HTML 경로",
+      "pass": true
+    },
+    {
+      "name": "HTML 콘텐츠 형식",
+      "pass": true
+    },
+    {
+      "name": "제안·가상 자료 표시",
+      "pass": true
+    },
+    {
+      "name": "초기 답변 실행 금지",
+      "pass": true
+    },
+    {
+      "name": "본문 발췌 결과",
+      "pass": true
+    },
+    {
+      "name": "모델 미선택 답변 금지",
+      "pass": true
+    },
+    {
+      "name": "명시적 생성 활성",
+      "pass": true
+    },
+    {
+      "name": "출처 달린 답변",
+      "pass": true
+    },
+    {
+      "name": "인용 원문·버전",
+      "pass": true
+    },
+    {
+      "name": "전송 초안만 안내",
+      "pass": true
+    },
+    {
+      "name": "시안 저장 없음",
+      "pass": true
+    },
+    {
+      "name": "근거 없음 생성 차단",
+      "pass": true
+    },
+    {
+      "name": "근거 없음 별도 안내",
+      "pass": true
+    },
+    {
+      "name": "충돌 양쪽 근거",
+      "pass": true
+    },
+    {
+      "name": "개정 원문 답변 차단",
+      "pass": true
+    },
+    {
+      "name": "새 원문 다시 찾기",
+      "pass": true
+    },
+    {
+      "name": "질문 임베딩 안내",
+      "pass": true
+    },
+    {
+      "name": "공유 자료와 승인 구분",
+      "pass": true
+    },
+    {
+      "name": "준비 버튼 실제 실행 없음",
+      "pass": true
+    },
+    {
+      "name": "점검 수치 예시 표시",
+      "pass": true
+    },
+    {
+      "name": "공식 자료 링크",
+      "pass": true
+    },
+    {
+      "name": "보완된 첫 완성 단계",
+      "pass": true
+    },
+    {
+      "name": "Claude 실제 모델 기록",
+      "pass": true
+    },
+    {
+      "name": "조건부 판정 공개",
+      "pass": true
+    },
+    {
+      "name": "검토 보완 완료 표시",
+      "pass": true
+    },
+    {
+      "name": "보완본 재승인과 구별",
+      "pass": true
+    },
+    {
+      "name": "1512px overview 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1512px experience 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1512px references 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1512px review 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1280px overview 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1280px experience 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1280px references 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1280px review 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1024px overview 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1024px experience 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1024px references 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "1024px review 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "768px overview 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "768px experience 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "768px references 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "768px review 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "390px overview 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "390px experience 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "390px references 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "390px review 가로 넘침 없음",
+      "pass": true
+    },
+    {
+      "name": "모델·검색 API 호출 없음",
+      "pass": true
+    },
+    {
+      "name": "브라우저 오류 없음",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "requests": [
+    "http://127.0.0.1:4318/api/project-file/patchbay/knowledge/patchbay/%EC%A0%88%EC%B0%A8/RAG-%EA%B0%9C%ED%8E%B8-%EA%B8%B0%ED%9A%8D_20261017_v1/index.html"
+  ]
+}

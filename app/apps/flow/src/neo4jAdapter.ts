@@ -1,4 +1,5 @@
 import neo4j, { int, type Driver } from "neo4j-driver";
+import { createMemorySemanticPort, createSemanticDriverPort, type SemanticPort } from "./semanticAdapter.js";
 import {
   countsFromNodes,
   graphFromInferred,
@@ -31,6 +32,7 @@ export interface Neighborhood {
 
 export interface Neo4jPort {
   readonly uri: string;
+  readonly semantic?: SemanticPort;
   probe(): Promise<boolean>;
   replaceAlias(alias: string, snapshot: KnowledgeSnapshot): Promise<void>;
   search(alias: string, query: string, limit?: number): Promise<KnowledgeNodeView[]>;
@@ -64,6 +66,7 @@ export function createMemoryNeo4jPort(uri: string = DEFAULT_NEO4J_URI): Neo4jPor
   const graphs = new Map<string, KnowledgeSnapshot>();
   return {
     uri,
+    semantic: createMemorySemanticPort(),
     async probe() {
       return true;
     },
@@ -153,6 +156,7 @@ export function createNeo4jDriverPort(options: Neo4jAppOptions = {}): Neo4jPort 
 
   return {
     uri,
+    semantic: createSemanticDriverPort(driver),
     async probe() {
       try {
         const reached = await Promise.race([

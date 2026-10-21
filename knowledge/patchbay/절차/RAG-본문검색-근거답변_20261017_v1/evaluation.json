@@ -1,0 +1,423 @@
+{
+  "at": "2026-10-17T03:58:44.461Z",
+  "documents": 10,
+  "queries": 30,
+  "scope": "synthetic lexical smoke set; manually specified source expectations; no general accuracy claim",
+  "summary": {
+    "exact": {
+      "pass": 6,
+      "total": 6
+    },
+    "paraphrase": {
+      "pass": 2,
+      "total": 6
+    },
+    "relation": {
+      "pass": 4,
+      "total": 4
+    },
+    "version": {
+      "pass": 4,
+      "total": 4
+    },
+    "conflict": {
+      "pass": 3,
+      "total": 3
+    },
+    "missing": {
+      "pass": 4,
+      "total": 4
+    },
+    "permission": {
+      "pass": 3,
+      "total": 3
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "kind": "exact",
+      "question": "Neo4j를 사용하는 이유",
+      "expected": [
+        "architecture.md"
+      ],
+      "top5": [
+        "architecture.md",
+        "storage.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 2,
+      "kind": "exact",
+      "question": "운영 로그 보관 기간",
+      "expected": [
+        "policy.md"
+      ],
+      "top5": [
+        "policy.md",
+        "decision.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 3,
+      "kind": "exact",
+      "question": "외부 모델 전달 허용",
+      "expected": [
+        "models.md"
+      ],
+      "top5": [
+        "models.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 4,
+      "kind": "exact",
+      "question": "searchEvidence",
+      "expected": [
+        "search.md"
+      ],
+      "top5": [
+        "search.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 5,
+      "kind": "exact",
+      "question": "답변 중지",
+      "expected": [
+        "stop.md"
+      ],
+      "top5": [
+        "stop.md",
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 6,
+      "kind": "exact",
+      "question": "정확한 인용 문구",
+      "expected": [
+        "citation.md"
+      ],
+      "top5": [
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 7,
+      "kind": "paraphrase",
+      "question": "관계를 따라 원문을 찾는 저장소는?",
+      "expected": [
+        "architecture.md"
+      ],
+      "top5": [
+        "storage.md",
+        "architecture.md",
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 8,
+      "kind": "paraphrase",
+      "question": "기록을 한 달 뒤 지워도 되나요?",
+      "expected": [
+        "policy.md"
+      ],
+      "top5": [],
+      "allRequiredAt5": false,
+      "ms": 5
+    },
+    {
+      "id": 9,
+      "kind": "paraphrase",
+      "question": "클라우드 AI로 파일을 보내기 전 해야 할 일",
+      "expected": [
+        "models.md"
+      ],
+      "top5": [
+        "decision.md"
+      ],
+      "allRequiredAt5": false,
+      "ms": 4
+    },
+    {
+      "id": 10,
+      "kind": "paraphrase",
+      "question": "멈춘 작업의 응답이 나중에 오면?",
+      "expected": [
+        "stop.md"
+      ],
+      "top5": [],
+      "allRequiredAt5": false,
+      "ms": 3
+    },
+    {
+      "id": 11,
+      "kind": "paraphrase",
+      "question": "이전 자료 판이 남나요?",
+      "expected": [
+        "storage.md"
+      ],
+      "top5": [
+        "storage.md",
+        "models.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 12,
+      "kind": "paraphrase",
+      "question": "답을 뒷받침하는 구절은 어떻게 추적하나요?",
+      "expected": [
+        "citation.md"
+      ],
+      "top5": [],
+      "allRequiredAt5": false,
+      "ms": 4
+    },
+    {
+      "id": 13,
+      "kind": "relation",
+      "question": "Neo4j와 원문 근거 탐색의 관계",
+      "expected": [
+        "architecture.md"
+      ],
+      "top5": [
+        "architecture.md",
+        "storage.md",
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 14,
+      "kind": "relation",
+      "question": "답변 문장과 원문 버전 연결",
+      "expected": [
+        "citation.md"
+      ],
+      "top5": [
+        "citation.md",
+        "storage.md",
+        "stop.md",
+        "version.md",
+        "architecture.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 15,
+      "kind": "relation",
+      "question": "검색 사용을 꺼도 승인 관계는 보존하는가",
+      "expected": [
+        "storage.md"
+      ],
+      "top5": [
+        "storage.md",
+        "architecture.md",
+        "search.md",
+        "models.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 16,
+      "kind": "relation",
+      "question": "외부 모델과 자료 전달 허용",
+      "expected": [
+        "models.md"
+      ],
+      "top5": [
+        "models.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 17,
+      "kind": "version",
+      "question": "현재 릴리스 이름 amber",
+      "expected": [
+        "version.md"
+      ],
+      "top5": [
+        "version.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 18,
+      "kind": "version",
+      "question": "릴리스 버전 3",
+      "expected": [
+        "version.md"
+      ],
+      "top5": [
+        "version.md",
+        "storage.md",
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 19,
+      "kind": "version",
+      "question": "릴리스 이름이 cyan으로 바뀌었는가",
+      "expected": [
+        "version.md"
+      ],
+      "top5": [
+        "version.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 20,
+      "kind": "version",
+      "question": "현재 릴리스 버전 4",
+      "expected": [
+        "version.md"
+      ],
+      "top5": [
+        "version.md",
+        "storage.md",
+        "citation.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 21,
+      "kind": "conflict",
+      "question": "운영 로그의 보관 기간은 30일인가 90일인가",
+      "expected": [
+        "policy.md",
+        "decision.md"
+      ],
+      "top5": [
+        "policy.md",
+        "decision.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 22,
+      "kind": "conflict",
+      "question": "운영 정책과 보관 기간 결정의 차이",
+      "expected": [
+        "policy.md",
+        "decision.md"
+      ],
+      "top5": [
+        "decision.md",
+        "policy.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 23,
+      "kind": "conflict",
+      "question": "로그 보관 결정과 운영 정책 반영",
+      "expected": [
+        "policy.md",
+        "decision.md"
+      ],
+      "top5": [
+        "decision.md",
+        "policy.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    },
+    {
+      "id": 24,
+      "kind": "missing",
+      "question": "연간 예산 zzzcost",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 25,
+      "kind": "missing",
+      "question": "직원 복지 benefitz",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 26,
+      "kind": "missing",
+      "question": "마케팅 성과 marketzz",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 27,
+      "kind": "missing",
+      "question": "외계 우주선 spaceshipzz",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 4
+    },
+    {
+      "id": 28,
+      "kind": "permission",
+      "question": "LOCAL_PRIVATE_CANARY_9876",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 5
+    },
+    {
+      "id": 29,
+      "kind": "permission",
+      "question": "LOCAL_PRIVATE_CANARY_9876 비공개",
+      "expected": [],
+      "top5": [],
+      "allRequiredAt5": true,
+      "ms": 3
+    },
+    {
+      "id": 30,
+      "kind": "permission",
+      "question": "LOCAL_PRIVATE_CANARY_9876 원문",
+      "expected": [],
+      "top5": [
+        "storage.md",
+        "citation.md",
+        "architecture.md"
+      ],
+      "allRequiredAt5": true,
+      "ms": 2
+    }
+  ]
+}

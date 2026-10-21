@@ -1,0 +1,29 @@
+{
+  "checks": [
+    "real empty state",
+    "selected exact paragraph",
+    "invented citation refused",
+    "candidate saved",
+    "two real Neo4j entities",
+    "approved relation in Neo4j",
+    "edge-specific source evidence",
+    "exact source version opens",
+    "no-result state",
+    "direct-neighbor navigation",
+    "withdrawal removes graph relation",
+    "changed context cannot be approved",
+    "no horizontal overflow 1280",
+    "no horizontal overflow 1024",
+    "no horizontal overflow 768",
+    "no horizontal overflow 390",
+    "review mobile no horizontal overflow",
+    "legacy graph reachable",
+    "returns to semantic graph",
+    "no browser runtime errors"
+  ],
+  "errors": [],
+  "count": 20,
+  "at": "2026-10-16T23:21:51.042Z",
+  "database": "Neo4j 5.26 Community",
+  "scope": "temporary project and random database alias only"
+}

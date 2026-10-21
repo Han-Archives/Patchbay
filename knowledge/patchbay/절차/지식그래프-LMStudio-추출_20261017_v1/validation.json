@@ -1,0 +1,24 @@
+{
+  "checks": [
+    "opening graph and document never probes or invokes LM Studio",
+    "registered local model selectable",
+    "real LM Studio inventory loaded on click",
+    "embedding models excluded",
+    "listing models never extracts",
+    "real LM Studio extraction returned 200",
+    "real local model produced grounded candidates",
+    "all local candidates have exact citations and await review",
+    "local model provenance stored",
+    "local extraction does not auto-approve",
+    "mobile no horizontal overflow",
+    "no runtime errors",
+    "one explicit extraction only"
+  ],
+  "count": 13,
+  "errors": [],
+  "model": "qwen2.5-14b-instruct-mlx",
+  "localModels": 3,
+  "candidates": 2,
+  "at": "2026-10-16T23:36:45.536Z",
+  "scope": "temporary project; real LM Studio; in-memory Neo4j adapter"
+}

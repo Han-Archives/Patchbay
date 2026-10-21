@@ -10,6 +10,8 @@ import {
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DocumentCallPanel } from "./DocumentCallPanel.js";
+import { SemanticKnowledgePane } from "./SemanticKnowledgePane.js";
+import { RagPane } from "./RagPane.js";
 import { FilePeek, isOpenableSourceLabel } from "./FilePeek.js";
 import { ImpactPanel } from "./ImpactPanel.js";
 import { neo4jBoardId } from "./boardContract.js";
@@ -41,7 +43,16 @@ function KnowledgeNode({ data }: NodeProps<Node<KgData>>) {
 
 const NODE_TYPES = { knowledge: KnowledgeNode };
 
-export function KnowledgePane({
+type KnowledgePaneProps = { project: string; revision?: number; stage?: "graph" | "docs"; readOnly?: boolean; onNeo4jStatus?: (status: AdapterStatus) => void };
+export function KnowledgePane(props: KnowledgePaneProps) {
+  const [replica, setReplica] = useState(false);
+  useEffect(() => setReplica(false), [props.project]);
+  if (props.stage === "docs") return <RagPane key={props.project} project={props.project} revision={props.revision} readOnly={props.readOnly} />;
+  if (!replica) return <SemanticKnowledgePane key={props.project} project={props.project} revision={props.revision} readOnly={props.readOnly} onNeo4jStatus={props.onNeo4jStatus} onReplica={() => setReplica(true)} />;
+  return <><button className="flow-btn semantic-replica-back" onClick={() => setReplica(false)}>← 근거 검토·관계 탐색</button><ReplicaKnowledgePane {...props} /></>;
+}
+
+function ReplicaKnowledgePane({
   project,
   revision = 0,
   stage = "graph",
@@ -123,6 +134,10 @@ export function KnowledgePane({
   return (
     <div className="flow-pane">
       <h2>{stage === "docs" ? "문서 호출" : "지식 그래프"}</h2>
+      {/* 「다시 스캔」은 옛 폴더 · 문서 화면에서 여기로 옮겼다 (2026-10-16). */}
+      {stage === "graph" && view && view.status !== "unscanned" ? (
+        <ScanButton project={project} first={false} onScanned={() => setTick((n) => n + 1)} />
+      ) : null}
       {error ? <p className="flow-error">{error}</p> : null}
       {placeNotice ? <p className="board-notice">{placeNotice}</p> : null}
       <RunEvidencePanel project={project} revision={revision + tick} />
@@ -176,7 +191,7 @@ function Disconnected({ uri, onReconnect }: { uri: string; onReconnect: () => vo
       <p>파일 그래프 검색은 로컬 Neo4j가 붙으면 이 면에서 한다. 임베딩은 v1에 없다.</p>
       <p className="path">{uri || DEFAULT_NEO4J_URI}</p>
       <p>
-        <code>dev/</code>에서 <code>docker compose up -d</code> 한 뒤 다시 연결하세요. URI는{" "}
+        <code>app/</code>에서 <code>docker compose --profile sidecars up -d</code> 한 뒤 다시 연결하세요. URI는{" "}
         <code>PATCHBAY_NEO4J_URI</code>, 기본 계정은 <code>neo4j</code> / <code>patchbay</code>입니다.
       </p>
       <button type="button" className="flow-btn" data-action="reconnect" onClick={onReconnect}>

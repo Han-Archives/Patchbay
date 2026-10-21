@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-17T03:57:30.906Z",
+  "requestedModel": "claude-code · sonnet",
+  "status": "supported",
+  "claims": [
+    {
+      "text": "운영 로그의 보관 기간은 30일이다.",
+      "citations": [
+        {
+          "id": "1",
+          "quote": "운영 로그의 보관 기간은 30일이다."
+        }
+      ]
+    }
+  ],
+  "ms": 3430,
+  "scope": "synthetic source; explicit remote policy; safe-mode empty tools/MCP"
+}
