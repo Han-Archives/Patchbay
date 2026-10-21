@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { resolveResume, type ResumeAction, type WorkLocation } from "./workspaceNavigation.js";
 import { ROOM_SPEAKER_LABEL, type PrdSection, type RoomMember, type RoomSummary, type TodoItem } from "@patchbay/core";
 import { stageMeta, type StageId, type WorkspaceProject } from "./workspaceContract.js";
-import type { BuildViewReady, BuildViewResponse } from "./buildContract.js";
+import type { BuildViewExisting, BuildViewReady, BuildViewResponse } from "./buildContract.js";
 import { toIrCanvas, irNodeText } from "./irCanvas.js";
 import type { DashboardView } from "./testContract.js";
 import { DashboardHistory } from "./DashboardHistory.js";
@@ -31,11 +32,6 @@ function readDone(alias: string): string[] {
   } catch { return []; }
 }
 
-function timeValue(value?: string | null): number {
-  const time = value ? new Date(value).getTime() : 0;
-  return Number.isNaN(time) ? 0 : time;
-}
-
 function todoFrom(text: string): { kind: TodoKind; title: string; description: string; action: string; stage: StageId } {
   const split = (prefix: string) => text.startsWith(prefix) ? text.slice(prefix.length).trim() : text;
   if (text.startsWith("모델 미정 —")) return { kind: "판단 · 모델 미정", title: split("모델 미정 —"), description: "이 작업에 쓸 모델을 구현 환경에서 정한다.", action: "구현 환경 열기", stage: "build" };
@@ -50,14 +46,17 @@ function DocumentLines({ lines, open, onToggle }: { lines: string[]; open: boole
   return <>{visible.length ? <div className="main-doc-lines">{visible.map((line, index) => <p key={`${index}:${line}`}>{line}</p>)}</div> : <p className="main-empty">기록된 내용이 없다</p>}{lines.length > 6 ? <button type="button" className="main-more" onClick={onToggle}>{open ? "접기" : "더 보기"}</button> : null}</>;
 }
 
-export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, onAsk, readOnly, onProjectRenamed }: {
+export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, readOnly, onProjectRenamed, lastWork, onContinue }: {
   project: string; revision: number; repo: ReactNode; readOnly: boolean; onProjectRenamed: () => void;
   onOpenStage: (id: StageId | "plan" | "board") => void;
-  onOpenFile: (path: string) => void; workspace?: WorkspaceProject; onAsk?: (text: string) => void;
+  onOpenFile: (path: string) => void; workspace?: WorkspaceProject;
+  lastWork: WorkLocation | null; onContinue: (action: ResumeAction) => void;
 }) {
   const [mainView, setMainView] = useState<MainView>(readMainView);
   const [view, setView] = useState<DashboardView | null>(null);
   const [build, setBuild] = useState<BuildViewReady | null>(null);
+  /** 「이미 구현됨」 길이면 구현 · 테스트 세부 단계를 노드마다의 연결 · 통과로 센다 (사용자 결정 2026-10-20). */
+  const [existing, setExisting] = useState<BuildViewExisting | null>(null);
   const [prd, setPrd] = useState<PrdSection[] | null>(null);
   const [overview, setOverview] = useState<{ doc: OverviewDoc; rel: string } | null>(null);
   const [prdTopics, setPrdTopics] = useState<PrdTopic[]>([]);
@@ -65,6 +64,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   const [flowPick, setFlowPick] = useState<CycleStep | null>(null);
   const [agents, setAgents] = useState<RoomMember[]>([]);
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  const [roomsReady, setRoomsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<number>>(() => new Set());
@@ -75,7 +75,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
 
   useEffect(() => {
     let cancelled = false;
-    setView(current => current?.alias === project ? current : null); setBuild(null); setPrd(null); setOverview(null); setAgents([]); setRooms([]); setError(null);
+    setView(current => current?.alias === project ? current : null); setBuild(null); setExisting(null); setPrd(null); setOverview(null); setAgents([]); setRooms([]); setRoomsReady(false); setError(null);
     fetch(`/api/dashboard?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as DashboardView & { error?: string };
       if (!res.ok || body.error) throw new Error(body.error ?? "현황을 불러오지 못했습니다.");
@@ -84,8 +84,8 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
     fetch(`/api/build?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as BuildViewResponse & { error?: string };
       if (!res.ok) throw new Error(body.error ?? "구조를 불러오지 못했습니다.");
-      if (!cancelled) setBuild(body.status === "ready" ? body : null);
-    }).catch(() => { if (!cancelled) setBuild(null); });
+      if (!cancelled) { setBuild(body.status === "ready" ? body : null); setExisting(body.status === "existing" ? body : null); }
+    }).catch(() => { if (!cancelled) { setBuild(null); setExisting(null); } });
     // 문서 폴더에 개요.md가 있으면 개요 화면은 그 문서를 그린다 — 없으면 PRD로.
     fetch(`/api/overview?alias=${encodeURIComponent(project)}`).then(async res => {
       const body = await res.json() as { content?: string; rel?: string; error?: string };
@@ -107,12 +107,12 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
       if (!res.ok || body.error) throw new Error(body.error ?? "대화방 조회 실패");
       const nextRooms = body.rooms ?? [];
       if (!cancelled) setRooms(nextRooms);
-    }).catch(() => { if (!cancelled) setRooms([]); });
+    }).catch(() => { if (!cancelled) setRooms([]); }).finally(() => { if (!cancelled) setRoomsReady(true); });
     return () => { cancelled = true; };
   }, [project, revision, tick]);
 
-  const latestRoom = useMemo(() => [...rooms].sort((a, b) => timeValue(b.updatedAt) - timeValue(a.updatedAt))[0], [rooms]);
-  const canvas = build ? toIrCanvas(build.ir) : null;
+  const resume = resolveResume(project, lastWork, rooms.length > 0);
+  const canvas = build ? toIrCanvas(build.ir) : existing ? toIrCanvas(existing.ir) : null;
   // 시작 · 끝 표시는 빼고 작업 노드만, 이름은 설명의 앞부분만 (긴 설명은 마우스를 올리면).
   const chain = canvas ? [...canvas.nodes].filter(node => !node.data.terminal).sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y) : [];
   const shortName = (label: string) => label.split(" — ")[0]?.trim() || label;
@@ -129,16 +129,37 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
     const align = () => {
       const top = divider.getBoundingClientRect().top - shell.getBoundingClientRect().top;
       shell.style.setProperty("--workflow-divider-y", `${top}px`);
+      const active = dashboard.querySelector<HTMLElement>(".todo-active-list");
+      const completed = dashboard.querySelector<HTMLElement>(".todo-completed-head");
+      const table = divider.querySelector<HTMLElement>(".cycle-item-scroll");
+      const heading = divider.querySelector<HTMLElement>(".cycle-task-header");
+      if (active && completed && heading) {
+        dashboard.style.setProperty("--cycle-heading-height", `${heading.getBoundingClientRect().height}px`);
+        // 표 등장 애니메이션의 이동량을 빼고 최종 배치 위치에 맞춘다.
+        const tableTop = table
+          ? table.getBoundingClientRect().top - new DOMMatrix(getComputedStyle(table).transform).m42
+          : heading.getBoundingClientRect().bottom + 10;
+        const height = active.getBoundingClientRect().height + tableTop - completed.getBoundingClientRect().top;
+        dashboard.style.setProperty("--todo-active-height", `${Math.max(0, height)}px`);
+      }
     };
     align();
     const observer = new ResizeObserver(align);
     observer.observe(dashboard);
     observer.observe(divider);
+    const heading = divider.querySelector(".cycle-task-header");
+    if (heading) observer.observe(heading);
+    // 비동기로 나타나는 표와 할일 오류 메시지에도 높이를 다시 맞춘다.
+    const mutations = new MutationObserver(align);
+    mutations.observe(dashboard, { childList: true, subtree: true });
     window.addEventListener("resize", align);
     return () => {
       observer.disconnect();
+      mutations.disconnect();
       window.removeEventListener("resize", align);
       shell.style.removeProperty("--workflow-divider-y");
+      dashboard.style.removeProperty("--todo-active-height");
+      dashboard.style.removeProperty("--cycle-heading-height");
     };
   }, [mainView, project, view?.alias, flowSelected]);
   const stageDone = (id: StageId) => workspace?.stages.find(stage => stage.id === id)?.tone === "done";
@@ -148,8 +169,10 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   // 세부 단계 — 설계는 PRD 주제 · 검토 · 채택, 구현은 LangGraph 노드, 테스트는 노드 실행, 검토는 아직 화면이 없는 세 걸음.
   const cycleSteps: Record<CycleStep, SubStep[]> = {
     design: markSteps([...prdTopics.map(topic => ({ label: topic.name, done: topic.done })), { label: "PRD 검토", done: prdReviewed }, { label: "채택", done: stageDone("design") }], cycle === "design"),
-    build: markSteps(chain.map(node => ({ label: shortName(node.data.label), title: irNodeText(node), done: inGraph.has(node.id) })), cycle === "build"),
-    test: markSteps((view?.nodes ?? []).map(node => ({ label: nodeName(node.id), title: node.id, done: passedNodes.has(node.id) })), cycle === "test"),
+    build: markSteps(chain.map(node => ({ label: shortName(node.data.label), title: irNodeText(node), done: existing ? existingLinked(existing, node.id) : inGraph.has(node.id) })), cycle === "build"),
+    test: existing
+      ? markSteps(chain.map(node => ({ label: shortName(node.data.label), title: irNodeText(node), done: existingPassed(existing, node.id) })), cycle === "test")
+      : markSteps((view?.nodes ?? []).map(node => ({ label: nodeName(node.id), title: node.id, done: passedNodes.has(node.id) })), cycle === "test"),
     review: markSteps([{ label: "달라진 점 모으기", done: false }, { label: "Review", done: false }, { label: "승인 또는 반려", done: false }], cycle === "review"),
     result: markSteps([{ label: "승인된 판", done: false }], cycle === "result"),
   };
@@ -158,13 +181,6 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
 
   function chooseMain(next: MainView) { setMainView(next); try { localStorage.setItem("pb-main-view", next); } catch { /* 화면 전환은 유지한다. */ } }
   function toggleSection(n: number) { setExpandedSections(current => { const next = new Set(current); if (next.has(n)) next.delete(n); else next.add(n); return next; }); }
-  function continueRoom() {
-    if (!latestRoom) { onAsk?.(""); return; }
-    const hash = `#room/${encodeURIComponent(project)}/${encodeURIComponent(latestRoom.id)}`;
-    if (window.location.hash === hash) window.dispatchEvent(new Event("hashchange"));
-    else window.location.hash = hash;
-  }
-
   if (!view) return <p role="status">{error ?? "프로젝트 현황을 불러오는 중"}{error ? <button type="button" className="flow-btn" onClick={() => setTick(value => value + 1)}>다시 조회</button> : null}</p>;
 
   // 지금 단계에서 할 일은 단계 상태가 정한다 — 파일에 적지 않아도 늘 맨 위에 있다.
@@ -192,7 +208,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
       <div className="main-actions">
         <nav className="main-switch" aria-label="메인 화면"><button type="button" aria-pressed={mainView === "overview"} onClick={() => chooseMain("overview")}>개요</button><button type="button" aria-pressed={mainView === "dashboard"} onClick={() => chooseMain("dashboard")}>대시보드</button></nav>
         <button type="button" className="main-icon-button" aria-label="새로고침" onClick={() => setTick(value => value + 1)}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .2 5.4M16 3v4h-4" /></svg></button>
-        <div className="main-continue"><button type="button" className="main-primary" onClick={continueRoom}>{latestRoom ? "이어하기" : "시작하기"}</button></div>
+        <div className="main-continue"><button type="button" className="main-primary" title={resume.title} aria-label={resume.title} disabled={!lastWork && !roomsReady} onClick={() => onContinue(resume)}>{resume.label}</button></div>
       </div>
     </header>
     {error ? <p className="flow-error">{error}</p> : null}
@@ -212,9 +228,21 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
         <section id="main-section-3"><h3><span>3</span>범위</h3>{missingPrd ? fallback : <div className="main-scope"><div><h4>한다 · 가정 · 제약</h4><DocumentLines lines={inScope} open={expandedSections.has(3)} onToggle={() => toggleSection(3)} /></div><div><h4>안 한다</h4><DocumentLines lines={outScope} open={expandedSections.has(3)} onToggle={() => toggleSection(3)} /></div></div>}</section>
         <section id="main-section-4"><h3><span>4</span>구조 · LangGraph</h3>{<>{chain.length ? <div className="main-chain">{chain.map((node, index) => <span key={node.id}>{index ? <i aria-hidden="true">→</i> : null}<b title={irNodeText(node)}>{shortName(node.data.label)}</b></span>)}</div> : <p className="main-empty">구조가 아직 없다</p>}<p className="main-note">노드 = 한 단계를 맡는 작업 단위. 고리가 굳지 않도록 구현 화면에서 도중에 보고 고친다.</p><button type="button" className="flow-btn" onClick={() => onOpenStage("build")}>구현 화면에서 보고 고치기</button></>}</section>
         <section id="main-section-5"><h3><span>5</span>흐름과 결정</h3><p className="main-summary-sm">설계에서 아이디어를 구체화하고, 구현(LangGraph)에서 정밀하게 만들고, 테스트에서 써 본다. 검토에서 이전 설계와 달라진 점을 한 번에 보고, 반려하면 이유를 들고 다시 설계부터 돌고, 승인하면 그 판이 결과다.</p><DocumentLines lines={[...(workspace?.stages ?? []).filter(stage => stage.id === "design" || stage.id === "build" || stage.id === "test").map(stage => `${stageMeta(stage.id).label} — ${stage.status}`), `지금 — ${cycleLabel}`, ...(workspace?.latest?.summary ? [`최근 — ${workspace.latest.summary}`] : [])]} open={expandedSections.has(5)} onToggle={() => toggleSection(5)} /></section>
-        <section id="main-section-6"><h3><span>6</span>산출물 · 역할 · 도구</h3>{agents.length ? <DocumentLines lines={agents.map(agent => `${agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]} — ${agent.role.split("\n")[0] || "역할 기록 없음"}`)} open={expandedSections.has(6)} onToggle={() => toggleSection(6)} /> : <p className="main-empty">등록된 Agent가 없다</p>}<div className="main-tools"><span>도구 · 단계가 아니라 필요할 때 연다</span><button type="button" className="flow-btn" onClick={() => onOpenStage("graph")}>지식 그래프</button><button type="button" className="flow-btn" onClick={() => onOpenStage("docs")}>문서 호출</button><button type="button" className="flow-btn" onClick={() => setRepoOpen(true)}>파일 · 연결</button></div></section>
+        <section id="main-section-6"><h3><span>6</span>산출물 · 역할 · 도구</h3>{agents.length ? <DocumentLines lines={agents.map(agent => `${agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]} — ${agent.role.split("\n")[0] || "역할 기록 없음"}`)} open={expandedSections.has(6)} onToggle={() => toggleSection(6)} /> : <p className="main-empty">등록된 Agent가 없다</p>}<div className="main-tools"><span>도구 · 단계가 아니라 필요할 때 연다</span><button type="button" className="flow-btn" onClick={() => onOpenStage("graph")}>지식 그래프</button><button type="button" className="flow-btn" onClick={() => onOpenStage("docs")}>문서 호출</button><button type="button" className="flow-btn" onClick={() => setRepoOpen(true)}>폴더 · 문서</button></div></section>
       </div>
     </div>}
-    {repoOpen ? <div className="main-repo" role="dialog" aria-modal="true" aria-label="파일과 연결"><header><h3>파일 · 연결</h3><button type="button" className="flow-btn" onClick={() => setRepoOpen(false)}>닫기</button></header>{repo}</div> : null}
+    {repoOpen ? <div className="main-repo" role="dialog" aria-modal="true" aria-label="폴더 · 문서"><header><h3>폴더 · 문서</h3><button type="button" className="flow-btn" onClick={() => setRepoOpen(false)}>닫기</button></header>{repo}</div> : null}
   </div>;
+}
+
+/** 그 노드의 요구사항이 모두 확인된 테스트에 이어졌다. */
+function existingLinked(view: BuildViewExisting, node: string): boolean {
+  const mine = view.summary.requirements.filter((req) => req.nodes.includes(node));
+  return mine.length > 0 && mine.every((req) => req.state !== "unlinked");
+}
+
+/** 그 노드의 요구사항이 모두 통과했다. */
+function existingPassed(view: BuildViewExisting, node: string): boolean {
+  const count = view.summary.nodes[node];
+  return Boolean(count && count.total > 0 && count.passed === count.total);
 }

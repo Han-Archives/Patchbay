@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
 import { shortLabel } from "./shortLabel.js";
 import { CYCLE_LABEL, type CycleStep, type SubStep } from "./ProjectCycleFlow.js";
 
@@ -26,6 +26,16 @@ function describe(step: CycleStep, item: SubStep) {
 const CheckIcon = () => <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>;
 const QueueIcon = () => <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6" /><path d="M11 11.5l1.3 1.3 2.2-2.6" /></svg>;
 
+/**
+ * 작업 한 줄의 상태. LLM이 세부 항목을 실행 중이면 진행 중, 끝났으면 완료, 그 밖에 흐름도가 「지금」으로 짚은
+ * 세부 단계(지금 단계의 처음 남은 것)도 진행 중이다 — 사람이 지금 하고 있는 일이다 (사용자 요청 2026-10-18).
+ */
+export function taskStatus(task: { done: boolean; now: boolean }, children: { status: Status }[]): Status {
+  if (children.some(item => item.status === "run")) return "run";
+  if (task.done || (children.length > 0 && children.every(item => item.status === "done"))) return "done";
+  return task.now ? "run" : "wait";
+}
+
 function StatusPill({ status }: { status: Status }) {
   return <span className={`cycle-item-status is-${status}`}>{STATUS_LABEL[status]}</span>;
 }
@@ -36,6 +46,8 @@ export function CycleTaskTable({ project, step, steps, action, onAction }: { pro
   const [adding, setAdding] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrolledTo = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,24 +94,36 @@ export function CycleTaskTable({ project, step, steps, action, onAction }: { pro
   // LLM이 흐름도에 없는 작업 이름으로 계획한 항목도 버리지 않고 맨 아래 작업으로 보인다.
   const extra = [...new Set(own.map(item => item.task))].filter(task => !known.has(task));
   const tasks = [
-    ...steps.map(item => ({ label: item.label, title: item.title ?? item.label, desc: describe(step, item), done: item.state === "done" })),
-    ...extra.map(task => ({ label: task, title: task, desc: "흐름도에 없는 작업 이름으로 계획된 항목입니다.", done: false })),
+    ...steps.map(item => ({ label: item.label, title: item.title ?? item.label, desc: describe(step, item), done: item.state === "done", now: item.state === "now" })),
+    ...extra.map(task => ({ label: task, title: task, desc: "흐름도에 없는 작업 이름으로 계획된 항목입니다.", done: false, now: false })),
   ];
+  const statusOf = (task: { label: string; done: boolean; now: boolean }): Status => taskStatus(task, own.filter(item => item.task === task.label));
+  const runningTask = tasks.find(task => statusOf(task) === "run")?.label ?? null;
+
+  // 진행 중인 작업이 바뀔 때만 그 행을 표 맨 위로 올린다. 3초 새로고침마다 올리면 사용자가 내린 스크롤을 빼앗는다.
+  useEffect(() => {
+    if (!runningTask || scrolledTo.current === runningTask) return;
+    const scroller = scrollRef.current;
+    const row = scroller?.querySelector<HTMLElement>(`tr[data-task="${CSS.escape(runningTask)}"]`);
+    if (!scroller || !row) return;
+    scroller.scrollTop += row.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scrolledTo.current = runningTask;
+  }, [runningTask]);
 
   return <section className="cycle-tasks" aria-label={`${CYCLE_LABEL[step]} 작업 사항`}>
     <header className="cycle-task-header"><div><h4>{CYCLE_LABEL[step]} <span>{tasks.length}개 작업 · 행을 누르면 세부 항목이 펼쳐집니다</span></h4></div><button type="button" className="flow-btn" onClick={onAction}>{action} ↗</button></header>
     {error ? <p className="flow-error">{error}</p> : null}
-    {tasks.length ? <div className="cycle-item-scroll"><table className="cycle-item-table">
+    {tasks.length ? <div className="cycle-item-scroll" ref={scrollRef}><table className="cycle-item-table">
       <colgroup><col className="c-no" /><col className="c-name" /><col className="c-status" /><col /><col className="c-tag" /><col className="c-run" /></colgroup>
       <thead><tr><th scope="col">번호</th><th scope="col">항목명</th><th scope="col">상태</th><th scope="col">설명</th><th scope="col">태그</th><th scope="col" className="is-right">실행</th></tr></thead>
       <tbody>{tasks.map((task, ti) => {
         const children = own.filter(item => item.task === task.label);
-        const status: Status = children.some(item => item.status === "run") ? "run" : task.done || (children.length > 0 && children.every(item => item.status === "done")) ? "done" : "wait";
+        const status = statusOf(task);
         const isOpen = open.has(task.label);
         const formId = `cycle-add-${step}-${ti}`;
         return <Fragment key={task.label}>
-          <tr className={`cycle-item-task${isOpen ? " is-open" : ""}${status === "done" ? " is-done" : ""}`} onClick={() => toggle(task.label)}>
-            <td className="cycle-item-no"><span className="cycle-item-noin"><span className="cycle-item-slot" /><span>{String(ti + 1).padStart(2, "0")}</span></span></td>
+          <tr data-task={task.label} className={`cycle-item-task${isOpen ? " is-open" : ""}${status === "done" ? " is-done" : ""}${status === "run" ? " is-now" : ""}`} onClick={() => toggle(task.label)}>
+            <td className="cycle-item-no"><span className="cycle-item-noin"><span className="cycle-item-slot">{status === "run" ? <i className="cycle-item-now" role="img" aria-label="진행 중" /> : null}</span><span>{String(ti + 1).padStart(2, "0")}</span></span></td>
             <td><button type="button" className="cycle-item-toggle" aria-expanded={isOpen} title={task.title} onClick={event => { event.stopPropagation(); toggle(task.label); }}><span className="cycle-item-name">{shortLabel(task.label)}</span></button></td>
             <td><StatusPill status={status} /></td>
             <td className="cycle-item-desc" title={task.desc}>{task.desc}</td>

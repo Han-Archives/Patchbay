@@ -1,0 +1,475 @@
+{
+  "at": "2026-10-18T09:03:42.785Z",
+  "modelCalls": 0,
+  "storedTodos": 1,
+  "results": [
+    {
+      "name": "unique-keys-no-overview",
+      "overviewMode": "none",
+      "live": false,
+      "uniqueKeys": true,
+      "patchedBundle": 1,
+      "samples": [
+        {
+          "stage": "dashboard-initial",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-1-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-1-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-1",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-2-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-2-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-2",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-3-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-3-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-3",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-4-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-4-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-4",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-5-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-5-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-5",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        }
+      ],
+      "errors": [],
+      "warnings": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ]
+    },
+    {
+      "name": "unique-keys-refresh-race",
+      "overviewMode": "refresh-race",
+      "live": false,
+      "uniqueKeys": true,
+      "patchedBundle": 1,
+      "samples": [
+        {
+          "stage": "dashboard-initial",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-1-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-1-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-1",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-2-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-2-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-2",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-3-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-3-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-3",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-4-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-4-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-4",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        },
+        {
+          "stage": "overview-5-immediate",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "overview-5-settled",
+          "view": "main-shell",
+          "panes": 0,
+          "rows": 0,
+          "overview": 1,
+          "parents": [],
+          "children": [
+            "main-header",
+            "main-overview"
+          ]
+        },
+        {
+          "stage": "dashboard-5",
+          "view": "main-shell is-dashboard",
+          "panes": 1,
+          "rows": 1,
+          "overview": 0,
+          "parents": [
+            {
+              "className": "main-dashboard-grid",
+              "visible": true
+            }
+          ],
+          "children": [
+            "main-header",
+            "main-dashboard-grid"
+          ]
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    }
+  ]
+}

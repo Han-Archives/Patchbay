@@ -100,9 +100,10 @@ export function ProjectCycleFlow({ stages, steps, selected, onSelect }: {
   const arrow = { type: MarkerType.ArrowClosed, width: 14, height: 14 };
   const edge = (id: string, source: CycleStep, target: CycleStep, label: string, back: boolean, sourceHandle = "out") => ({
     id, source, target, sourceHandle, targetHandle: "in", label, markerEnd: arrow,
-    // 지금 단계로 들어가는 길만 흐르게 — 어디로 가는 중인지 눈에 띈다.
-    animated: target === current,
-    className: `cycle-edge${back ? " is-back" : ""}${target === current ? " is-live" : ""}`,
+    // 지금 단계로 들어가는 앞길만 흐르게 — 어디로 가는 중인지 눈에 띈다. 반려 선은 흐르지 않는다: 반려 기록이 없어
+    // 첫 바퀴의 설계에서도 Review → 설계가 흐르는 것처럼 보였다 (사용자 요청 2026-10-18).
+    animated: target === current && !back,
+    className: `cycle-edge${back ? " is-back" : ""}${target === current && !back ? " is-live" : ""}`,
     ...(back ? { type: "smoothstep" } : {}),
   });
   const edges = [

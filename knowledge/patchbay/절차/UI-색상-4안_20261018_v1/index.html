@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patchbay · UI 색상 4안</title>
+<style>
+:root{--page:#e4e4e8;--ink:#1b1b1f;--sub:#55555e;--line:#c9c9cf;--card:#f6f6f8;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-size:14px;line-height:1.55}
+.shell{max-width:1240px;margin:auto;padding:28px 20px 56px}
+h1{font-size:26px;letter-spacing:-.03em;margin:0 0 6px}
+.lead{color:var(--sub);margin:0 0 18px;max-width:78ch}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0 0 26px}
+.rules div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--sub)}
+.rules b{display:block;color:var(--ink);font-size:13px;margin-bottom:2px}
+.option{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px}
+.option-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;margin-bottom:12px}
+.option-head h2{margin:0;font-size:19px;letter-spacing:-.02em}
+.option-head p{margin:0;color:var(--sub);font-size:13px}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#1b1b1f;color:#fff}
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin-bottom:14px}
+.sw{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font-size:12px}
+.sw .chips{grid-row:1/3;display:flex;gap:4px}
+.sw .chips i{width:22px;height:22px;border-radius:6px;display:block;border:1px solid rgba(0,0,0,.12)}
+.sw b{font-size:13px}
+.sw span{color:var(--sub);font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair figure{margin:0}
+.pair figcaption{font-size:12px;color:var(--sub);margin-bottom:6px}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;font-size:13px}
+.notes div{border-top:1px solid var(--line);padding-top:8px;color:var(--sub)}
+.notes b{color:var(--ink)}
+@media(max-width:980px){.pair,.notes{grid-template-columns:1fr}}
+
+/* ---------- 축소 콘솔 ---------- */
+.mock{--p-fill:color-mix(in srgb,var(--p) 16%,var(--chrome));--n-fill:color-mix(in srgb,var(--n) 16%,var(--chrome));--x-fill:color-mix(in srgb,var(--x) 16%,var(--chrome));
+  display:grid;grid-template-columns:46px minmax(0,1fr) 148px;height:340px;border-radius:12px;overflow:hidden;background:var(--bg);color:var(--text);border:1px solid var(--stroke);font-size:11px;line-height:1.4}
+.mock.dark{--bg:#121212;--chrome:#1a1a1a;--elevated:#222222;--stroke:#333333;--text:#f2f2f2;--muted:#9a9a9a;--on-p:#121212}
+.mock.light{--bg:#f3f3f5;--chrome:#ffffff;--elevated:#f7f7f9;--stroke:#e0e0e5;--text:#1b1b1f;--muted:#62626b;--on-p:#ffffff}
+.rail{background:var(--chrome);border-right:1px solid var(--stroke);display:flex;flex-direction:column;align-items:center;gap:7px;padding:9px 0}
+.tile{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px;position:relative;background:var(--elevated);border:1px solid var(--stroke);color:var(--text)}
+.tile.logo{background:var(--p);color:var(--on-p);border-color:var(--p)}
+.tile.on{outline:2px solid var(--p);outline-offset:1px}
+.tile .dot{position:absolute;right:-2px;bottom:-2px;width:8px;height:8px;border-radius:50%;background:var(--n);border:2px solid var(--chrome)}
+.rail hr{width:24px;border:0;border-top:1px solid var(--stroke);margin:2px 0}
+.main{display:flex;flex-direction:column;gap:7px;padding:9px;min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.top b{font-size:12px}
+.btn{border-radius:6px;padding:4px 9px;font-weight:700;font-size:10.5px;border:1px solid var(--stroke);background:var(--elevated);color:var(--text)}
+.btn.primary{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.card{background:var(--chrome);border:1px solid var(--stroke);border-radius:8px;padding:7px 8px}
+.card h4{margin:0 0 6px;font-size:11px}
+.steps{display:flex;gap:5px}
+.step{flex:1;text-align:center;border-radius:6px;padding:5px 2px;border:1px solid var(--stroke);color:var(--muted)}
+.step.pass{background:var(--p-fill);border-color:var(--p);color:var(--p);font-weight:700}
+.step.now{background:var(--n-fill);border-color:var(--n);color:var(--n);font-weight:700}
+.step.lock{border-style:dashed}
+.row{display:grid;grid-template-columns:12px minmax(0,1fr) 56px 30px;gap:4px;align-items:center;padding:4px 0;border-top:1px solid var(--stroke)}
+.row:first-of-type{border-top:0}
+.row .n{color:var(--muted)}
+.chip{border-radius:999px;padding:1px 6px;font-weight:700;font-size:9.5px;text-align:center;white-space:nowrap}
+.chip.pass{background:var(--p-fill);color:var(--p)}
+.chip.now{background:var(--n-fill);color:var(--n)}
+.chip.fail{background:var(--x-fill);color:var(--x)}
+.tag{color:var(--muted);font-size:9.5px;text-align:right}
+.split{display:grid;grid-template-columns:1.8fr 1fr;gap:7px;min-height:0;flex:1}
+.task{display:flex;align-items:center;gap:6px;padding:3px 0}
+.task i{width:7px;height:7px;border-radius:50%;background:var(--stroke);flex:none}
+.task i.run{background:var(--n);box-shadow:0 0 0 3px var(--n-fill)}
+.task.done{color:var(--muted);text-decoration:line-through}
+.err{color:var(--x);font-weight:700}
+.chat{background:var(--chrome);border-left:1px solid var(--stroke);display:flex;flex-direction:column;padding:9px;gap:6px}
+.chat h4{margin:0;font-size:11px}
+.bubble{border-radius:8px;padding:5px 7px;max-width:92%}
+.bubble.me{align-self:flex-end;background:var(--p-fill);color:var(--text);border:1px solid color-mix(in srgb,var(--p) 40%,var(--stroke))}
+.bubble.host{align-self:flex-start;background:var(--elevated);border:1px solid var(--stroke)}
+.bubble small{display:block;color:var(--muted);font-size:9px}
+.input{margin-top:auto;border:1px solid var(--stroke);border-radius:7px;background:var(--bg);padding:6px;color:var(--muted)}
+.chat .actions{display:flex;justify-content:flex-end;gap:4px}
+.link{color:var(--p);text-decoration:underline;font-weight:600}
+.row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:620px){
+  .mock{grid-template-columns:46px minmax(0,1fr);height:auto}
+  .mock .split{grid-template-columns:1fr}
+  .mock .chat{grid-column:1/-1;border-left:0;border-top:1px solid var(--stroke)}
+}
+/* 2색 안: 「지금」은 보라 대신 같은 포인트 색의 테두리와 굵기로 */
+.mock.two .step.now{background:transparent;border:1.5px solid var(--p);color:var(--text)}
+.mock.two .chip.now{background:transparent;box-shadow:inset 0 0 0 1.2px var(--p);color:var(--text)}
+.mock.two .task i.run{background:var(--p);box-shadow:0 0 0 3px var(--p-fill)}
+.mock.two .tile .dot{background:var(--p)}
+</style>
+</head>
+<body>
+<main class="shell">
+  <h1>UI 색상 4안 — 다크 · 화이트</h1>
+  <p class="lead">지금 콘솔 구성(왼쪽 레일 · Workflow 단계 · 작업 표 · Tasks · 대화 칸)을 줄여 그리고 색만 바꿨다. 각 안은 강조 색을 3개 이하로 쓰고, 같은 색을 다크에서는 밝게, 화이트에서는 진하게 쓴다. 숫자는 그 바탕 위 글자 대비(WCAG, 4.5 이상이 본문 통과)다.</p>
+
+  <section class="rules" aria-label="공통 규칙">
+    <div><b>색은 역할에만</b>포인트(누를 것 · 통과) · 지금 할 일 · 실패. 2026-10-05 결정 「색은 상태에만 쓴다」를 그대로 둔다.</div>
+    <div><b>회색은 색으로 세지 않는다</b>바탕 · 카드 · 선 · 글자 · 보조 글자는 회색 단계. 다크 #121212~#333, 화이트 #f3f3f5~#e0e0e5.</div>
+    <div><b>색만으로 말하지 않는다</b>상태 글자(진행 중 · 완료 · 실패)를 칩 안에 둔다. 색약에서도 읽힌다.</div>
+    <div><b>네 안 모두 대비 통과</b>가장 낮은 값이 화이트의 빨강 4.91 · 틸 4.94. 다크는 모두 5.6 이상.</div>
+  </section>
+
+  <!-- 안 1 -->
+  <article class="option" id="a">
+    <div class="option-head"><h2>1안 · 보라 정리</h2><span class="badge">지금과 가장 가깝다</span><p>보라 · 주황 · 빨강. 지금 색을 그대로 두고 화이트 테마만 더한다.</p></div>
+    <div class="swatches">
+      <div class="sw"><span class="chips"><i style="background:#a78bfa"></i><i style="background:#6d28d9"></i></span><b>포인트 · 통과 — 보라</b><span>다크 #a78bfa 5.85 · 화이트 #6d28d9 6.41</span></div>
+      <div class="sw"><span class="chips"><i style="background:#e3a35a"></i><i style="background:#9a4f06"></i></span><b>지금 할 일 — 주황</b><span>다크 #e3a35a 7.31 · 화이트 #9a4f06 5.42</span></div>
+      <div class="sw"><span class="chips"><i style="background:#ef7b6e"></i><i style="background:#c0392b"></i></span><b>실패 — 빨강</b><span>다크 #ef7b6e 5.86 · 화이트 #c0392b 4.91</span></div>
+    </div>
+    <div class="pair">
+      <figure><figcaption>다크</figcaption><div class="mock dark" style="--p:#a78bfa;--n:#e3a35a;--x:#ef7b6e" data-mock></div></figure>
+      <figure><figcaption>화이트</figcaption><div class="mock light" style="--p:#6d28d9;--n:#9a4f06;--x:#c0392b" data-mock></div></figure>
+    </div>
+    <div class="notes"><div><b>좋은 점.</b> 지금 화면과 결정(보라 = 통과)을 그대로 잇는다. 바꿀 코드가 가장 적다.</div><div><b>주의.</b> 주황과 빨강은 적록 색약에서 비슷해 보인다. 칩의 글자로 구분한다.</div></div>
+  </article>
+
+  <!-- 안 2 -->
+  <article class="option" id="b">
+    <div class="option-head"><h2>2안 · 블루 표준</h2><span class="badge">추천</span><p>파랑 · 주황 · 빨강. 업무 도구에서 가장 흔한 조합이라 처음 보는 사람도 뜻을 바로 읽는다.</p></div>
+    <div class="swatches">
+      <div class="sw"><span class="chips"><i style="background:#6ea8fe"></i><i style="background:#1d5fd1"></i></span><b>포인트 · 통과 — 파랑</b><span>다크 #6ea8fe 6.59 · 화이트 #1d5fd1 5.25</span></div>
+      <div class="sw"><span class="chips"><i style="background:#e3a35a"></i><i style="background:#9a4f06"></i></span><b>지금 할 일 — 주황</b><span>다크 #e3a35a 7.31 · 화이트 #9a4f06 5.42</span></div>
+      <div class="sw"><span class="chips"><i style="background:#ef7b6e"></i><i style="background:#c0392b"></i></span><b>실패 — 빨강</b><span>다크 #ef7b6e 5.86 · 화이트 #c0392b 4.91</span></div>
+    </div>
+    <div class="pair">
+      <figure><figcaption>다크</figcaption><div class="mock dark" style="--p:#6ea8fe;--n:#e3a35a;--x:#ef7b6e" data-mock></div></figure>
+      <figure><figcaption>화이트</figcaption><div class="mock light" style="--p:#1d5fd1;--n:#9a4f06;--x:#c0392b" data-mock></div></figure>
+    </div>
+    <div class="notes"><div><b>좋은 점.</b> 파랑(누를 것) · 주황(주의) · 빨강(실패)이 관례와 같다. 파랑과 주황은 색약에서도 잘 갈린다. 링크도 파랑이라 자연스럽다.</div><div><b>주의.</b> 보라였던 Patchbay의 인상이 바뀐다. 「보라 = 통과」 결정(2026-10-05)을 고쳐야 한다.</div></div>
+  </article>
+
+  <!-- 안 3 -->
+  <article class="option" id="c">
+    <div class="option-head"><h2>3안 · 틸 차분</h2><p>청록 · 주황 · 장미. 채도를 낮춘 차분한 조합. 오래 보는 화면에 맞다.</p></div>
+    <div class="swatches">
+      <div class="sw"><span class="chips"><i style="background:#4fd1c5"></i><i style="background:#0f766e"></i></span><b>포인트 · 통과 — 청록</b><span>다크 #4fd1c5 8.53 · 화이트 #0f766e 4.94</span></div>
+      <div class="sw"><span class="chips"><i style="background:#f59e5b"></i><i style="background:#b4430a"></i></span><b>지금 할 일 — 주황</b><span>다크 #f59e5b 7.52 · 화이트 #b4430a 5.06</span></div>
+      <div class="sw"><span class="chips"><i style="background:#fb7185"></i><i style="background:#be123c"></i></span><b>실패 — 장미</b><span>다크 #fb7185 5.91 · 화이트 #be123c 5.67</span></div>
+    </div>
+    <div class="pair">
+      <figure><figcaption>다크</figcaption><div class="mock dark" style="--p:#4fd1c5;--n:#f59e5b;--x:#fb7185" data-mock></div></figure>
+      <figure><figcaption>화이트</figcaption><div class="mock light" style="--p:#0f766e;--n:#b4430a;--x:#be123c" data-mock></div></figure>
+    </div>
+    <div class="notes"><div><b>좋은 점.</b> 다크에서 포인트가 가장 또렷하다(8.53). 청록은 「통과 · 정상」으로 읽힌다.</div><div><b>주의.</b> 주황과 장미가 가까워 실패와 지금 할 일이 덜 갈린다. 화이트 청록은 4.94로 여유가 적다.</div></div>
+  </article>
+
+  <!-- 안 4 -->
+  <article class="option" id="d">
+    <div class="option-head"><h2>4안 · 인디고 최소</h2><p>인디고 · 빨강, 두 색만. 「지금 할 일」은 색 대신 테두리와 굵기로 보인다.</p></div>
+    <div class="swatches">
+      <div class="sw"><span class="chips"><i style="background:#8b9cff"></i><i style="background:#3b4cca"></i></span><b>포인트 · 통과 · 지금 — 인디고</b><span>다크 #8b9cff 6.29 · 화이트 #3b4cca 6.17</span></div>
+      <div class="sw"><span class="chips"><i style="background:#ef7b6e"></i><i style="background:#c0392b"></i></span><b>실패 — 빨강</b><span>다크 #ef7b6e 5.86 · 화이트 #c0392b 4.91</span></div>
+    </div>
+    <div class="pair">
+      <figure><figcaption>다크</figcaption><div class="mock dark two" style="--p:#8b9cff;--n:#8b9cff;--x:#ef7b6e" data-mock></div></figure>
+      <figure><figcaption>화이트</figcaption><div class="mock light two" style="--p:#3b4cca;--n:#3b4cca;--x:#c0392b" data-mock></div></figure>
+    </div>
+    <div class="notes"><div><b>좋은 점.</b> 가장 조용하다. 빨강만 튀므로 실패가 즉시 보인다. 색약에서도 두 색이 확실히 갈린다.</div><div><b>주의.</b> 지금 할 일과 통과가 같은 색이다. 실행 중 불빛(주황)이 사라지고, 테두리 차이를 익혀야 한다.</div></div>
+  </article>
+</main>
+
+<template id="mock-body">
+  <nav class="rail" aria-hidden="true">
+    <span class="tile logo">P</span>
+    <span class="tile on">패<span class="dot"></span></span>
+    <span class="tile">토</span>
+    <span class="tile">A</span>
+    <hr>
+    <span class="tile">⌂</span>
+  </nav>
+  <section class="main">
+    <div class="top"><b>Patchbay · 대시보드</b><span class="btn primary">이어하기</span></div>
+    <div class="card"><h4>Workflow</h4>
+      <div class="steps"><span class="step pass">✓ 설계</span><span class="step now">● 구현</span><span class="step">테스트</span><span class="step lock">검토</span></div>
+    </div>
+    <div class="split">
+      <div class="card"><h4>Review</h4>
+        <div class="row"><span class="n">1</span><span>요구사항 정리</span><span class="chip pass">✓ 완료</span><span class="tag">설계</span></div>
+        <div class="row"><span class="n">2</span><span>노드 채우기</span><span class="chip now">● 진행 중</span><span class="tag">Agent</span></div>
+        <div class="row"><span class="n">3</span><span>생성 시험</span><span class="chip fail">✕ 실패</span><span class="tag">테스트</span></div>
+      </div>
+      <div class="card"><h4>Tasks</h4>
+        <div class="task"><i class="run"></i>상담 LLM 고르기</div>
+        <div class="task"><i></i>RAG 출처 보기</div>
+        <div class="task done"><i></i>아이콘 색</div>
+        <div class="task err">✕ 빌드 실패 1</div>
+      </div>
+    </div>
+  </section>
+  <aside class="chat">
+    <h4>대화 · 수리</h4>
+    <div class="bubble me">구현 단계 남은 거?</div>
+    <div class="bubble host"><small>수리 · opus</small>노드 2개 남음. <span class="link">시안.html</span></div>
+    <div class="input">메시지 입력</div>
+    <div class="actions"><span class="btn">Record</span><span class="btn primary">Send</span></div>
+  </aside>
+</template>
+<script>
+const body = document.getElementById("mock-body");
+document.querySelectorAll("[data-mock]").forEach(m => m.append(body.content.cloneNode(true)));
+</script>
+</body>
+</html>
