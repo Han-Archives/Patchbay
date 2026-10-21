@@ -27,6 +27,7 @@ const DEFAULT_SNAPSHOT: LlmQuotaSnapshot = {
       label: "Claude Code",
       sub: "claude · opus / sonnet",
       estimated: true,
+      rateStatus: "missing",
       hpPct: null,
       tone: "ok",
       session: { usedTokens: 0, inputTokens: 0, outputTokens: 0, capTokens: 220_000, remainingPct: null, tone: "ok", turns: 0, recoverInMinutes: null },
@@ -64,9 +65,25 @@ function formatRecoverTime(minutes: number | null): string {
 
 function toneLabel(p: LlmProviderHealth): string {
   if (p.exhausted || p.hpPct === 0) return `HP 0% · 고갈`;
+  if (p.rateStatus === "stale") return "사용률 갱신 지연";
+  if (p.rateStatus === "partial") return "일부 사용률 확인";
+  if (p.rateStatus === "missing") return "사용률 확인 대기";
   if (p.hpPct === null) return "사용량만 · 서버 사용률 없음";
   if (p.tone === "warn") return `HP ${p.hpPct}% · 주의`;
   return `HP ${p.hpPct}% · 양호`;
+}
+
+function quotaBasis(p: LlmProviderHealth): string | null {
+  if (!p.rateStatus || p.rateStatus === "fresh" || p.exhausted) return null;
+  if (p.hpPct === null) return "갱신 대기";
+  return p.session.remainingPct === null ? "7일 기준" : "5h 기준";
+}
+
+function observationText(window: LlmProviderHealth["session"] | LlmProviderHealth["weekly"]): string | null {
+  const observation = window.observation;
+  if (!observation) return null;
+  const date = new Date(observation.observedAt);
+  return `${observation.stale ? `마지막 ${observation.remainingPct}% · ` : ""}${Number.isFinite(date.getTime()) ? date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "시각 미상"} 확인${observation.stale ? " · 갱신 대기" : ""}`;
 }
 
 export function LlmHealthRail({
@@ -163,23 +180,6 @@ export function LlmHealthRail({
     }
   }
 
-  async function recoverProvider(provider: LlmQuotaProvider) {
-    if (readOnly || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch("/api/llm-quota", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "recover", provider }),
-      });
-      if (res.ok) {
-        const body = (await res.json()) as LlmQuotaSnapshot;
-        setSnapshot(body);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="rail-hp-wrap" ref={wrapRef}>
@@ -195,12 +195,13 @@ export function LlmHealthRail({
           <div key={item.provider} className={`rail-hp-row is-${item.hpPct === null ? "est" : item.tone}`}>
             <div className="rail-hp-head">
               <b>{item.code}</b>
-              <span>{item.hpPct === null ? formatTokens(item.session.usedTokens) : `${item.hpPct}%`}</span>
+              <span>{item.hpPct === null ? item.rateStatus ? "—" : formatTokens(item.session.usedTokens) : `${item.hpPct}%`}</span>
             </div>
             {/* 퍼센트를 모르는 공급자는 막대 대신 5시간 사용량만 보인다. */}
-            {item.hpPct === null ? <small className="rail-hp-est">5h 사용</small> : <div className="hp-track" aria-hidden="true">
+            {item.hpPct === null ? <small className="rail-hp-est">{item.rateStatus ? "갱신 대기" : "5h 사용"}</small> : <div className="hp-track" aria-hidden="true">
               <div className={`hp-fill is-${item.tone}`} style={{ width: `${item.hpPct}%` }} />
             </div>}
+            {item.hpPct !== null && quotaBasis(item) ? <small className="rail-hp-est">{quotaBasis(item)}</small> : null}
           </div>
         ))}
       </button>
@@ -254,10 +255,11 @@ export function LlmHealthRail({
 
                     <div className="hp-meter">
                       <div className="hp-meter-label">
-                        <span>5시간 세션 {p.session.remainingPct === null ? "사용량" : "체력"} ({formatRecoverTime(p.session.recoverInMinutes)})</span>
+                        <span>5시간 세션 {p.session.remainingPct === null ? p.rateStatus ? "사용률 대기" : "사용량" : "체력"}{!p.rateStatus || p.session.remainingPct !== null ? ` (${formatRecoverTime(p.session.recoverInMinutes)})` : ""}</span>
                         <b>
                           {p.session.remainingPct === null
                             ? `사용 ${formatTokens(p.session.usedTokens)}`
+                            : p.rateStatus ? `${p.session.remainingPct}% · 서버 사용률`
                             : p.session.usedTokens > p.session.capTokens && p.session.remainingPct > 0
                               ? `${p.session.remainingPct}% · 사용 ${formatTokens(p.session.usedTokens)} (서버 한도)`
                               : `${p.session.remainingPct}% · ${formatTokens(sessionRemaining)} / ${formatTokens(p.session.capTokens)}`}
@@ -268,12 +270,15 @@ export function LlmHealthRail({
                       </div>}
                     </div>
 
+                    {observationText(p.session) ? <p className="hp-est-note">5시간 · {observationText(p.session)}</p> : null}
+
                     <div className="hp-meter">
                       <div className="hp-meter-label">
                         <span>7일 주간 {p.weekly.remainingPct === null ? "사용량" : "체력"} ({p.weekly.turns}턴 호출)</span>
                         <b>
                           {p.weekly.remainingPct === null
                             ? `사용 ${formatTokens(p.weekly.usedTokens)}`
+                            : p.rateStatus ? `${p.weekly.remainingPct}% · 서버 사용률`
                             : p.weekly.usedTokens > p.weekly.capTokens && p.weekly.remainingPct > 0
                               ? `${p.weekly.remainingPct}% · 사용 ${formatTokens(p.weekly.usedTokens)} (서버 한도)`
                               : `${p.weekly.remainingPct}% · ${formatTokens(weeklyRemaining)} / ${formatTokens(p.weekly.capTokens)}`}
@@ -284,20 +289,17 @@ export function LlmHealthRail({
                       </div>}
                     </div>
 
+                    {observationText(p.weekly) ? <p className="hp-est-note">7일 · {observationText(p.weekly)}</p> : null}
+
                     {p.estimated && !p.exhausted ? (
-                      <p className="hp-est-note">아직 Claude Code 상태줄에서 사용률을 받지 못해 사용량만 보입니다. Claude Code를 한 번 쓰면 남은 % 로 바뀝니다.</p>
+                      <p className="hp-est-note">{p.rateStatus === "stale" ? "일부 사용률 정보가 오래됐습니다. 최신 값이 도착하면 자동으로 갱신됩니다." : p.rateStatus === "partial" ? "확인된 기간의 잔여량을 표시하고 있습니다. 나머지 사용률은 갱신 대기 중입니다." : "Claude 사용률을 확인하고 있습니다. 조회할 수 없으면 갱신 대기로 표시합니다."}</p>
                     ) : null}
 
                     {p.exhausted ? (
                       <div className="hp-exhaust-banner">
                         <span>
-                          호스트 한도 도달{p.exhausted.resetHint ? ` · ${p.exhausted.resetHint} 회복` : ""}
+                          호스트 한도 도달{p.exhausted.resetHint ? ` · ${p.exhausted.resetHint} 회복` : ""} · 사용률이 갱신되면 자동으로 풀립니다
                         </span>
-                        {!readOnly ? (
-                          <button type="button" disabled={busy} onClick={() => void recoverProvider(p.provider)}>
-                            수동 회복
-                          </button>
-                        ) : null}
                       </div>
                     ) : null}
                   </article>
@@ -382,7 +384,7 @@ export function LlmHealthRail({
           )}
 
           <div className="hp-pop-foot">
-            <span>세션·주간 중 더 낮은 비율을 레일 대표 체력으로 표시</span>
+            <span>확인된 기간 중 더 낮은 잔여량 · 누락된 기간은 별도 표시</span>
             <button type="button" className="hp-pop-close" onClick={() => setOpen(false)}>
               닫기
             </button>

@@ -4,18 +4,19 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { readStudio } from "./studioStore.js";
-import { listRooms, readRoom } from "../rooms/store.js";
+import { listRooms, readRoom, withFileLock } from "../rooms/store.js";
 import { currentConsultMeta, listArchivedConsults, listConsults, readConsult } from "../consult/store.js";
 
 /**
  * LLM 구독제 토큰 체력(HP) 저장소 · 집계 (`~/.patchbay/llm-quota.json`).
  *
- * 구독형 CLI(Claude Code · Codex · Grok)는 비대화형 명령에서 서버 잔여 퍼센트(%)를 직접 내려주지 않는다.
+ * 일반 대화 응답의 토큰 합계만으로 구독 잔여 비율을 알 수는 없다.
+ * Claude는 상태줄·Flow의 무추론 CLI 제어 조회, Codex는 세션 기록의 서버 사용률을 우선한다.
  * 따라서:
- * 1) 작업 공간 안의 모든 프로젝트 대화방(`rooms/*.jsonl`)과 설계 상담(`consult/*.jsonl` + 보관본)에서
+ * 1) 작업 공간 안의 모든 프로젝트 대화방(`chats/*.jsonl`)과 설계 상담(`consult/*.jsonl` + 보관본)에서
  *    공급자별 최근 5시간(세션 창) / 최근 7일(주간 창) 입력·출력 토큰을 합산해 기준 체력통 대비 잔여 체력(%)을 계산한다.
  * 2) 호스트 CLI가 한도 도달 문구(`usage limit`, `session limit`, `weekly limit`, `resets ...`)를 내면
- *    즉시 고갈 상태(`exhausted`)를 기록하여 체력을 0%로 잠그고, 해제 시각이 지나거나 사람이 「수동 회복」을 누르면 푼다.
+ *    즉시 고갈 상태(`exhausted`)를 기록하여 체력을 0%로 잠그고, 해제 시각이 지나거나 그 뒤 서버 사용률이 5시간 창에 여유가 있다고 하면 푼다.
  */
 
 export const LLM_QUOTA_FILE_NAME = "llm-quota.json";
@@ -97,12 +98,13 @@ export function llmQuotaPath(studioHome: string): string {
 }
 
 /**
- * Claude Code 상태줄(statusLine) 명령이 받는 서버 사용률을 남겨 두는 파일.
- * Claude 세션 기록에는 남은 비율이 없어서, 상태줄 입력의 `rate_limits` 만이 실제 % 의 출처다.
+ * Claude 상태줄과 Flow의 무추론 CLI 사용률 조회가 공유하는 관측 파일.
+ * 일반 세션의 토큰 기록과 달리 서버가 제공한 사용률과 창별 관측 시각을 담는다.
  */
 export const CLAUDE_RATE_FILE_NAME = "llm-quota-claude.json";
 
-const rateWindowSchema = z.object({ usedPct: z.number().min(0).max(100), resetsAt: z.string() });
+export const CLAUDE_RATE_STALE_MS = 5 * 60 * 1000;
+const rateWindowSchema = z.object({ usedPct: z.number().min(0).max(100), resetsAt: z.string(), at: z.string().optional() });
 const claudeRateSchema = z.object({ at: z.string(), session: rateWindowSchema.optional(), weekly: rateWindowSchema.optional() });
 export type ClaudeRateLimits = z.infer<typeof claudeRateSchema>;
 
@@ -123,9 +125,25 @@ export async function recordClaudeRateLimits(studioHome: string, statusInput: un
   const session = rateWindow((limits as Record<string, unknown>).five_hour);
   const weekly = rateWindow((limits as Record<string, unknown>).seven_day);
   if (!session && !weekly) return null;
-  const record: ClaudeRateLimits = { at: now.toISOString(), ...(session ? { session } : {}), ...(weekly ? { weekly } : {}) };
-  await atomicWrite(path.join(studioHome, CLAUDE_RATE_FILE_NAME), `${JSON.stringify(record, null, 2)}\n`);
-  return record;
+  const file = path.join(studioHome, CLAUDE_RATE_FILE_NAME);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  return withFileLock(file, async () => {
+    const previous = await readClaudeRateLimits(studioHome);
+    const merge = (fresh: typeof session, old: typeof session) => {
+      const saved = old ? { ...old, at: old.at ?? previous!.at } : undefined;
+      if (!fresh || (saved && Date.parse(saved.at) > now.getTime())) return saved;
+      return { ...fresh, at: now.toISOString() };
+    };
+    const nextSession = merge(session, previous?.session);
+    const nextWeekly = merge(weekly, previous?.weekly);
+    const record: ClaudeRateLimits = {
+      at: previous && Date.parse(previous.at) > now.getTime() ? previous.at : now.toISOString(),
+      ...(nextSession ? { session: nextSession } : {}),
+      ...(nextWeekly ? { weekly: nextWeekly } : {}),
+    };
+    await atomicWrite(file, `${JSON.stringify(record, null, 2)}\n`);
+    return record;
+  });
 }
 
 export async function readClaudeRateLimits(studioHome: string): Promise<ClaudeRateLimits | null> {
@@ -215,15 +233,11 @@ export async function recordLlmQuotaExhausted(
   return true;
 }
 
-export async function clearLlmQuotaExhausted(
-  studioHome: string,
-  provider: LlmQuotaProvider,
-): Promise<LlmQuotaConfig> {
-  return updateLlmQuotaConfig(studioHome, (current) => {
-    const nextExhausted = { ...current.exhausted };
-    delete nextExhausted[provider];
-    return { ...current, exhausted: nextExhausted };
-  });
+export interface QuotaObservation {
+  observedAt: string;
+  resetsAt: string;
+  remainingPct: number;
+  stale: boolean;
 }
 
 export interface LlmProviderHealth {
@@ -231,9 +245,10 @@ export interface LlmProviderHealth {
   code: "CL" | "CX";
   label: string;
   sub: string;
-  /** 서버 사용률을 아직 받지 못해 퍼센트를 매기지 않는 공급자. 토큰 사용량만 보인다. */
+  /** 사용률 창이 일부 누락됐거나 오래돼 전체 잔여량을 확인할 수 없다. */
   estimated: boolean;
-  /** 레일 대표 체력: 고갈이면 0, 추정이면 null, 아니면 min(sessionPct, weeklyPct). */
+  rateStatus?: "fresh" | "partial" | "stale" | "missing";
+  /** 고갈이면 0. 확인된 최신 창 중 최솟값, 모두 미확인이면 null. 부분 확인은 rateStatus로 구별한다. */
   hpPct: number | null;
   tone: "ok" | "warn" | "bad";
   session: {
@@ -246,6 +261,7 @@ export interface LlmProviderHealth {
     turns: number;
     /** 가장 오래된 5시간 창 내 호출이 빠져나와 회복되기 시작하는 남은 분. */
     recoverInMinutes: number | null;
+    observation?: QuotaObservation;
   };
   weekly: {
     usedTokens: number;
@@ -256,6 +272,7 @@ export interface LlmProviderHealth {
     tone: "ok" | "warn" | "bad";
     turns: number;
     costUsd: number;
+    observation?: QuotaObservation;
   };
   exhausted: ProviderExhausted | null;
 }
@@ -300,6 +317,17 @@ function serverWindow(window: { usedPct: number; resetsAt: string } | undefined,
   return { remainingPct: resetsAtMs > nowMs ? Math.max(0, Math.min(100, 100 - Math.round(window.usedPct))) : 100, resetsAtMs };
 }
 
+function claudeObservation(window: ClaudeRateLimits["session"], at: string | undefined, nowMs: number): QuotaObservation | undefined {
+  if (!window || !at) return undefined;
+  const observedAt = window.at ?? at;
+  const observedMs = Date.parse(observedAt), resetsMs = Date.parse(window.resetsAt);
+  return {
+    observedAt, resetsAt: window.resetsAt,
+    remainingPct: Math.max(0, Math.min(100, 100 - Math.round(window.usedPct))),
+    stale: !Number.isFinite(observedMs) || !Number.isFinite(resetsMs) || observedMs > nowMs + 60_000 || nowMs - observedMs > CLAUDE_RATE_STALE_MS || resetsMs <= nowMs,
+  };
+}
+
 interface HostCliCollection {
   claudeSamples: UsageSample[];
   codexSamples: UsageSample[];
@@ -309,6 +337,7 @@ interface HostCliCollection {
   codexRateLimits: {
     session: HostRateLimitWindow | null;
     weekly: HostRateLimitWindow | null;
+    observedAtMs: number;
   };
 }
 
@@ -535,6 +564,7 @@ async function collectHostCliUsage(
     codexRateLimits: {
       session: codexSessionWindow,
       weekly: codexWeeklyWindow,
+      observedAtMs: latestCodexRateTs,
     },
   };
 }
@@ -558,7 +588,7 @@ async function collectUsageSamples(
   const nowMs = now.getTime();
 
   for (const alias of aliases) {
-    // 1. 대화방 (rooms/*.jsonl)
+    // 1. 대화방 (chats/*.jsonl)
     const rooms = await listRooms(studioHome, alias).catch(() => []);
     for (const summary of rooms) {
       if (summary.updatedAt && Date.parse(summary.updatedAt) < sinceMs) continue;
@@ -714,14 +744,27 @@ export async function loadLlmQuotaSnapshot(
     // 서버가 준 남은 비율: Codex는 세션 기록의 rate_limits, Claude는 상태줄이 남긴 rate_limits.
     const codexSessionRl = provider === "codex" ? hostCollection?.codexRateLimits.session ?? null : null;
     const codexWeeklyRl = provider === "codex" ? hostCollection?.codexRateLimits.weekly ?? null : null;
-    const claudeSessionRl = provider === "claude-code" ? serverWindow(claudeRate?.session, nowMs) : null;
-    const claudeWeeklyRl = provider === "claude-code" ? serverWindow(claudeRate?.weekly, nowMs) : null;
+    const sessionObservation = provider === "claude-code" ? claudeObservation(claudeRate?.session, claudeRate?.at, nowMs) : undefined;
+    const weeklyObservation = provider === "claude-code" ? claudeObservation(claudeRate?.weekly, claudeRate?.at, nowMs) : undefined;
+    const claudeSessionRl = sessionObservation && !sessionObservation.stale ? serverWindow(claudeRate?.session, nowMs) : null;
+    const claudeWeeklyRl = weeklyObservation && !weeklyObservation.stale ? serverWindow(claudeRate?.weekly, nowMs) : null;
+    // 잠금보다 나중에 받은 서버 5시간 창에 여유가 있으면 잠금을 푼다. 그 관측이 지금 오래됐어도 풀린 사실은 그대로다.
+    const sessionAfterLock = provider === "claude-code"
+      ? { observedMs: sessionObservation ? Date.parse(sessionObservation.observedAt) : 0, window: serverWindow(claudeRate?.session, nowMs) }
+      : { observedMs: hostCollection?.codexRateLimits.observedAtMs ?? 0, window: codexSessionRl };
+    if (exhausted && sessionAfterLock.window && sessionAfterLock.observedMs > Date.parse(exhausted.at) && sessionAfterLock.window.remainingPct > 0) {
+      exhausted = null;
+    }
     const serverSessionRl = codexSessionRl ?? claudeSessionRl;
     const serverWeeklyRl = codexWeeklyRl ?? claudeWeeklyRl;
 
     // Claude 토큰 합계는 실제 한도와 3~9배씩 어긋나 체력통으로 % 를 매기지 않는다 (2026-10-15).
     // 상태줄 사용률을 아직 못 받았으면 사용량만 보이고, 실제 한도 도달일 때만 0%로 잠근다.
-    const estimated = provider === "claude-code" && !serverSessionRl && !serverWeeklyRl;
+    const estimated = provider === "claude-code" && (!serverSessionRl || !serverWeeklyRl);
+    const rateStatus = provider !== "claude-code" ? undefined
+      : !sessionObservation && !weeklyObservation ? "missing" as const
+      : sessionObservation?.stale || weeklyObservation?.stale ? "stale" as const
+      : !sessionObservation || !weeklyObservation ? "partial" as const : "fresh" as const;
     const sessionRemainingPct = exhausted
       ? 0
       : serverSessionRl
@@ -734,7 +777,8 @@ export async function loadLlmQuotaSnapshot(
       : provider === "claude-code"
         ? null
         : clampPct(weeklyUsed, cap.weeklyTokens);
-    const hpPct = exhausted ? 0 : sessionRemainingPct === null || weeklyRemainingPct === null ? null : Math.min(sessionRemainingPct, weeklyRemainingPct);
+    const availablePcts = [sessionRemainingPct, weeklyRemainingPct].filter((pct): pct is number => pct !== null);
+    const hpPct = exhausted ? 0 : availablePcts.length ? Math.min(...availablePcts) : null;
 
     const oldestSessionAt = sessionSamples.length
       ? Math.min(...sessionSamples.map((s) => s.atMs))
@@ -752,6 +796,7 @@ export async function loadLlmQuotaSnapshot(
       label: meta.label,
       sub: meta.sub,
       estimated,
+      ...(rateStatus ? { rateStatus } : {}),
       hpPct,
       tone: toneOfPct(hpPct ?? 100),
       session: {
@@ -763,6 +808,7 @@ export async function loadLlmQuotaSnapshot(
         tone: toneOfPct(sessionRemainingPct ?? 100),
         turns: sessionSamples.length,
         recoverInMinutes,
+        ...(sessionObservation ? { observation: sessionObservation } : {}),
       },
       weekly: {
         usedTokens: weeklyUsed,
@@ -773,6 +819,7 @@ export async function loadLlmQuotaSnapshot(
         tone: toneOfPct(weeklyRemainingPct ?? 100),
         turns: providerSamples.length,
         costUsd: weeklyCost,
+        ...(weeklyObservation ? { observation: weeklyObservation } : {}),
       },
       exhausted,
     };

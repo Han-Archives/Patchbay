@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-19T04:28:26.124Z",
+  "checks": [
+    "fresh native result shows 65%",
+    "fresh observation time is visible",
+    "15-second refresh updates 65% to 55%",
+    "only two injected native reads",
+    "partial quota identifies the known period",
+    "partial status explains missing period",
+    "stale quota is not presented as current",
+    "last known quota remains visible in details",
+    "stale status is explicit",
+    "mobile popover stays inside viewport",
+    "missing usage does not invent a percentage",
+    "fresh reset window restores the new observed percentage",
+    "model calls remain zero",
+    "browser errors remain zero"
+  ],
+  "count": 14,
+  "modelCalls": 0,
+  "errors": []
+}

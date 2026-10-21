@@ -1,4 +1,4 @@
-import { recordClaudeRateLimits, requireStudioHome, type ClaudeRateLimits } from "@patchbay/core";
+import { CLAUDE_RATE_STALE_MS, recordClaudeRateLimits, requireStudioHome, type ClaudeRateLimits } from "@patchbay/core";
 
 /**
  * Claude Code 상태줄(`statusLine`) 명령 — stdin 에 상태줄 입력 JSON 이 온다.
@@ -21,10 +21,10 @@ function toneColor(pct: number): string {
   return pct <= 0 ? "\x1b[38;5;203m" : pct <= 30 ? "\x1b[38;5;214m" : "\x1b[38;5;141m";
 }
 
-/** 남은 비율을 10칸 체력바와 % 로 그린다. 창이 이미 재설정됐으면 100%. */
-export function hpBar(label: string, window: { usedPct: number; resetsAt: string } | undefined, nowMs = Date.now()): string {
-  if (!window) return `${label} \x1b[2m──────────\x1b[0m  -`;
-  const pct = Date.parse(window.resetsAt) > nowMs ? Math.max(0, Math.min(100, 100 - Math.round(window.usedPct))) : 100;
+/** 최신 관측의 남은 비율만 그린다. 리셋 시각을 넘기면 새 관측을 기다린다. */
+export function hpBar(label: string, window: { usedPct: number; resetsAt: string; at?: string } | undefined, nowMs = Date.now()): string {
+  if (!window || !(Date.parse(window.resetsAt) > nowMs) || (window.at && nowMs - Date.parse(window.at) > CLAUDE_RATE_STALE_MS)) return `${label} \x1b[2m──────────\x1b[0m  갱신 대기`;
+  const pct = Math.max(0, Math.min(100, 100 - Math.round(window.usedPct)));
   const filled = Math.round(pct / 10);
   return `${label} ${toneColor(pct)}${"█".repeat(filled)}\x1b[2m${"░".repeat(10 - filled)}\x1b[0m ${toneColor(pct)}${String(pct).padStart(3)}%\x1b[0m`;
 }
