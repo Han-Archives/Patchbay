@@ -4,9 +4,9 @@
  * 커널이 정하므로 (`SCAFFOLD_FILES`) 서버가 이름과 설명을 붙여 내려준다.
  */
 
-import type { Ir, NodeSetComparison } from "@patchbay/core";
+import type { ExistingBuildSummary, ExistingLink, Ir, NodeSetComparison } from "@patchbay/core";
 
-export type { Ir, NodeSetComparison };
+export type { ExistingBuildSummary, ExistingLink, Ir, NodeSetComparison };
 
 export interface ScaffoldFileView {
   file: string;
@@ -46,7 +46,44 @@ export interface BuildViewReady {
   ir: Ir;
 }
 
-export type BuildViewResponse = BuildViewLocked | BuildViewReady;
+/**
+ * 「이미 구현됨」 길을 고른 프로젝트 (사용자 결정 2026-10-20). 뼈대 대신 요구사항마다 기존 테스트를 잇는다.
+ * 2 구현 · 3 테스트 · 아키텍처 화면이 같은 응답을 읽는다.
+ */
+export interface BuildViewExisting {
+  status: "existing";
+  alias: string;
+  version: number | null;
+  chosenAt: string;
+  /** 마지막으로 이은 테스트를 돌린 시각. */
+  ranAt: string | null;
+  summary: ExistingBuildSummary;
+  ir: Ir;
+}
+
+export type BuildViewResponse = BuildViewLocked | BuildViewReady | BuildViewExisting;
+
+/** 「이미 구현됨」 길의 동작 — 고르기 · 잇기 · 확인 · 버리기 · 이은 테스트 실행. */
+export type ExistingActionRequest =
+  | { alias: string; action: "choose" }
+  | { alias: string; action: "link"; requirement: string; file: string; test?: string; code?: string }
+  | { alias: string; action: "confirm" | "remove"; id: string }
+  | { alias: string; action: "run" };
+
+export type ExistingActionResponse = { ok: true; view: BuildViewExisting } | { ok: false; error: string };
+
+export const EXISTING_STATE_LABEL: Record<ExistingBuildSummary["requirements"][number]["state"], string> = {
+  unlinked: "테스트 없음",
+  untested: "미실행",
+  fail: "실패",
+  pass: "통과",
+};
+
+/** 화면의 상태 표시. 확인된 연결은 없지만 제안이 있으면 「테스트 없음」이 아니라 「확인 대기」다. */
+export function existingTone(req: ExistingBuildSummary["requirements"][number]): { tone: string; label: string } {
+  if (req.state === "unlinked" && req.links.some((link) => link.state === "proposed")) return { tone: "proposed", label: "확인 대기" };
+  return { tone: req.state, label: EXISTING_STATE_LABEL[req.state] };
+}
 
 export interface BuildGenerateResponse {
   ok: boolean;

@@ -3,18 +3,29 @@ import path from "node:path";
 import {
   DEFAULT_SCAFFOLD_DIR,
   SCAFFOLD_FILES,
+  chooseExistingBuild,
   compareNodeSets,
   parseIr,
+  readExistingBuild,
   readOverlay,
   readStudio,
+  recordExistingResults,
+  setExistingLink,
+  summarizeExistingBuild,
+  writeExistingLink,
   writeScaffold,
+  type ExistingBuild,
+  type Ir,
 } from "@patchbay/core";
 import type {
   BuildGenerateResponse,
+  BuildViewExisting,
   BuildViewResponse,
+  ExistingActionResponse,
   NodeSetComparison,
   ScaffoldFileView,
 } from "./buildContract.js";
+import { runExistingTests } from "./existingRunner.js";
 
 /**
  * 세 파일이 무엇인지 화면에 한 줄로 같이 둔다 (visual-first 3 — 용어 옆에 뜻).
@@ -93,6 +104,9 @@ export async function loadBuildView(studioHome: string, aliasInput?: unknown): P
       },
     };
   }
+
+  const existing = await readExistingBuild(studioHome, alias);
+  if (existing) return { ok: true, body: existingView(alias, parsed.ir, existing) };
 
   const outDir = path.join(project.path, DEFAULT_SCAFFOLD_DIR);
   const files: ScaffoldFileView[] = await Promise.all(
@@ -175,4 +189,64 @@ export async function generateScaffoldView(
       nodes: result.nodes,
     },
   };
+}
+
+function existingView(alias: string, ir: Ir, build: ExistingBuild): BuildViewExisting {
+  return {
+    status: "existing",
+    alias,
+    version: ir.version ?? null,
+    chosenAt: build.chosenAt,
+    ranAt: build.ranAt,
+    summary: summarizeExistingBuild(ir, build),
+    ir,
+  };
+}
+
+/** 같은 프로젝트의 테스트를 겹쳐 돌리지 않는다 — 결과가 서로를 덮는다. */
+const running = new Set<string>();
+
+/**
+ * 「이미 구현됨」 길의 동작 (사용자 결정 2026-10-20). 쓰기는 모두 커널 저장 함수로 간다 —
+ * 화면에서 넣은 연결은 사람이 넣은 것이라 바로 확인된 연결이다. 에이전트 제안은 CLI `build link` 로 들어온다.
+ */
+export async function existingBuildAction(
+  studioHome: string,
+  payload: Record<string, unknown>,
+): Promise<{ status: 200 | 400 | 404 | 409; body: ExistingActionResponse }> {
+  const alias = typeof payload.alias === "string" ? payload.alias.trim() : "";
+  const text = (key: string) => (typeof payload[key] === "string" ? (payload[key] as string) : "");
+  if (!alias) return { status: 400, body: { ok: false, error: "alias 가 필요하다." } };
+  const project = (await readStudio(studioHome)).projects.find((entry) => entry.alias === alias);
+  if (!project) return { status: 404, body: { ok: false, error: `"${alias}" 는 등록된 프로젝트가 아니다.` } };
+  const overlay = await readOverlay(studioHome, alias);
+  const parsed = overlay.ir ? parseIr(overlay.ir) : null;
+  if (!parsed?.ok) return { status: 409, body: { ok: false, error: "설계가 채택되지 않았다 — 1 설계에서 채택한 뒤에 고른다." } };
+
+  try {
+    const action = text("action");
+    if (action === "choose") {
+      await chooseExistingBuild(studioHome, alias);
+    } else if (action === "link") {
+      await writeExistingLink(studioHome, alias, { requirement: text("requirement"), file: text("file"), test: text("test"), code: text("code"), by: "person" });
+    } else if (action === "confirm" || action === "remove") {
+      await setExistingLink(studioHome, alias, text("id"), action);
+    } else if (action === "run") {
+      if (running.has(alias)) return { status: 409, body: { ok: false, error: "이 프로젝트의 테스트가 이미 돌고 있다." } };
+      running.add(alias);
+      try {
+        const build = await readExistingBuild(studioHome, alias);
+        if (!build) throw new Error("「이미 구현됨」 길을 고르지 않았다.");
+        await recordExistingResults(studioHome, alias, await runExistingTests(project.path, build.links));
+      } finally {
+        running.delete(alias);
+      }
+    } else {
+      return { status: 400, body: { ok: false, error: `모르는 동작 "${action}".` } };
+    }
+  } catch (error) {
+    return { status: 400, body: { ok: false, error: error instanceof Error ? error.message : String(error) } };
+  }
+  const build = await readExistingBuild(studioHome, alias);
+  return { status: 200, body: { ok: true, view: existingView(alias, parsed.ir, build!) } };
 }

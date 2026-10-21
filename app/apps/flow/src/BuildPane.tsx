@@ -6,6 +6,7 @@ import {
   type BuildViewReady,
   type BuildViewResponse,
 } from "./buildContract.js";
+import { ExistingBuildPane, postExisting } from "./ExistingBuildPane.js";
 import { FlowPane } from "./FlowPane.js";
 import { irNodeText, shortEdgeLabel, toIrCanvas } from "./irCanvas.js";
 import { RefitOnChange } from "./RefitOnChange.js";
@@ -99,10 +100,34 @@ export function BuildPane({
     );
   }
 
+  if (view.status === "existing") {
+    return (
+      <>
+        <h2>구현</h2>
+        <ExistingBuildPane view={view} onView={setView} onOpenFile={onOpenFile} />
+      </>
+    );
+  }
+
+  /** 「이미 구현됨」 길 고르기 (사용자 결정 2026-10-20) — 뼈대 대신 기존 테스트를 잇는다. */
+  async function chooseExisting() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const body = await postExisting({ alias: project, action: "choose" });
+      if (body.ok) setView(body.view);
+      else setNote(body.error);
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <h2>구현</h2>
-      <Scaffold view={view} busy={busy} note={note} onGenerate={() => void generate()} onOpenFile={onOpenFile} />
+      <Scaffold view={view} busy={busy} note={note} onGenerate={() => void generate()} onChooseExisting={() => void chooseExisting()} onOpenFile={onOpenFile} />
       {/* 실행 흐름은 접어 둔다 — 2단계의 일은 위의 뼈대이고, 이 칸은 LangGraph가 돌 때 들여다보는 면이다.
           펼쳤을 때만 그린다: 닫힌 칸 안에서는 XYFlow가 크기를 못 재서 그래프가 비어 보인다. */}
       <details className="bd-flow" open={flowOpen} onToggle={(event) => setFlowOpen(event.currentTarget.open)}>
@@ -123,12 +148,14 @@ function Scaffold({
   busy,
   note,
   onGenerate,
+  onChooseExisting,
   onOpenFile,
 }: {
   view: BuildViewReady;
   busy: boolean;
   note: string | null;
   onGenerate: () => void;
+  onChooseExisting: () => void;
   onOpenFile?: (path: string) => void;
 }) {
   const canvas = useMemo(() => toIrCanvas(view.ir), [view.ir]);
@@ -168,6 +195,15 @@ function Scaffold({
           있는 파일은 건드리지 않고 없는 것만 쓴다. 2.4부터는 사람이 채운다 — 다시 눌러도 덮이지 않는다.
         </small>
       </div>
+      {/* 이미 코드가 있는 프로젝트는 빈 뼈대를 채울 일이 없다 — 뼈대가 없을 때만 다른 길을 낸다. */}
+      {view.files.some((file) => file.exists) ? null : (
+        <div className="bd-act">
+          <button type="button" className="flow-btn" onClick={onChooseExisting} disabled={busy}>
+            이미 구현된 코드에 잇기
+          </button>
+          <small>코드가 이미 있으면 뼈대 대신 요구사항마다 기존 테스트를 잇는다. 4 지식 그래프 · 5 문서 호출은 이 길에서 열리지 않는다.</small>
+        </div>
+      )}
       {note ? <p className="ir-note">{note}</p> : null}
 
       <NodeSet view={view} />
