@@ -1,0 +1,216 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>설계 창 — 요구사항 · As-is/To-be · 흐름도</title>
+<style>
+/* 4안 시안과 같은 색. 색은 상태에만 쓴다 — 보라 추가 · 주황 변경 · 빨강 삭제 · 회색 유지 */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--bad-fill:#3a1e1a;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1320px;margin:auto;padding:24px 16px 40px;display:grid;gap:14px}
+h1{font-size:20px;margin:0}h2{font-size:14px;margin:0 0 8px}small,.muted{color:var(--muted);font-size:12px}
+.card{background:var(--chrome);border:1px solid var(--line);border-radius:10px;padding:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.modes button,.vers button{background:var(--fill);border:1px solid var(--stroke);border-radius:8px;padding:8px 14px}
+.modes button.on,.vers button.on{background:var(--ok-fill);border-color:var(--ok-line);color:var(--ok-text)}
+.vers button.draft{border-style:dashed}
+.main{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+.brief{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.brief>div{background:var(--elevated);border:1px solid var(--line);border-radius:8px;padding:10px;line-height:1.45}.brief b{display:block;font-size:12px;margin-bottom:4px}.brief span{font-size:13px;color:var(--sub)}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sum div{background:var(--elevated);border:1px solid var(--line);border-radius:8px;padding:10px}.sum b{font-size:20px;display:block}
+.badge{font-size:11px;padding:2px 7px;border-radius:5px;border:1px solid var(--stroke);color:var(--muted);white-space:nowrap}
+.add{color:var(--ok-text);background:var(--ok-fill);border-color:var(--ok-line)}
+.chg{color:var(--warn);background:var(--warn-fill);border-color:#6b4a26}
+.del{color:var(--bad);background:var(--bad-fill);border-color:#6b322b}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;border-top:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:500;font-size:12px}
+tr.req{cursor:pointer}tr.req:hover,tr.req.sel{background:var(--elevated)}
+.id{font-family:var(--mono);color:var(--muted);font-size:12px}
+.ab{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ab>div{background:var(--elevated);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;line-height:1.5}
+.ab .h{font-size:11px;color:var(--muted);margin-bottom:4px}
+.why{font-size:12px;color:var(--sub);margin:6px 0 14px}
+ins{text-decoration:none;color:var(--ok-text);background:var(--ok-fill)}del{color:var(--bad)}
+.flows{display:grid;grid-template-columns:1fr 1fr;gap:10px}.flows.one{grid-template-columns:1fr}
+svg{width:100%;height:auto;background:var(--elevated);border-radius:8px;border:1px solid var(--line)}
+.legend{display:flex;gap:10px;font-size:12px;color:var(--muted);margin-top:6px}
+.chat{display:grid;gap:8px;font-size:13px}.msg{background:var(--elevated);border-radius:8px;padding:8px 10px;line-height:1.5}.msg.me{background:var(--ok-fill)}
+.note{font-size:12px;color:var(--muted);line-height:1.6}
+</style>
+<div class="wrap">
+  <div><h1>설계 — 동네 책 나눔</h1><small>예시 데이터 · 시안. 순서는 요구사항 → 바뀐 점(As-is/To-be) → 흐름도</small></div>
+
+  <div class="row modes" id="modes"></div>
+  <div class="row vers" id="vers"></div>
+
+  <div class="main">
+    <div style="display:grid;gap:14px">
+      <section class="card">
+        <h2>이 설계가 만드는 것 <small id="briefNote"></small></h2>
+        <div class="brief" id="brief"></div>
+      </section>
+
+      <div class="sum" id="sum"></div>
+
+      <section class="card">
+        <h2>① 요구사항 <small id="reqNote"></small></h2>
+        <table><thead><tr><th style="width:60px">id</th><th>요구사항</th><th style="width:90px">종류</th><th style="width:130px">이어진 흐름도 단계</th><th style="width:60px"></th></tr></thead><tbody id="reqs"></tbody></table>
+        <p class="note">줄을 누르면 아래 흐름도에서 그 요구사항이 걸린 단계가 밝아집니다. 「종류」의 금지·예외(unwanted)는 막아야 할 상황을 적은 요구사항입니다.</p>
+      </section>
+
+      <section class="card" id="abCard">
+        <h2>② 바뀐 점 — As-is / To-be</h2>
+        <div id="ab"></div>
+      </section>
+
+      <section class="card">
+        <h2>③ 흐름도 <small id="flowNote"></small></h2>
+        <div class="flows" id="flows"></div>
+        <div class="legend"><span class="badge add">추가</span><span class="badge chg">변경</span><span class="badge del">삭제</span><span class="badge">유지</span><span>선 = 다음 단계로 넘어감 · 점선 = 조건이 있을 때만</span></div>
+      </section>
+    </div>
+
+    <aside class="card">
+      <h2>상담</h2>
+      <div class="chat" id="chat"></div>
+      <p class="note" style="margin-top:12px">상담에서 나온 변경은 곧바로 채택본을 덮지 않습니다. 위 ①②③에 초안으로 먼저 보이고, 확인한 뒤 「v3 채택」을 눌러야 판이 올라갑니다.</p>
+      <button style="width:100%;margin-top:6px;background:var(--ok-fill);border:1px solid var(--ok-line);border-radius:8px;padding:9px;color:var(--ok-text)">v3 채택</button>
+    </aside>
+  </div>
+</div>
+<script>
+// 판별 요구사항. s: 상태(v3 초안 기준, v2 대비)
+const REQ = {
+  v2: [
+    {id:"R1",t:"사용자가 책을 등록하면 사진 · 제목 · 상태를 저장한다",k:"사건",n:["등록"]},
+    {id:"R2",t:"대여를 요청하면 책 주인에게 알린다",k:"사건",n:["대여 요청","주인 알림"]},
+    {id:"R3",t:"내 위치 반경 2km 안의 책을 보여 준다",k:"상시",n:["검색"]},
+    {id:"R4",t:"신고가 3번 쌓인 책은 검색에서 숨긴다",k:"금지·예외",n:["검색"]},
+    {id:"R6",t:"반납하면 빌려준 사람에게 포인트를 준다",k:"사건",n:["포인트 적립"]},
+  ],
+  v3: [
+    {id:"R1",t:"사용자가 책을 등록하면 사진 · 제목 · 상태를 저장한다",k:"사건",n:["등록"]},
+    {id:"R2",t:"대여를 요청하면 책 주인에게 알리고, 24시간 안에 답이 없으면 요청을 자동으로 취소한다",k:"사건",n:["대여 요청","주인 알림","자동 취소"]},
+    {id:"R3",t:"내 위치 반경 2km 안의 책을 보여 준다",k:"상시",n:["검색"]},
+    {id:"R4",t:"신고가 3번 쌓인 책은 검색에서 숨긴다",k:"금지·예외",n:["검색"]},
+    {id:"R5",t:"반납 기한이 지나면 빌린 사람에게 알림을 보낸다",k:"상태",n:["기한 알림"]},
+  ],
+};
+const WHY = {
+  R2:"상담 10/16: 「주인이 답을 안 해서 요청이 계속 묶여 있다」",
+  R5:"상담 10/16: 「반납을 잊는 사람이 많다」",
+  R6:"상담 10/16: 「포인트는 v1 범위 밖. 보류로 옮긴다」 → 범위표의 보류 칸으로 이동",
+};
+// 흐름도: 노드 [이름, x, y], 선 [from, to, 조건?]
+const FLOW = {
+  v2: {nodes:[["등록",20,60],["검색",150,60],["대여 요청",280,60],["주인 알림",410,60],["대여 확정",540,60],["반납",540,150],["포인트 적립",410,150]],
+       edges:[["등록","검색"],["검색","대여 요청"],["대여 요청","주인 알림"],["주인 알림","대여 확정"],["대여 확정","반납"],["반납","포인트 적립"]]},
+  v3: {nodes:[["등록",20,60],["검색",150,60],["대여 요청",280,60],["주인 알림",410,60],["대여 확정",540,60],["자동 취소",410,150],["기한 알림",540,150],["반납",410,240]],
+       edges:[["등록","검색"],["검색","대여 요청"],["대여 요청","주인 알림"],["주인 알림","대여 확정","답함"],["주인 알림","자동 취소","24시간 무응답"],["대여 확정","기한 알림","기한 지남"],["대여 확정","반납"],["기한 알림","반납"]]},
+};
+const CHAT = [
+  ["me","주인이 답을 안 하면 요청이 계속 묶여 있어. 그리고 반납 잊는 사람이 많아"],
+  ["ai","R2에 「24시간 무응답이면 자동 취소」를 덧붙이고, 반납 기한 알림을 R5로 새로 넣을까요? 흐름도에는 「자동 취소」「기한 알림」 두 단계가 생깁니다."],
+  ["me","좋아. 포인트는 이번엔 빼"],
+  ["ai","R6을 보류로 옮기고 흐름도의 「포인트 적립」을 지웁니다. 바뀐 요구사항 3개만 다시 확인하시면 됩니다."],
+];
+const MODES = [["new","새로 설계"],["view","설계안 확인"],["edit","설계 수정"]];
+let mode="edit", sel=null;
+
+function status(id){
+  const a=REQ.v2.find(r=>r.id===id), b=REQ.v3.find(r=>r.id===id);
+  if(!a) return "add"; if(!b) return "del"; return a.t===b.t && a.n.join()===b.n.join() ? "same" : "chg";
+}
+const LABEL={add:"추가",chg:"변경",del:"삭제",same:"유지"};
+function nodeStatus(name){
+  const a=FLOW.v2.nodes.some(n=>n[0]===name), b=FLOW.v3.nodes.some(n=>n[0]===name);
+  if(!a) return "add"; if(!b) return "del";
+  const ea=FLOW.v2.edges.filter(e=>e[0]===name).map(e=>e[1]).join(), eb=FLOW.v3.edges.filter(e=>e[0]===name).map(e=>e[1]).join();
+  return ea===eb ? "same" : "chg";
+}
+// 단어 단위로 덧붙은 부분만 표시 (시안용 단순 비교)
+function wordDiff(a,b){
+  const A=a.split(" "), B=b.split(" "); let i=0; while(i<A.length&&A[i]===B[i]) i++;
+  let j=0; while(j<A.length-i&&A[A.length-1-j]===B[B.length-1-j]) j++;
+  const mid=(x)=>x.slice(i,x.length-j).join(" ");
+  const head=A.slice(0,i).join(" "), tail=A.slice(A.length-j).join(" ");
+  return [`${head} <del>${mid(A)}</del> ${tail}`, `${head} <ins>${mid(B)}</ins> ${tail}`];
+}
+
+function render(){
+  document.getElementById("modes").innerHTML = MODES.map(([k,l])=>`<button class="${k===mode?"on":""}" onclick="mode='${k}';sel=null;render()">${l}</button>`).join("");
+  document.getElementById("vers").innerHTML = `<small>판</small>`+
+    (mode==="new" ? `<button class="on draft">v1 초안 (작성 중)</button>`
+     : `<button>v1 · 10/02</button><button class="${mode==="view"?"on":""}">v2 · 10/09 채택</button>`+(mode==="edit"?`<button class="on draft">v3 초안</button><small>v2 → v3 비교 중</small>`:""));
+
+  const edit = mode==="edit", list = edit ? [...REQ.v3, ...REQ.v2.filter(r=>status(r.id)==="del")] : REQ.v2;
+  const cnt = s=>list.filter(r=>status(r.id)===s).length;
+  document.getElementById("briefNote").textContent = edit ? "v3 초안이 채택되면 적용될 기준" : mode==="new" ? "상담으로 채우는 중" : "v2 채택본의 기준";
+  document.getElementById("brief").innerHTML = mode==="new"
+    ? `<div><b>목적</b><span>이웃끼리 책을 안전하게 빌리고 돌려준다</span></div><div><b>사용자</b><span>책을 빌리는 사람 · 빌려주는 사람</span></div><div><b>이번 판 범위</b><span>등록 · 검색 · 대여 요청 · 반납</span></div><div><b>아직 정할 것</b><span>무응답 처리 · 반납 알림 · 포인트</span></div>`
+    : mode==="view"
+    ? `<div><b>목적</b><span>이웃끼리 책을 등록하고 찾아 대여·반납한다</span></div><div><b>사용자</b><span>책을 빌리는 사람 · 빌려주는 사람</span></div><div><b>v2 포함</b><span>등록 · 반경 검색 · 대여 요청 · 포인트</span></div><div><b>v2에 없음</b><span>무응답 자동 취소 · 반납 기한 알림</span></div>`
+    : `<div><b>목적</b><span>대여 요청이 묶이지 않고 반납까지 끝나게 한다</span></div><div><b>사용자</b><span>책을 빌리는 사람 · 빌려주는 사람</span></div><div><b>v3에 추가</b><span>24시간 무응답 자동 취소 · 반납 기한 알림</span></div><div><b>이번 판에서 보류</b><span>포인트 적립 — 다음 판 후보로 보존</span></div>`;
+  document.getElementById("sum").innerHTML = edit
+    ? `<div><small>요구사항 추가</small><b style="color:var(--ok-text)">${cnt("add")}</b></div><div><small>요구사항 변경</small><b style="color:var(--warn)">${cnt("chg")}</b></div><div><small>요구사항 삭제</small><b style="color:var(--bad)">${cnt("del")}</b></div><div><small>흐름도 단계</small><b>+2 / −1</b></div>`
+    : mode==="new"
+    ? `<div><small>요구사항</small><b>${list.length}</b></div><div><small>상담에서 확정</small><b>3</b></div><div><small>아직 질문 중</small><b style="color:var(--warn)">2</b></div><div><small>흐름도 단계</small><b>${FLOW.v2.nodes.length}</b></div>`
+    : `<div><small>요구사항</small><b>${list.length}</b></div><div><small>흐름도 단계</small><b>${FLOW.v2.nodes.length}</b></div><div><small>구현됨</small><b style="color:var(--ok-text)">3</b></div><div><small>미착수</small><b>2</b></div>`;
+
+  document.getElementById("reqNote").textContent = edit ? "v3 초안 기준 · 지운 것도 줄을 남겨 보인다" : mode==="new" ? "상담하면서 채워지는 중" : "v2 채택본";
+  document.getElementById("reqs").innerHTML = list.map((r,i)=>{
+    const s=status(r.id), label = edit && s==="del" && r.id==="R6" ? "범위 제외" : LABEL[s], badge = edit ? `<span class="badge ${s==="same"?"":s}">${label}</span>` : mode==="new" && i>=3 ? `<span class="badge chg">질문 중</span>` : "";
+    return `<tr class="req ${sel===r.id?"sel":""}" onclick="sel=sel==='${r.id}'?null:'${r.id}';render()"><td class="id">${r.id}</td><td ${s==="del"&&edit?'style="text-decoration:line-through;color:var(--muted)"':""}>${r.t}</td><td><small>${r.k}</small></td><td><small>${r.n.join(" · ")}</small></td><td>${badge}</td></tr>`;
+  }).join("");
+
+  const abCard=document.getElementById("abCard"); abCard.style.display = edit ? "" : "none";
+  if(edit){
+    document.getElementById("ab").innerHTML = list.filter(r=>status(r.id)!=="same").map(r=>{
+      const s=status(r.id), a=REQ.v2.find(x=>x.id===r.id), b=REQ.v3.find(x=>x.id===r.id);
+      let asis=a?a.t:"<span class='muted'>없음</span>", tobe=b?b.t:"<span class='muted'>이번 판 범위에서 제외 · 다음 판 후보로 보존</span>";
+      if(s==="chg") [asis,tobe]=wordDiff(a.t,b.t);
+      const flow = `${a?a.n.join(" · "):"—"} → ${b?b.n.join(" · "):"—"}`;
+      return `<div class="row" style="margin-bottom:6px"><span class="id">${r.id}</span><span class="badge ${s}">${LABEL[s]}</span><small>흐름도: ${flow}</small></div>
+        <div class="ab"><div><div class="h">As-is · v2</div>${asis}</div><div><div class="h">To-be · v3</div>${tobe}</div></div>
+        <div class="why">이유 — ${WHY[r.id]||""}</div>`;
+    }).join("");
+  }
+
+  const hi = sel ? (REQ.v3.concat(REQ.v2).find(r=>r.id===sel)||{n:[]}).n : [];
+  document.getElementById("flowNote").textContent = edit ? "왼쪽 지금(v2) · 오른쪽 바뀐 뒤(v3)" : mode==="new" ? "요구사항에서 나온 단계 — 이렇게 진행될 것" : "v2 채택본";
+  const fl=document.getElementById("flows"); fl.className = edit ? "flows" : "flows one";
+  fl.innerHTML = edit ? svg(FLOW.v2,"As-is · v2",hi,"v2")+svg(FLOW.v3,"To-be · v3",hi,"v3") : svg(FLOW.v2,"",hi,"plain");
+
+  document.getElementById("chat").innerHTML = (mode==="view" ? [["ai","v2 채택본을 보고 있습니다. 바꿀 점이 있으면 말씀하세요 — 「설계 수정」으로 넘어가 v3 초안을 엽니다."]]
+    : mode==="new" ? [["ai","무엇을 만드려는지 한 줄로 알려 주세요. 누가 쓰는지, 꼭 막아야 할 상황은 무엇인지 차례로 묻겠습니다."],["me","동네에서 책을 서로 빌려주는 앱"],["ai","대여 요청에 주인이 답하지 않으면 어떻게 할까요? (R4 · R5를 채우는 질문)"]]
+    : CHAT).map(([w,t])=>`<div class="msg ${w==="me"?"me":""}">${t}</div>`).join("");
+}
+
+function svg(f,title,hi,side){
+  const W=110,H=36, pos=Object.fromEntries(f.nodes.map(n=>[n[0],[n[1],n[2]]]));
+  const maxY=Math.max(...f.nodes.map(n=>n[2]))+H+30;
+  const other=side==="v2"?FLOW.v3:FLOW.v2;
+  const edgeState=(a,b,c)=>{
+    if(side==="plain") return "same";
+    if(other.edges.some(e=>e[0]===a&&e[1]===b&&(e[2]||"")===(c||""))) return "same";
+    if(other.edges.some(e=>e[0]===a&&e[1]===b)) return "chg";
+    return side==="v2"?"del":"add";
+  };
+  const edgeColors={same:"#666",add:"#a78bfa",chg:"#e3a35a",del:"#ef7b6e"};
+  const markers=Object.entries(edgeColors).map(([s,color])=>`<marker id="ar-${side}-${s}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="${color}"/></marker>`).join("");
+  const edges=f.edges.map(([a,b,c])=>{
+    const [x1,y1]=pos[a],[x2,y2]=pos[b]; const sx=x1+W/2, sy=y1+H/2, ex=x2+W/2, ey=y2+H/2;
+    const horiz=y1===y2, X1=horiz?x1+W:sx, Y1=horiz?sy:y1+H, X2=horiz?x2:ex, Y2=horiz?ey:y2;
+    const s=edgeState(a,b,c), color=edgeColors[s];
+    return `<line x1="${X1}" y1="${Y1}" x2="${X2-(horiz?4:0)}" y2="${Y2-(horiz?0:4)}" stroke="${color}" stroke-width="${s==="same"?1:2}" ${c?'stroke-dasharray="4 3"':""} marker-end="url(#ar-${side}-${s})"/>`+
+      (c?`<text x="${(X1+X2)/2+4}" y="${(Y1+Y2)/2-4}" fill="#9a9a9a" font-size="10">${c}</text>`:"");
+  }).join("");
+  const col={add:["#2a2342","#a78bfa"],chg:["#33261a","#e3a35a"],del:["#3a1e1a","#ef7b6e"],same:["#2a2a2a","#3a3a3a"]};
+  const nodes=f.nodes.map(([n,x,y])=>{
+    // As-is 쪽은 지울 단계만, To-be 쪽은 추가 · 변경만 색을 칠한다
+    const ns=side==="plain"?"same":nodeStatus(n), s=side==="v2"?(ns==="del"?"del":"same"):ns;
+    const [bg,st]=col[s], on=hi.includes(n);
+    return `<g><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="7" fill="${bg}" stroke="${on?"#f2f2f2":st}" stroke-width="${on?2.5:1.2}"/><text x="${x+W/2}" y="${y+H/2+4}" text-anchor="middle" fill="${s==="del"?"#ef7b6e":"#f2f2f2"}" font-size="12" ${s==="del"?'text-decoration="line-through"':""}>${n}</text></g>`;
+  }).join("");
+  return `<div>${title?`<small>${title}</small>`:""}<svg viewBox="0 0 680 ${maxY}"><defs>${markers}</defs>${edges}${nodes}</svg></div>`;
+}
+render();
+</script>

@@ -19,6 +19,7 @@ import {
   summarizeIrChecks,
   type Ir,
   loadPrd,
+  loadRequirementWorkspace,
 } from "@patchbay/core";
 import type {
   IrAdoptResponse,
@@ -154,6 +155,11 @@ export async function adoptIrView(studioHome: string, input: { alias?: unknown }
 
   // 화면의 채택은 PRD 11절이 모두 「맞아요」일 때만 (명세 20261006a §14.2). CLI `ir adopt` 는 경고만 한다 —
   // CLI를 쓰는 사람은 이미 사람이다. 검토한 글과 채택되는 설계가 같다는 것이 이 문의 뜻이다.
+  const requirements = await loadRequirementWorkspace(studioHome, alias);
+  if (requirements.rows.some(r => r.events.length)) {
+    const pending = requirements.rows.filter(r => r.change !== "same" && r.decision !== "approved");
+    if (pending.length) return { ok: false, status: 409, error: "요구사항 검토가 남아 있습니다: " + pending.map(r => r.id).join(" · ") };
+  }
   const prd = await loadPrd(studioHome, alias);
   if (prd.ok && !prd.review.allOk) {
     const waiting = prd.review.sections.filter((s) => s.state !== "ok").map((s) => s.n);

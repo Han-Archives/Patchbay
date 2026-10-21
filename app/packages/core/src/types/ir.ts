@@ -353,6 +353,20 @@ export const irRequirementSchema = z.object({
   fit: z.string().optional(),
   /** 화면에 보이는 짧은 한 줄 (25자 안쪽, 「시스템은」 없이 — 사용자 요청 2026-10-07). `text` 는 EARS 원문으로 남는다. */
   summary: z.string().optional(),
+  /** 개요+초점 편집기. 기존 text는 그대로 보존한다. */
+  group: z.string().optional(),
+  goal: z.string().optional(),
+  condition: z.string().optional(),
+  response: z.string().optional(),
+  exceptions: z.array(z.string()).optional(),
+  acceptance: z.string().optional(),
+  openQuestions: z.array(z.string()).optional(),
+  changeReason: z.string().optional(),
+  sourceRef: z.object({
+    kind: z.enum(["consult", "room"]),
+    id: z.string().min(1).refine(id => !/[\\/]/.test(id) && id !== "." && id !== ".."),
+    turn: z.number().int().nonnegative().optional(),
+  }).optional(),
 });
 export type IrRequirement = z.infer<typeof irRequirementSchema>;
 

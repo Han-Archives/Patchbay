@@ -1,0 +1,232 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>설계 창 — 목적별 4안</title>
+<style>
+/* 콘솔 색 그대로: 다크 + 상태 색. 색은 상태에만 쓴다 — 보라 추가·통과 · 주황 변경·지금 · 빨강 삭제·막힘 */
+:root{color-scheme:dark;--bg:#121212;--chrome:#1a1a1a;--elevated:#222;--fill:#2a2a2a;--line:#2c2c2c;--stroke:#3a3a3a;--text:#f2f2f2;--sub:#c9c9c9;--muted:#9a9a9a;--ok:#a78bfa;--ok-text:#c4b5fd;--ok-fill:#2a2342;--ok-line:#5b4a80;--warn:#e3a35a;--warn-fill:#33261a;--bad:#ef7b6e;--bad-fill:#3a1e1a;--font:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}button,textarea,input{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.wrap{max-width:1280px;margin:auto;padding:24px 16px 40px;display:grid;gap:14px}
+h1{font-size:20px;margin:0}h2{font-size:14px;margin:0 0 8px}h3{font-size:13px;margin:0 0 6px;color:var(--sub)}small,.muted{color:var(--muted);font-size:12px}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.tag{color:var(--ok-text);background:var(--ok-fill);border:1px solid var(--ok-line);padding:4px 9px;border-radius:6px;font-size:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.tabs .grp{font-size:12px;color:var(--muted);margin:0 4px 0 10px}
+.tabs button{background:var(--elevated);border:1px solid var(--stroke);border-radius:8px;padding:8px 12px;font-size:13px}.tabs button[aria-pressed=true]{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}
+.vdesc{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6}.vdesc b{color:var(--text)}
+.pane{background:var(--chrome);border:1px solid var(--line);border-radius:10px;min-height:620px;display:flex;overflow:hidden}
+.col{display:flex;flex-direction:column;min-width:0}.grow{flex:1}
+.head{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;min-height:46px;font-size:13px}.head .sp{flex:1}
+.body{flex:1;overflow:auto;padding:16px 18px;display:grid;gap:14px;align-content:start}
+.btn{background:var(--elevated);border:1px solid var(--stroke);border-radius:6px;padding:5px 11px;font-size:12.5px}.btn.pri{background:var(--ok-fill);border-color:var(--ok-line);color:#e4d9ff}.btn:disabled{opacity:.45;cursor:default}
+.card{background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:12px 14px}
+.chip{display:inline-block;font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--stroke);color:var(--sub);white-space:nowrap}
+.chip.ok{color:var(--ok-text);border-color:var(--ok-line);background:var(--ok-fill)}.chip.warn{color:var(--warn);border-color:#6b4a22;background:var(--warn-fill)}.chip.bad{color:var(--bad);border-color:#6b2f28;background:var(--bad-fill)}
+/* 목적 카드 */
+.purpose{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.purpose button{background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:14px;text-align:left;display:grid;gap:4px}
+.purpose button[aria-pressed=true]{border-color:var(--ok-line);background:var(--ok-fill)}
+.purpose b{font-size:14px}.purpose span{font-size:12px;color:var(--muted);line-height:1.5}
+/* 판 줄 */
+.vline{display:flex;align-items:center;gap:0;padding:4px 0}
+.vdot{display:grid;justify-items:center;gap:4px;font-size:11.5px;color:var(--muted);min-width:96px}
+.vdot i{width:14px;height:14px;border-radius:50%;border:2px solid var(--stroke);background:var(--bg)}
+.vdot.ok i{border-color:var(--ok);background:var(--ok)}.vdot.now i{border-color:var(--warn);background:var(--warn-fill)}
+.vdot b{color:var(--text);font-size:12.5px}.vbar{flex:1;height:2px;background:var(--stroke);min-width:30px;margin-bottom:30px}
+/* 범위 3칸 */
+.scope{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.scope .card{padding:10px 12px}.scope ul{margin:0;padding:0;list-style:none;display:grid;gap:7px;font-size:12.5px}
+.scope li{display:grid;gap:3px}.scope li small{font-size:11px}
+/* 대화 */
+.chat{display:grid;gap:8px;font-size:12.5px;line-height:1.55}
+.msg{background:var(--elevated);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.msg.me{background:#1f1f1f;margin-left:30px}
+.msg b{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+.inp{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}.inp input{flex:1;background:var(--bg);border:1px solid var(--stroke);border-radius:6px;padding:7px 9px;font-size:12.5px}
+/* 비교 */
+.diff{display:grid;gap:6px;font-size:12.5px}
+.drow{display:grid;grid-template-columns:22px 150px 1fr 1fr;gap:8px;align-items:start;padding:7px 9px;border-radius:6px;background:var(--elevated);border-left:3px solid var(--stroke)}
+.drow.add{border-left-color:var(--ok)}.drow.chg{border-left-color:var(--warn)}.drow.del{border-left-color:var(--bad)}
+.drow .old{color:var(--muted)}.drow.del .new,.drow.add .old{color:#555}
+.legend{display:flex;gap:12px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* 그래프 (SVG) */
+svg text{font-family:var(--font);fill:var(--text);font-size:11.5px}svg .m{fill:var(--muted);font-size:10.5px}
+.gnode{cursor:pointer}.gnode rect{fill:var(--elevated);stroke:var(--stroke)}.gnode.sel rect{stroke:var(--ok);stroke-width:2}
+/* 레일 */
+.rail{width:230px;flex:none;border-right:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;background:none;border:0;padding:8px 14px;text-align:left;font-size:13px;position:relative}
+.step i{width:18px;height:18px;border-radius:50%;border:2px solid var(--stroke);display:grid;place-items:center;font-size:10px;font-style:normal;background:var(--chrome);z-index:1}
+.step.done i{background:var(--ok);border-color:var(--ok);color:#1a1a1a}.step.now i{border-color:var(--warn);color:var(--warn)}
+.step[aria-selected=true]{background:var(--ok-fill);box-shadow:inset 2px 0 var(--ok)}
+.step small{display:block;font-size:11px}.step:not(:last-child)::after{content:"";position:absolute;left:22px;top:28px;bottom:-8px;width:2px;background:var(--line)}
+.side{width:300px;flex:none;border-left:1px solid var(--line);display:flex;flex-direction:column}
+/* 보드 */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dcard{background:var(--elevated);border:1px solid var(--stroke);border-radius:10px;padding:12px;display:grid;gap:7px;text-align:left;font-size:12.5px}
+.dcard[aria-pressed=true]{border-color:var(--ok-line);box-shadow:0 0 0 1px var(--ok-line)}
+.dcard .t{display:flex;justify-content:space-between;gap:6px;align-items:center}.dcard b{font-size:14px}
+.cmp{display:grid;grid-template-columns:140px 1fr 1fr;font-size:12.5px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cmp div{padding:7px 10px;border-bottom:1px solid var(--line)}.cmp .h{background:var(--fill);font-weight:600}.cmp .k{color:var(--muted)}
+.cmp .diffcell{box-shadow:inset 3px 0 var(--warn)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bar{height:8px;border-radius:4px;background:var(--fill);overflow:hidden;display:flex}.bar span{display:block}
+</style>
+<div class="wrap">
+  <div class="top">
+    <div><h1>설계 창 — 목적별 4안</h1><small>예시 프로젝트 「동네 책 나눔」 · 예시 데이터 · 제품 코드는 바꾸지 않음</small></div>
+    <span class="tag">승인 대기</span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <p class="vdesc" id="vdesc"></p>
+  <div id="stage"></div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+/* ── 예시 데이터 ── */
+const EVIDENCE = { code: ["ok", "코드 확인"], ask: ["warn", "사람 확인 필요"], unknown: ["bad", "판단 불가"] };
+const SCOPE = {
+  can: [["책 등록 · 사진 올리기", "code", "uploads 모듈이 이미 있음"], ["동네 단위 목록", "code", "위치 필드 존재"], ["대여 요청 · 수락", "ask", "수락 기한을 정해야 함"]],
+  cannot: [["택배 배송 연동", "code", "결제 · 주소 모듈 없음"], ["실시간 채팅", "ask", "서버 구성 밖 — 들일지 결정"]],
+  hold: [["책 상태 등급 자동 판정", "unknown", "사진 품질 자료 없음"], ["포인트 보상", "ask", "운영 정책 미정"]],
+};
+const DIFF = [
+  ["chg", "2 쓰는 사람", "동네 주민", "동네 주민 · 학교 도서부"],
+  ["add", "4 요구사항 R6", "", "학교 단위 묶음 목록"],
+  ["chg", "4 요구사항 R3", "대여 기한 14일", "대여 기한 7 · 14 · 30일 중 선택"],
+  ["del", "4 요구사항 R5", "포인트 보상", ""],
+  ["add", "10 미결", "", "학교 계정 인증 방식"],
+];
+const IMPACT = [["R3 대여 기한", "할일: 대여 화면 기한 선택", "warn"], ["R6 학교 묶음", "흐름도: 목록 노드에 학교 필터", "ok"], ["R5 포인트 삭제", "할일: 포인트 표 마이그레이션 취소", "bad"]];
+const VERSIONS = [["v1", "09-28", "ok", "채택"], ["v2", "10-09", "ok", "채택 · 지금 구현 기준"], ["v3", "10-16", "now", "수정 초안"]];
+const FEATURES = [["책 등록", 40, 30, "ok"], ["동네 목록", 210, 30, "ok"], ["대여 요청", 380, 30, "now"], ["대여 기한", 380, 120, "now"], ["학교 묶음", 210, 120, "todo"], ["알림", 550, 75, "todo"]];
+const EDGES = [[0, 1], [1, 2], [2, 3], [1, 4], [2, 5], [3, 5]];
+
+/* ── 공통 조각 ── */
+const chip = (k) => `<span class="chip ${EVIDENCE[k][0]}">${EVIDENCE[k][1]}</span>`;
+const stChip = { ok: '<span class="chip ok">구현됨</span>', now: '<span class="chip warn">진행 중</span>', todo: '<span class="chip">미착수</span>' };
+function scopeHtml() {
+  const col = (title, list, sub) => `<div class="card"><h3>${title} <small>${sub}</small></h3><ul>${list.map(([t, e, why]) => `<li><span>${esc(t)} ${chip(e)}</span><small class="muted">${esc(why)}</small></li>`).join("")}</ul></div>`;
+  return `<div><h2>범위 확정</h2><div class="scope">${col("할 수 있는 일", SCOPE.can, "이번 판에 넣음")}${col("할 수 없는 일", SCOPE.cannot, "이유와 함께 뺌")}${col("보류", SCOPE.hold, "근거가 생기면 다시")}</div>
+  <div class="legend" style="margin-top:6px"><span>${chip("code")} 코드에서 확인한 사실</span><span>${chip("ask")} 사용자에게 물어 정할 것</span><span>${chip("unknown")} 지금 자료로는 판단 못 함</span></div></div>`;
+}
+function diffHtml() {
+  const mark = { add: "+", chg: "~", del: "−" };
+  return `<div><h2>비교 — v2 채택본 ↔ v3 초안</h2><div class="legend" style="margin-bottom:6px"><span><i style="background:var(--ok)"></i>추가</span><span><i style="background:var(--warn)"></i>변경</span><span><i style="background:var(--bad)"></i>삭제</span></div>
+  <div class="diff">${DIFF.map(([k, s, o, n]) => `<div class="drow ${k}"><b>${mark[k]}</b><span>${s}</span><span class="old">${esc(o || "—")}</span><span class="new">${esc(n || "—")}</span></div>`).join("")}</div></div>`;
+}
+function impactHtml() {
+  return `<div><h2>영향 — 다시 구현할 것만</h2><svg viewBox="0 0 620 ${IMPACT.length * 46}" width="100%" style="max-width:620px">${IMPACT.map(([a, b, k], i) => {
+    const y = i * 46 + 6, c = `var(--${k === "ok" ? "ok" : k})`;
+    return `<rect x="0" y="${y}" width="190" height="32" rx="6" fill="var(--elevated)" stroke="${c}"/><text x="10" y="${y + 20}">${esc(a)}</text><path d="M190 ${y + 16} H260" stroke="var(--stroke)" stroke-width="2" marker-end="url(#ar)"/><rect x="262" y="${y}" width="350" height="32" rx="6" fill="var(--elevated)" stroke="var(--stroke)"/><text x="272" y="${y + 20}">${esc(b)}</text>`;
+  }).join("")}<defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="var(--stroke)"/></marker></defs></svg>
+  <small>승인하면 이 세 줄만 할일 · 흐름도 세부 항목으로 넘어간다. 나머지 구현은 그대로 둔다.</small></div>`;
+}
+function featureGraph() {
+  const W = 120, H = 34;
+  const lines = EDGES.map(([a, b]) => { const p = FEATURES[a], q = FEATURES[b]; return `<path d="M${p[1] + W} ${p[2] + H / 2} C${p[1] + W + 30} ${p[2] + H / 2} ${q[1] - 30} ${q[2] + H / 2} ${q[1]} ${q[2] + H / 2}" fill="none" stroke="var(--stroke)" stroke-width="1.5"/>`; }).join("");
+  const nodes = FEATURES.map(([t, x, y, s]) => { const c = s === "ok" ? "var(--ok)" : s === "now" ? "var(--warn)" : "var(--stroke)"; return `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="7" fill="var(--elevated)" stroke="${c}" ${s === "todo" ? 'stroke-dasharray="4 3"' : ""}/><text x="${x + 10}" y="${y + 21}">${t}</text>`; }).join("");
+  return `<div><h2>기능 관계 · 구현 상태</h2><svg viewBox="0 0 690 170" width="100%">${lines}${nodes}</svg><div class="legend"><span><i style="background:var(--ok)"></i>구현됨</span><span><i style="background:var(--warn)"></i>진행 중</span><span><i style="border:1px dashed var(--muted)"></i>미착수</span></div></div>`;
+}
+function summaryHtml() {
+  return `<div class="two"><div class="card"><h3>목적</h3><div style="font-size:13px;line-height:1.6">같은 동네 사람끼리 안 읽는 책을 빌려주고 돌려받는다.</div><h3 style="margin-top:10px">진행</h3><div class="bar"><span style="width:45%;background:var(--ok)"></span><span style="width:20%;background:var(--warn)"></span></div><small>요구 9개 중 구현 4 · 진행 2 · 미착수 3</small></div>
+  <div class="card"><h3>아직 정하지 않은 것</h3><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.7"><li>대여 수락 기한</li><li>실시간 채팅을 들일지</li><li>포인트 운영 정책</li></ul></div></div>`;
+}
+function vlineHtml(sel) {
+  return `<div class="vline">${VERSIONS.map(([v, d, k, s], i) => `${i ? '<div class="vbar"></div>' : ""}<div class="vdot ${k}"><i></i><b>${v}${v === sel ? " ◂" : ""}</b><span>${d}</span><span>${s}</span></div>`).join("")}</div>`;
+}
+function chatHtml(lines, ph) {
+  return `<div class="body chat">${lines.map(([who, t]) => `<div class="msg ${who === "나" ? "me" : ""}"><b>${who}</b>${esc(t)}</div>`).join("")}</div><div class="inp"><input placeholder="${ph}"><button class="btn pri">보내기</button></div>`;
+}
+const CHAT_NEW = [["AI", "누가 책을 빌려주고, 누가 빌리나요? 같은 동네 기준은 무엇인가요?"], ["나", "주민끼리. 동 단위면 돼요."], ["AI", "대여를 수락하지 않으면 요청은 언제 사라지나요? (범위표의 '사람 확인 필요'로 남겨 둠)"]];
+const CHAT_EDIT = [["AI", "v2 채택본을 복사해 v3 초안을 열었습니다. 무엇이 바뀌었나요?"], ["나", "학교 도서부도 쓰게 하고, 포인트는 빼요. 대여 기한은 고를 수 있게."], ["AI", "4절 R3 · R5 변경, R6 추가로 정리했습니다. 오른쪽 비교를 확인해 주세요."]];
+
+/* ── 1-A: 목적 카드 + 판 줄 ── */
+let p1a = "edit";
+function v1a() {
+  const P = [["new", "＋ 새로 설계", "아이디어 · 목적을 넣고 상담으로 범위와 진행 단계를 정한다"], ["view", "◎ 설계안 확인", "지금 판의 요약 · 기능 관계 · 구현 상태 · 판 이력"], ["edit", "✎ 설계 수정", "채택본을 복사해 초안을 열고, 바뀐 부분만 새 판으로"]];
+  const main = p1a === "new" ? scopeHtml() + `<div class="card"><h3>진행 프로세스 초안</h3><small>설계 → 구현(책 등록 · 목록 · 대여) → 시험 → 검토. 「흐름도에 넣기」로 세부 항목이 된다.</small></div>`
+    : p1a === "view" ? summaryHtml() + featureGraph()
+    : diffHtml() + impactHtml();
+  const chat = p1a === "view" ? "" : `<div class="side">${chatHtml(p1a === "new" ? CHAT_NEW : CHAT_EDIT, p1a === "new" ? "아이디어 · 요구를 적는다" : "바뀐 요구를 적는다")}</div>`;
+  return `<div class="pane"><div class="col grow"><div class="head"><b>설계</b><span class="muted">동네 책 나눔 · 대표 설계안</span><span class="sp"></span>${p1a === "edit" ? '<button class="btn">초안 버리기</button><button class="btn pri" disabled title="11절 확인 · 검사 통과 뒤">v3로 채택</button>' : ""}</div>
+  <div class="body"><div class="purpose">${P.map(([k, t, s]) => `<button data-p="${k}" aria-pressed="${p1a === k}"><b>${t}</b><span>${s}</span></button>`).join("")}</div>${vlineHtml(p1a === "edit" ? "v3" : "v2")}${main}</div></div>${chat}</div>`;
+}
+
+/* ── 1-B: 생명주기 레일 ── */
+let s1b = 3;
+const STEPS = [["신규 설계", "상담 · 범위 확정", "done"], ["검토 · 확정", "11절 확인 → v1", "done"], ["설계 확인", "v2 · 구현 기준", "done"], ["변경 상담", "v3 초안 작성 중", "now"], ["영향 검토", "다시 구현할 것 고르기", ""], ["새 판 확정", "v3 채택 · 할일로", ""]];
+function v1b() {
+  const main = [scopeHtml(), `<div class="card"><h3>11절 확인</h3><small>절마다 「확인」 → 모두 확인 · 검사 통과면 채택 버튼이 켜진다.</small><div class="bar" style="margin-top:8px"><span style="width:100%;background:var(--ok)"></span></div><small>11 / 11 · v1 채택 09-28</small></div>`, summaryHtml() + featureGraph(), diffHtml(), impactHtml(), `<div class="card"><h3>v3 채택하면</h3><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.7"><li>v2는 판 이력으로 보존</li><li>영향 3줄이 할일 · 흐름도 세부 항목으로</li><li>레일은 「설계 확인」으로 돌아간다</li></ul><div style="margin-top:10px"><button class="btn pri" disabled>v3로 채택</button> <small>영향 검토를 끝내야 켜짐</small></div></div>`][s1b];
+  return `<div class="pane"><nav class="rail"><div class="muted" style="padding:0 14px 8px;font-size:11.5px">지금 v2 채택 · v3 초안</div>${STEPS.map(([t, s, k], i) => `<button class="step ${k}" data-s="${i}" aria-selected="${s1b === i}"><i>${k === "done" ? "✓" : i + 1}</i><span>${t}<small class="muted">${s}</small></span></button>`).join("")}
+  <div style="margin-top:auto;padding:12px 14px"><button class="btn" style="width:100%">＋ 처음부터 새로 설계</button></div></nav>
+  <div class="col grow"><div class="head"><b>${STEPS[s1b][0]}</b><span class="muted">${STEPS[s1b][1]}</span></div><div class="body">${main}</div></div>
+  <div class="side"><div class="head"><b>상담</b><span class="muted">늘 열려 있음 · 지금 단계 기준으로 답함</span></div>${chatHtml(s1b <= 1 ? CHAT_NEW : CHAT_EDIT, "말로 설계를 고친다")}</div></div>`;
+}
+
+/* ── 2-A: 설계안 보드 ── */
+const DESIGNS = [
+  { id: "A", name: "안 A · 웹 우선", st: ["ok", "대표"], v: "v2", req: 9, done: 4, note: "PC 웹 · 동 단위 · 대여 14일", who: "동네 주민", ui: "웹", period: "14일 고정", point: "있음" },
+  { id: "B", name: "안 B · 학교 도서부", st: ["warn", "검토 중"], v: "v1", req: 7, done: 0, note: "모바일 · 학교 단위 · 기한 선택", who: "학교 도서부", ui: "모바일", period: "7 · 14 · 30일", point: "없음" },
+  { id: "C", name: "안 C · 무인 함", st: ["", "보관"], v: "v1", req: 5, done: 0, note: "아파트 무인 책장 · QR", who: "아파트 주민", ui: "QR 페이지", period: "없음", point: "없음" },
+];
+let pick = ["A", "B"];
+function v2a() {
+  const [a, b] = pick.map((id) => DESIGNS.find((d) => d.id === id));
+  const rows = [["쓰는 사람", "who"], ["화면", "ui"], ["대여 기한", "period"], ["포인트", "point"], ["요구사항 수", "req"]];
+  return `<div class="pane"><div class="col grow"><div class="head"><b>설계</b><span class="muted">동네 책 나눔 · 설계안 ${DESIGNS.length}개</span><span class="sp"></span><button class="btn">＋ 새 설계안</button><button class="btn">대표안에서 갈라 만들기</button></div>
+  <div class="body"><small>카드 두 개를 눌러 비교한다. 대표안만 할일 · 흐름도와 연결된다.</small>
+  <div class="board">${DESIGNS.map((d) => `<button class="dcard" data-d="${d.id}" aria-pressed="${pick.includes(d.id)}"><span class="t"><b>${d.name}</b><span class="chip ${d.st[0]}">${d.st[1]}</span></span><span class="muted">${d.note}</span><span class="bar"><span style="width:${(d.done / d.req) * 100}%;background:var(--ok)"></span></span><small>${d.v} · 요구 ${d.req} · 구현 ${d.done}</small></button>`).join("")}</div>
+  <div><h2>비교 — ${a.name} ↔ ${b.name}</h2><div class="cmp"><div class="h"></div><div class="h">${a.name}</div><div class="h">${b.name}</div>${rows.map(([k, f]) => { const d = a[f] !== b[f]; return `<div class="k">${k}</div><div class="${d ? "diffcell" : ""}">${a[f]}</div><div class="${d ? "diffcell" : ""}">${b[f]}</div>`; }).join("")}</div>
+  <div style="display:flex;gap:6px;margin-top:10px"><button class="btn pri">${b.name.split(" · ")[0]}을 대표로</button><button class="btn">${b.name.split(" · ")[0]}의 R3만 대표안에 가져오기</button></div></div></div></div>
+  <div class="side">${chatHtml([["AI", "안 B는 안 A와 쓰는 사람 · 화면 · 기한이 다릅니다. 안 A에 학교 묶음만 더하는 방법도 있습니다."], ["나", "기한 선택은 A에도 넣고 싶어요."]], "설계안을 골라 말한다")}</div></div>`;
+}
+
+/* ── 2-B: 가지 그래프 ── */
+const NODES = [
+  { id: "A1", x: 30, y: 40, t: "A v1", s: "채택 09-28", k: "ok" }, { id: "A2", x: 200, y: 40, t: "A v2", s: "대표 · 구현 기준", k: "ok" }, { id: "A3", x: 370, y: 40, t: "A v3", s: "수정 초안", k: "now" },
+  { id: "B1", x: 200, y: 140, t: "B v1", s: "A v1에서 갈라짐", k: "" }, { id: "B2", x: 370, y: 140, t: "B v2", s: "검토 중", k: "now" },
+  { id: "C1", x: 370, y: 230, t: "C v1", s: "보관", k: "dim" },
+];
+const LINKS = [["A1", "A2"], ["A2", "A3"], ["A1", "B1"], ["B1", "B2"], ["B1", "C1"], ["B2", "A3", "가져오기: R3 기한 선택"]];
+let selN = "A3";
+const INFO = { A3: diffHtml(), A2: summaryHtml() + featureGraph(), B2: `<div class="card"><h3>B v2 · 학교 도서부</h3><small>A v1에서 갈라져 쓰는 사람 · 화면을 바꾼 안. R3(기한 선택)을 A v3로 가져가는 중.</small><div style="margin-top:10px;display:flex;gap:6px"><button class="btn pri">B를 대표로</button><button class="btn">절 골라 A로 가져오기</button></div></div>` };
+function v2b() {
+  const W = 140, H = 44, at = (id) => NODES.find((n) => n.id === id);
+  const links = LINKS.map(([a, b, lab]) => { const p = at(a), q = at(b); const x1 = p.x + W, y1 = p.y + H / 2, x2 = lab ? q.x + W / 2 : q.x, y2 = lab ? q.y + H : q.y + H / 2;
+    return `<path d="M${x1} ${y1} C${x1 + 40} ${y1} ${x2 - (lab ? 0 : 40)} ${lab ? y2 + 40 : y2} ${x2} ${y2}" fill="none" stroke="${lab ? "var(--warn)" : "var(--stroke)"}" stroke-width="1.6" ${lab ? 'stroke-dasharray="5 4"' : ""}/>${lab ? `<text class="m" x="${x2 + 10}" y="${y2 + 34}">${lab}</text>` : ""}`; }).join("");
+  const nodes = NODES.map((n) => { const c = n.k === "ok" ? "var(--ok)" : n.k === "now" ? "var(--warn)" : "var(--stroke)";
+    return `<g class="gnode ${selN === n.id ? "sel" : ""}" data-n="${n.id}" opacity="${n.k === "dim" ? 0.5 : 1}"><rect x="${n.x}" y="${n.y}" width="${W}" height="${H}" rx="8" style="stroke:${selN === n.id ? "" : c}"/><text x="${n.x + 10}" y="${n.y + 18}">${n.t}</text><text class="m" x="${n.x + 10}" y="${n.y + 34}">${n.s}</text></g>`; }).join("");
+  return `<div class="pane"><div class="col grow"><div class="head"><b>설계</b><span class="muted">동네 책 나눔 · 설계 가지</span><span class="sp"></span><button class="btn">＋ 새 설계안</button><button class="btn">이 판에서 가지 내기</button></div>
+  <div class="body"><svg viewBox="0 0 560 290" width="100%" style="max-width:720px;background:var(--bg);border:1px solid var(--line);border-radius:8px">
+  <text class="m" x="10" y="20">대표 줄기 (A) — 할일 · 흐름도와 연결</text><text class="m" x="10" y="130">가지 — 다른 방향 시험</text>${links}${nodes}</svg>
+  <div class="legend"><span><i style="background:var(--ok)"></i>채택</span><span><i style="background:var(--warn)"></i>초안 · 검토 중</span><span><i style="background:var(--stroke)"></i>보관 · 기록</span><span>점선 = 다른 가지의 절을 가져옴</span></div>
+  ${INFO[selN] || `<div class="card"><small>${at(selN).t} · ${at(selN).s}</small></div>`}</div></div>
+  <div class="side">${chatHtml([["AI", `${at(selN).t}을 보고 있습니다. 이 판 기준으로 답합니다.`], ["나", "B의 기한 선택만 대표안에 넣어 줘요."]], "판을 골라 말한다")}</div></div>`;
+}
+
+/* ── 탭 ── */
+const VIEWS = [
+  { k: "1a", g: "① 대표 설계안 하나", t: "1-A 목적 카드 + 판 줄", d: "<b>세 목적이 맨 위 카드.</b> 고르면 아래가 바뀐다 — 새로 설계: 범위 3칸 + 상담 / 확인: 요약 · 기능 관계도 / 수정: 비교 · 영향 + 상담. 판 줄(v1→v2→v3)은 늘 보인다.", r: v1a },
+  { k: "1b", g: "", t: "1-B 생명주기 레일", d: "<b>목적을 고르지 않고 지금 단계가 왼쪽 레일에 보인다.</b> 신규 → 확정 → 확인 → 변경 상담 → 영향 검토 → 새 판. 상담은 오른쪽에 늘 열려 있고 지금 단계 기준으로 답한다.", r: v1b },
+  { k: "2a", g: "② 설계안 여러 개", t: "2-A 설계안 보드", d: "<b>설계안이 카드로 나란히.</b> 두 장을 골라 칸별로 비교하고, 대표를 바꾸거나 한 절만 대표안에 가져온다. 대표안만 할일 · 흐름도와 연결.", r: v2a },
+  { k: "2b", g: "", t: "2-B 가지 그래프", d: "<b>판과 설계안을 한 그래프로.</b> 대표 줄기(A)에서 다른 방향이 가지로 나간다. 노드를 누르면 그 판의 비교 · 요약이 아래에 뜬다. 점선은 다른 가지에서 절을 가져온 것.", r: v2b },
+];
+let cur = "1a";
+function render() {
+  $("#tabs").innerHTML = VIEWS.map((v) => `${v.g ? `<span class="grp">${v.g}</span>` : ""}<button data-v="${v.k}" aria-pressed="${cur === v.k}">${v.t}</button>`).join("");
+  const v = VIEWS.find((x) => x.k === cur);
+  $("#vdesc").innerHTML = v.d;
+  $("#stage").innerHTML = v.r();
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-v],[data-p],[data-s],[data-d],[data-n]");
+  if (!b) return;
+  if (b.dataset.v) cur = b.dataset.v;
+  if (b.dataset.p) p1a = b.dataset.p;
+  if (b.dataset.s) s1b = +b.dataset.s;
+  if (b.dataset.n) selN = b.dataset.n;
+  if (b.dataset.d) { const id = b.dataset.d; pick = pick.includes(id) ? pick : [pick[1], id]; }
+  render();
+});
+render();
+</script>

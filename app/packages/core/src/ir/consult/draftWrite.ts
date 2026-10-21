@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
+import { irValueDigest } from "../valueDigest.js";
+import { withFileLock } from "../../rooms/store.js";
+import { readOverlay } from "../../studio/projectFiles.js";
 import { projectStudioDir } from "../../studio/studioStore.js";
 import { PROPOSED_IR_FILE_NAME } from "../../studio/irStore.js";
 import {
@@ -35,6 +38,8 @@ const TOP_KEYS = Object.keys(irSchema.shape);
 const LOCKED_KEYS = new Set(["schemaVersion", "version"]);
 
 export interface ConsultPatchInput {
+  /** 편집기가 본 초안과 같은 내용에만 적용한다. */
+  expectedDraftDigest?: string;
   patch: Record<string, unknown>;
   /** 칸마다 출처. 경로를 빼면 patch의 최상위 키가 `inferred` 로 남는다. */
   provenance?: { path: string; source: ProvenanceSource }[];
@@ -161,6 +166,15 @@ export async function applyConsultPatch(
   alias: string,
   input: ConsultPatchInput,
 ): Promise<ConsultPatchResult> {
+  await fs.mkdir(projectStudioDir(studioHome, alias), { recursive: true });
+  return withFileLock(path.join(projectStudioDir(studioHome, alias), PROPOSED_IR_FILE_NAME), () => applyConsultPatchLocked(studioHome, alias, input));
+}
+
+async function applyConsultPatchLocked(
+  studioHome: string,
+  alias: string,
+  input: ConsultPatchInput,
+): Promise<ConsultPatchResult> {
   const unknown = validateConsultPatch(input.patch);
   if (unknown.length) {
     return {
@@ -183,12 +197,25 @@ export async function applyConsultPatch(
   try {
     const parsed = YAML.parse(await fs.readFile(file, "utf8"));
     draft = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    draft = {};
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return { ok: false, error: "초안을 읽지 못했습니다. 기존 내용을 복구한 뒤 다시 저장해주세요.", unknown: [] };
+    draft = { ...((await readOverlay(studioHome, alias)).ir ?? {}) };
   }
+  if (input.expectedDraftDigest && input.expectedDraftDigest !== irValueDigest(draft)) return { ok: false, error: "설계가 변경되었습니다. 새로고침 후 다시 저장해주세요.", unknown: [] };
   draft.schemaVersion ??= IR_SCHEMA_VERSION;
   draft.version ??= 1;
   draft.project ??= alias;
+
+  // 배열 순서가 바뀌어도 근거는 ID에 남는다. 수정된 요구사항만 이번 대화의 턴에 연결한다.
+  if (Array.isArray(patch.requirements) && input.consult) {
+    const prior = new Map((Array.isArray(draft.requirements) ? draft.requirements : []).map((r: Record<string, unknown>) => [r.id, r]));
+    patch.requirements = patch.requirements.map((value: unknown) => {
+      if (!value || typeof value !== "object") return value;
+      const r = value as Record<string, unknown>, old = prior.get(r.id);
+      if (JSON.stringify(old) === JSON.stringify(r)) return r;
+      return { ...r, sourceRef: { kind: "consult", id: input.consult, ...(input.turn !== undefined ? { turn: input.turn } : {}) } };
+    });
+  }
 
   for (const [key, value] of Object.entries(patch)) {
     const current = draft[key];

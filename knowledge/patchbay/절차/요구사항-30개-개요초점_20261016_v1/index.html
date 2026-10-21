@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Patchbay · 30개 요구사항 검토 시안</title>
+<style>
+:root{--bg:#131416;--panel:#1a1b1e;--raised:#202125;--fill:#27282d;--line:#303137;--text:#eeedf2;--sub:#b1afb9;--muted:#84838e;--violet:#baabf5;--violet-bg:#302b43;--amber:#e9b675;--amber-bg:#342c23;--green:#9ed0bc;--green-bg:#24332e;--red:#edaaa6;--red-bg:#3a292a;--radius:12px;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55}button,input,select{font:inherit}button{cursor:pointer;color:inherit}button:disabled{cursor:not-allowed;opacity:.45}button,input,select,a{outline-offset:4px}button:focus-visible,a:focus-visible{outline:2px solid var(--violet)}a{color:var(--violet);text-underline-offset:3px}button{border:1px solid var(--line);background:var(--raised);border-radius:7px;padding:7px 11px}button:hover:not(:disabled){border-color:#62606e;background:#303036}.primary{background:var(--violet);color:#20192e;border-color:var(--violet);font-weight:650}.primary:hover:not(:disabled){background:#cbbdfb}.quiet{background:transparent}.mini{font-size:12px;padding:4px 8px}.small{font-size:12px;color:var(--sub)}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.02em}.muted{color:var(--muted)}.badge{font-size:11px;line-height:1.5;border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--sub);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.badge.change{color:var(--amber);background:var(--amber-bg);border-color:#60492f}.badge.good{color:var(--green);background:var(--green-bg);border-color:#3d564c}.badge.open{color:var(--red);background:var(--red-bg);border-color:#684440}.badge.focus{color:var(--violet);background:var(--violet-bg);border-color:#544768}.dot{width:6px;height:6px;background:currentColor;border-radius:100%;display:inline-block}
+header{border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{display:flex;gap:11px;align-items:center;font-weight:650;letter-spacing:.01em}.brand-mark{display:grid;grid-template-columns:repeat(2,5px);gap:3px;padding:8px;border:1px solid #524760;border-radius:8px;background:var(--violet-bg)}.brand-mark i{width:5px;height:5px;background:var(--violet);border-radius:2px}.header-note{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:14px}.shell{max-width:1740px;margin:auto;padding:24px 26px 16px}.intro{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:19px}.eyebrow{color:var(--violet);font-size:11px;letter-spacing:.12em;margin-bottom:5px}h1{font-size:25px;letter-spacing:-.045em;font-weight:650;line-height:1.3;margin:0 0 7px}.intro p{margin:0;color:var(--sub);font-size:13px}.version-switch{display:flex;gap:3px;background:var(--panel);border:1px solid var(--line);padding:4px;border-radius:9px;flex-shrink:0}.version-switch button{font-size:12px;background:transparent;border-color:transparent;padding:8px 13px}.version-switch button[aria-pressed=true]{background:var(--violet-bg);color:var(--violet);border-color:#51445f}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:14px}.metric{border:0;border-radius:0;padding:13px 18px;background:var(--panel);text-align:left;display:flex;align-items:center;gap:12px}.metric strong{font-size:25px;line-height:1.1;font-weight:550;letter-spacing:-.04em}.metric small{display:block;color:var(--muted);font-size:11px}.metric b{font-size:12px;font-weight:500}.metric[aria-pressed=true]{box-shadow:inset 0 -2px var(--violet);background:#24212e}.metric.amber strong{color:var(--amber)}.metric.purple strong{color:var(--violet)}.metric.red strong{color:var(--red)}.guide{display:flex;align-items:center;gap:10px;margin-bottom:17px;font-size:12px;color:var(--muted);flex-wrap:wrap}.guide button{border:0;background:transparent;padding:2px 0;color:var(--sub);font-size:12px}.guide button:hover{color:var(--violet);background:transparent}.guide .num{display:inline-grid;place-items:center;width:19px;height:19px;margin-right:5px;border:1px solid var(--line);border-radius:50%;font-size:10px}.guide span.arrow{color:#5b5965}.guide .demo{margin-left:auto;color:var(--muted)}
+.workspace{display:grid;grid-template-columns:284px minmax(420px,1fr) 306px;gap:14px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}.panel-title{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--line);gap:10px}.panel-title h2{font-size:13px;margin:0;font-weight:600}.list-panel{position:sticky;top:14px}.list-controls{padding:12px;display:grid;gap:9px;border-bottom:1px solid var(--line)}.search{display:flex;align-items:center;border:1px solid var(--line);border-radius:7px;background:#151619;padding:0 9px;gap:8px;color:var(--muted)}.search input{width:100%;min-width:0;background:transparent;color:var(--text);border:0;padding:8px 0;font-size:12px;outline:none}.search:focus-within{border-color:var(--violet)}select{width:100%;background:var(--raised);color:var(--sub);border:1px solid var(--line);padding:6px 8px;border-radius:6px;font-size:12px}.list-tools{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:9px 13px;font-size:11px;color:var(--sub);border-bottom:1px solid var(--line)}.list-tools button{font-size:11px;padding:3px 6px}.list-scroll{max-height:calc(100vh - 394px);min-height:340px;overflow:auto;scrollbar-width:thin;scrollbar-color:#46444e transparent}.group-label{font-size:10px;color:var(--muted);background:#17181b;letter-spacing:.06em;padding:9px 13px;border-bottom:1px solid #25262b;position:sticky;top:0;z-index:1}.req-row{display:flex;align-items:flex-start;border-bottom:1px solid #292a30;position:relative}.req-row.active{background:#292535;box-shadow:inset 3px 0 var(--violet)}.req-row input{accent-color:#b7a5f0;margin:18px 0 0 11px;width:13px;height:13px;flex:none}.req-row .check-spacer{width:24px;flex:none}.req-pick{border:0;border-radius:0;background:transparent;text-align:left;flex:1;padding:11px 11px 11px 9px;min-width:0}.req-pick:hover:not(:disabled){background:#28282e;border-color:transparent}.req-top{display:flex;gap:7px;align-items:center;margin-bottom:4px}.req-top .mono{font-size:10px;color:var(--muted)}.req-title{font-size:12px;display:block;margin-bottom:5px}.row-meta{font-size:10px;color:var(--muted);display:flex;gap:7px;align-items:center}.slot-mini{display:flex;gap:3px}.slot-mini i{display:block;width:13px;height:4px;border-radius:2px;background:#514963}.slot-mini i.empty{background:#424149}.slot-mini i.question{background:var(--red)}.slot-mini i.changed{background:var(--amber)}.list-key{padding:9px 12px;color:var(--muted);font-size:10px;border-top:1px solid var(--line)}.empty{padding:36px 15px;text-align:center;color:var(--sub);font-size:12px}.empty button{margin-top:12px}
+.focus-panel{min-width:0}.focus-head{padding:19px 20px 15px}.focus-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:11px;margin-bottom:7px}.focus-meta .mono{color:var(--violet)}.focus-head h2{font-size:20px;font-weight:600;letter-spacing:-.035em;margin:0 0 7px}.focus-head p{font-size:12px;color:var(--sub);margin:0}.slot-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:16px}.slot{padding:7px 3px;border:1px solid var(--line);border-radius:6px;background:var(--raised);font-size:10px;color:var(--sub);text-align:center}.slot .symbol{display:block;color:var(--violet);font-size:13px;font-weight:600;line-height:1.3}.slot.changed{border-color:#655032;background:var(--amber-bg)}.slot.changed .symbol{color:var(--amber)}.slot.missing{border-style:dashed}.slot.missing .symbol{color:var(--muted)}.slot.question{border-color:#694744;background:var(--red-bg)}.slot.question .symbol{color:var(--red)}.focus-tabs{display:flex;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);overflow:auto}.focus-tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;white-space:nowrap;font-size:12px;padding:11px 0;color:var(--muted)}.focus-tabs button[aria-selected=true]{color:var(--violet);border-bottom-color:var(--violet)}.detail-body{padding:17px 20px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:11px}.section-head h3{font-size:12px;margin:0;font-weight:600}.reason{padding:11px 12px;border-left:2px solid var(--amber);background:#28241f;margin-bottom:15px;font-size:12px;color:#d8c7b1;line-height:1.65}.reason small{display:block;color:var(--amber);font-size:10px;margin-bottom:3px}.compare-labels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 8px;padding:0 11px;color:var(--muted);font-size:10px}.compare-labels span:last-child{color:var(--amber)}.diff-field{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:9px}.diff-field>div:first-child{font-size:10px;color:var(--sub);padding:6px 11px;background:var(--raised);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}.diff-values{display:grid;grid-template-columns:1fr 1fr}.diff-values>div{padding:10px 11px;font-size:12px;line-height:1.7;min-width:0;overflow-wrap:anywhere}.diff-values>div+div{border-left:1px solid var(--line);background:#28241e}.diff-values del{color:#a6a0a1;text-decoration-color:#b0918b}.diff-values ins{color:#f2c58b;text-decoration:none;border-bottom:1px solid #80623b}.no-change{font-size:12px;color:var(--muted);padding:12px;border:1px dashed var(--line);border-radius:8px}.info-box{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px}.info-box h3{font-size:11px;color:var(--sub);margin:0 0 7px;font-weight:500}.info-box p{margin:0;line-height:1.8}.info-box.warning{border-color:#664743;background:#2c2224}.info-box.warning h3{color:var(--red)}.question-line{font-size:12px;color:#e8c2bd;margin:6px 0 10px}.trace{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}.trace span{font-size:10px;border:1px solid var(--line);border-radius:5px;background:var(--raised);padding:5px 7px}.trace b{font-size:12px;color:var(--muted)}.related{display:grid;gap:7px}.related button{text-align:left;display:flex;justify-content:space-between;gap:7px;background:transparent;font-size:11px;padding:9px}.related button .mono{color:var(--violet)}.related small{color:var(--muted);font-size:10px}.focus-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid var(--line);background:#1d1c22;flex-wrap:wrap}.focus-actions .decision-help{font-size:10px;color:var(--sub);max-width:260px}.action-buttons{display:flex;gap:7px}.decision-banner{font-size:12px;padding:10px 12px;border:1px solid #42554c;background:var(--green-bg);color:var(--green);border-radius:7px;margin-bottom:13px}.decision-banner.held{color:var(--amber);background:var(--amber-bg);border-color:#604c35}
+.side-panel{position:sticky;top:14px}.side-body{padding:13px}.thread-label{font-size:10px;color:var(--muted);display:flex;justify-content:space-between;margin:2px 0 9px}.chat-msg{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:11px;font-size:12px;margin-bottom:11px;line-height:1.75}.chat-msg.user{background:#2b2638;border-color:#493f5c;margin-left:16px}.chat-msg small{font-size:10px;display:block;margin-bottom:4px;color:var(--muted)}.chat-msg.user small{color:var(--violet)}.chat-msg p{margin:0}.source-highlight{background:#54422b;color:#f1cd9f;padding:0 2px}.chat-links{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.chat-links button{font-size:10px;padding:3px 6px;background:transparent;color:var(--amber);border-color:#665035}.source-extra{margin:8px 0;font-size:11px;color:var(--sub);line-height:1.8}.side-sep{border:0;border-top:1px solid var(--line);margin:16px 0}.side-label{font-size:11px;font-weight:550;margin:0 0 9px}.answer-demo{border:1px dashed #5b4c70;border-radius:8px;padding:11px;background:#24212d;font-size:11px;color:var(--sub)}.answer-demo p{margin:0 0 9px}.answer-demo button{font-size:11px;width:100%}.side-note{font-size:10px;color:var(--muted);line-height:1.8;margin:10px 1px}.side-stats{display:grid;gap:7px;margin-bottom:13px}.side-stats div{display:flex;justify-content:space-between;font-size:11px;color:var(--sub)}.side-stats b{color:var(--text);font-weight:500}.side-body>.primary{width:100%;font-size:12px}
+.flow-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}.flow-box{border:1px solid var(--line);border-radius:9px;padding:10px;min-width:0;background:#17181b}.flow-box.proposed{border-color:#5b4832}.flow-title{font-size:10px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:6px}.flow-box.proposed .flow-title{color:var(--amber)}.flow-box svg{width:100%;height:auto;display:block}.flow-box svg text{font-family:inherit}.flow-note{font-size:10px;color:var(--sub);line-height:1.7;margin:0 0 12px}.test-row{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}.test-row:last-child{border-bottom:0}.test-row>.mono{color:var(--violet);font-size:10px}.test-row p{margin:3px 0 0;font-size:10px;color:var(--sub)}.test-row .badge{font-size:9px}.progress-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}.progress-cell{border:1px solid var(--line);border-radius:7px;padding:8px;font-size:10px;color:var(--sub)}.progress-cell strong{display:block;color:var(--text);font-size:11px;font-weight:500;margin-top:3px}.timeline{border-left:1px solid #4a405a;margin-left:6px;padding-left:18px}.event{position:relative;padding:0 0 20px;font-size:12px}.event:before{content:"";position:absolute;width:7px;height:7px;border:2px solid var(--panel);border-radius:50%;background:var(--violet);left:-23px;top:6px;box-sizing:content-box}.event time{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}.event p{margin:4px 0 0;color:var(--sub);font-size:11px}
+.batchbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 15px;background:#222026;border:1px solid #413b4d;border-radius:9px;font-size:12px;flex-wrap:wrap}.batchbar .small{font-size:11px}.batchbar .batch-actions{display:flex;gap:7px;flex-wrap:wrap}.footnote{font-size:10px;color:var(--muted);display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-top:12px}.toast{position:fixed;bottom:23px;left:50%;transform:translateX(-50%);background:#e4dcf6;color:#281e3a;padding:11px 18px;border:1px solid #d6c8f0;border-radius:9px;box-shadow:0 8px 35px #0005;max-width:min(90vw,620px);font-size:12px;z-index:20}.toast[hidden]{display:none}dialog{border:1px solid #554962;border-radius:14px;background:var(--panel);color:var(--text);width:min(700px,calc(100vw - 30px));padding:22px;max-height:85vh;overflow:auto}dialog::backdrop{background:#08090bc9}dialog h2{font-size:18px;margin:0 0 7px}dialog .modal-top{display:flex;justify-content:space-between;gap:16px;align-items:start}dialog .summary-group{margin-top:18px}dialog h3{font-size:12px;margin:0 0 8px;color:var(--sub)}.summary-item{display:flex;align-items:start;gap:10px;border-top:1px solid var(--line);padding:10px 0;font-size:12px}.summary-item small{font-size:10px;color:var(--muted);display:block;margin-top:4px}.summary-item button{margin-left:auto;flex-shrink:0}.modal-bottom{margin-top:16px;font-size:11px;color:var(--sub);border-top:1px solid var(--line);padding-top:13px}
+@media(min-width:1500px){.workspace{grid-template-columns:302px minmax(460px,1fr) 330px}}
+@media(max-width:1170px){.workspace{grid-template-columns:260px minmax(0,1fr)}.side-panel{position:static;grid-column:2}.side-body{display:grid;grid-template-columns:1fr 1fr;gap:0 17px}.side-body .thread-section{grid-row:span 2}.side-body .side-sep{display:none}.side-body .review-section{align-self:start}.list-scroll{max-height:70vh}.intro{align-items:flex-start}.metric{padding:13px 12px;gap:8px}.metric strong{font-size:22px}}
+@media(max-width:720px){header{padding:13px 15px}.header-note>span{display:none}.shell{padding:19px 13px 14px}.intro{display:block}h1{font-size:23px}.version-switch{margin-top:14px;width:max-content;max-width:100%;}.version-switch button{padding:7px 10px}.metrics{grid-template-columns:repeat(6,minmax(0,1fr));gap:1px}.metric{grid-column:span 2;padding:12px 9px;gap:8px}.metric strong{font-size:23px}.metric:nth-child(4),.metric:nth-child(5){grid-column:span 3;border-top:1px solid var(--line)}.metric b{font-size:11px}.metric small{font-size:9px}.guide{gap:6px;margin-bottom:12px}.guide .demo{width:100%;margin:4px 0 0;font-size:10px}.guide button{font-size:11px}.workspace{display:flex;flex-direction:column;gap:12px}.list-panel{position:static;width:100%}.list-scroll{max-height:238px;min-height:160px}.list-controls{grid-template-columns:1fr 130px;padding:10px}.list-key{font-size:9px}.focus-panel,.side-panel{width:100%}.focus-head{padding:16px}.focus-head h2{font-size:19px}.detail-body{padding:15px}.focus-tabs{padding:0 15px;gap:18px}.focus-actions{padding:13px 15px}.slot-strip{gap:4px}.slot{font-size:9px}.side-body{display:block}.diff-values>div{font-size:12px;padding:9px}.flow-pair{grid-template-columns:1fr}.flow-box svg{max-height:390px}.progress-cells{gap:4px}.progress-cell{padding:7px}.batchbar{align-items:flex-start}.batch-actions{width:100%;justify-content:flex-end}.footnote{line-height:1.7}.group-label{padding:6px 13px}.req-pick{padding-top:8px;padding-bottom:8px}.badge{font-size:10px}}
+@media(prefers-reduced-motion:no-preference){button{transition:background .13s,border-color .13s}.toast{animation:toast-in .15s ease-out}@keyframes toast-in{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}}
+@media print){header .header-note button,.guide,.list-panel,.side-panel,.batchbar,.focus-actions{display:none}.workspace{display:block}.shell{padding:0}.focus-panel{overflow:visible}.metrics{break-inside:avoid}.detail-body{overflow:visible}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Patchbay <span class="muted" style="font-weight:400">/</span><span class="small">설계 검토</span></div>
+  <div class="header-note"><span>개요 + 초점 · 인터랙션 시안 01</span><button class="mini quiet" data-act="reset">시안 초기화</button></div>
+</header>
+<main class="shell">
+  <div class="intro">
+    <div><div class="eyebrow">REQUIREMENTS / OVERVIEW & FOCUS</div><h1 id="headline">30개 요구사항, 이번 변경은 3개</h1><p>전체 상태를 훑고, 바뀐 항목의 이유와 영향을 이어서 확인합니다.</p></div>
+    <div class="version-switch" role="group" aria-label="설계 판 선택">
+      <button data-act="mode" data-value="current" aria-pressed="false">현재 설계 <span class="mono">v2</span></button>
+      <button data-act="mode" data-value="review" aria-pressed="true">변경안 검토 <span class="mono">v2 → v3</span></button>
+    </div>
+  </div>
+  <nav class="metrics" id="metrics" aria-label="요구사항 필터"></nav>
+  <div class="guide" aria-label="시안 검토 순서">
+    <button data-act="guide" data-value="all"><span class="num">1</span>전체 30개 훑기</button><span class="arrow">→</span>
+    <button data-act="guide" data-value="changes"><span class="num">2</span>변경 3건 비교</button><span class="arrow">→</span>
+    <button data-act="guide" data-value="questions"><span class="num">3</span>미결 해소·선택 확정</button>
+    <span class="demo">동네 책 나눔 · 예시 데이터 · 검토 결과는 이 브라우저에만 저장</span>
+  </div>
+  <div class="workspace">
+    <aside class="panel list-panel" aria-label="요구사항 개요">
+      <div class="panel-title"><h2>요구사항 개요</h2><span id="filter-label" class="badge focus">전체</span></div>
+      <div class="list-controls">
+        <label class="search"><span aria-hidden="true">⌕</span><input id="search" aria-label="요구사항 검색" placeholder="ID, 제목, 내용 검색" autocomplete="off"></label>
+        <select id="category" aria-label="기능 묶음"><option value="all">모든 기능 묶음</option></select>
+      </div>
+      <div class="list-tools"><span id="visible-count"></span><button data-act="select-ready" title="미결 질문이 없는 변경 중 검토 대기 항목을 선택합니다">확정 가능한 변경 선택</button></div>
+      <div id="req-list" class="list-scroll"></div>
+      <div class="list-key">6칸: 왜 · 무엇 · 경계 · 확인 · 연결 · 미결<br>보라 채움 / 주황 변경 / 회색 빈칸 / 빨강 질문</div>
+    </aside>
+    <section id="focus" class="panel focus-panel" aria-label="선택 요구사항 상세"></section>
+    <aside id="source" class="panel side-panel" aria-label="대화 근거와 검토 결과"></aside>
+  </div>
+  <div id="batchbar" class="batchbar"></div>
+  <div class="footnote"><span>설계 확정 · 구현 진행 · 시험 결과는 각각 확인합니다. 이 시안의 확정은 실제 제품 데이터를 바꾸지 않습니다.</span><span>30개 요구사항 / 5개 기능 묶음 / 변경 3건 / 영향 확인 3건</span></div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="summary" aria-labelledby="summary-title"></dialog>
+<script>
+'use strict';
+const GROUPS=['회원·권한','등록·검색','요청·승인','대여·반납','알림·운영'];
+const SLOT_NAMES=['왜','무엇','경계','확인','연결','미결'];
+const STORAGE_KEY='patchbay.requirement-review-demo.20261016.v1';
+const seeds=[
+ ['회원 가입','이메일로 회원 가입을 완료한다','이메일 인증이 끝나면','중복 이메일은 가입을 막는다','인증된 새 이메일로 가입하면 회원 목록에 1건이 생긴다'],
+ ['로그인 유지','인증된 회원의 로그인 상태를 7일간 유지한다','회원이 로그인하면','로그아웃하면 기존 세션을 폐기한다','7일 이내 재접속 시 인증 상태가 유지된다'],
+ ['프로필 관리','닉네임과 동네를 저장한다','회원이 프로필을 수정하면','빈 닉네임과 미지원 동네는 저장을 막는다','유효한 닉네임을 저장하면 프로필에 같은 값이 보인다'],
+ ['비회원 조회','책 목록과 책 상세를 보여준다','비회원이 접속하면','대여 요청은 로그인 후에만 허용한다','비회원은 상세를 열 수 있지만 요청 시 로그인 화면을 본다'],
+ ['소유자 권한','자신이 등록한 책만 수정·숨김 처리할 수 있다','책 관리 화면을 열면','다른 회원의 책 변경은 거절한다','타인의 책 수정 요청에 403을 반환한다'],
+ ['탈퇴 조건','진행 중인 대여가 없는 회원의 탈퇴를 처리한다','회원이 탈퇴를 요청하면','빌려주거나 빌린 책이 있으면 탈퇴를 막는다','대여 0건인 회원의 탈퇴 후 로그인은 거절된다'],
+ ['책 등록','사진 1장 이상과 책 상태를 받아 등록한다','회원이 책을 등록하면','사진이 없으면 등록을 막는다','사진과 상태를 입력하면 목록에 책 1권이 추가된다'],
+ ['책 정보 수정','제목·저자·상태를 갱신한다','소유자가 책을 수정하면','진행 중인 요청에는 수정 사실을 알린다','수정 후 상세 화면에 새 제목이 보인다'],
+ ['책 목록 응답 속도','첫 20권이 4초 안에 보인다 (요청의 95%)','회원이 책 목록을 열면','통신에 실패하면 재시도 버튼을 보여준다','책 1,000권에서 첫 20권의 응답 시간 p95가 4초 이하다'],
+ ['제목·저자 검색','제목 또는 저자에 검색어가 포함된 책을 보여준다','회원이 검색어를 입력하면','검색 결과가 없으면 빈 결과 안내를 보여준다','저자로 검색하면 해당 저자의 책만 보인다'],
+ ['동네별 필터','선택한 동네에서 대여 가능한 책을 보여준다','회원이 동네를 선택하면','동네를 해제하면 전체 결과로 돌아간다','동네 A를 고르면 A의 책만 보인다'],
+ ['책 숨김','책을 새 검색 결과에서 제외한다','소유자가 책을 숨기면','진행 중인 대여의 기록은 보존한다','숨긴 책은 검색에서 사라지고 기존 대여에는 남는다'],
+ ['대여 요청 생성','책 주인에게 대여 요청을 1건 생성한다','회원이 대여 가능한 책을 요청하면','본인 책에는 대여를 요청할 수 없다','다른 회원의 책 요청 시 대기 요청 1건이 생긴다'],
+ ['응답 기한과 자동 취소','주인에게 알리고 24시간 안에 승인·거절을 받는다','대여 요청이 접수되면','응답 기한 이후의 처리는 정해지지 않았다','주인이 24시간 안에 승인하면 요청 상태가 승인으로 바뀐다'],
+ ['승인·거절 처리','요청 상태를 승인 또는 거절로 변경한다','책 주인이 요청에 응답하면','처리된 요청의 재응답은 막는다','승인 버튼을 누르면 해당 요청만 승인으로 바뀐다'],
+ ['수령 장소 공개','합의된 수령 장소를 요청자에게 공개한다','책 주인이 대여를 승인하면','승인 전에는 상세 주소를 공개하지 않는다','승인 전 비공개였던 주소가 요청자에게만 보인다'],
+ ['요청자 취소','대기 중인 요청을 취소한다','요청자가 취소를 누르면','대여 시작 후에는 요청 취소를 막는다','대기 요청을 취소하면 소유자의 대기 목록에서 제외된다'],
+ ['중복 요청 처리','대여 가능한 책에 들어온 요청을 순서대로 보여준다','한 책에 여러 요청이 들어오면','대여 중에는 신규 요청을 막는다','같은 책의 요청 2건이 접수 시각 순서로 보인다'],
+ ['대여 시작 확인','대여 상태와 예정 반납일을 저장한다','주인과 요청자가 수령을 확인하면','한쪽만 확인한 경우 대여 시작을 확정하지 않는다','양쪽 확인 후 대여 상태가 대여 중으로 바뀐다'],
+ ['반납 기한 표시','예정 반납일을 양쪽 회원에게 표시한다','대여가 시작되면','반납일 미정인 대여는 시작할 수 없다','양쪽 대여 상세에서 같은 날짜가 보인다'],
+ ['반납 확인','대여를 종료하고 책을 다시 대여 가능하게 한다','책 주인이 반납을 확인하면','요청자 단독으로는 반납을 완료할 수 없다','주인 확인 후 책이 대여 가능으로 바뀐다'],
+ ['기한 연장','반납일을 양쪽이 동의한 날짜로 바꾼다','연장 요청을 주인이 승인하면','반납 완료 후에는 연장할 수 없다','승인 후 양쪽 화면에 변경된 반납일이 보인다'],
+ ['연체 시 대여 제한','반납 기한이 지난 회원에게 매일 반납 알림을 보낸다','반납 기한이 지나면','반납이 확인되면 연체 알림을 멈춘다','반납 기한 다음 날 오전 9시에 알림이 1건 생성된다'],
+ ['대여 제한 해제','관리자가 확인 후 대여 제한을 해제한다','제한 해제 요청이 접수되면','반납 기록이 없으면 해제를 거절한다','관리자 승인 이후 새 대여 요청이 가능해진다'],
+ ['반납 전 알림','예정 반납일 하루 전 오전 9시에 알림을 보낸다','대여가 진행 중이면','이미 반납한 대여에는 보내지 않는다','내일 반납인 대여에 알림이 1건 생성된다'],
+ ['요청 결과 알림','요청자에게 승인 또는 거절 결과를 알린다','대여 요청 상태가 바뀌면','같은 상태 변경 알림을 중복 발송하지 않는다','승인 처리 1회에 요청자 알림 1건이 생긴다'],
+ ['알림 읽음 처리','해당 회원의 알림을 읽음으로 변경한다','회원이 알림을 열면','다른 회원의 알림은 변경할 수 없다','알림을 열면 읽지 않은 수가 1 줄어든다'],
+ ['상태 변경 기록','처리 주체·시각·변경 전후 상태를 기록한다','대여 요청 또는 대여 상태가 바뀌면','이전 기록은 덮어쓰지 않는다','승인 1회 시 감사 기록이 1건 추가된다'],
+ ['신고 접수','사유와 대상 대여를 묶어 신고를 접수한다','회원이 신고를 제출하면','동일 신고의 중복 제출을 막는다','사유를 입력해 제출하면 접수 번호가 표시된다'],
+ ['운영 통계','진행 중·반납 완료·연체 대여 수를 보여준다','운영자가 통계를 열면','일반 회원에게는 운영 통계를 공개하지 않는다','고정된 시험 자료에서 상태별 합계가 일치한다']
+];
+const reqs=seeds.map((s,i)=>{
+ const group=GROUPS[Math.floor(i/6)],id='R'+String(i+1).padStart(2,'0');
+ const base={condition:s[2],response:s[1],edge:s[3],verify:s[4],flow:[group,s[0]],tests:['T'+String(i+1).padStart(2,'0')],open:[]};
+ return {id,title:s[0],group,goal:i<18?'G1 · 이웃끼리 책을 쉽게 빌린다':'G2 · 빌린 책이 제때 돌아온다',priority:[9,11,28,29].includes(i)?'Should':'Must',kind:i===8?'품질':'기능',base,reason:'',source:'S0',changed:[],related:[],implementation:i<24?'구현됨':'구현 대기',testResult:i<24?'기존 시험 통과':'미실행'};
+});
+const byId=id=>reqs.find(r=>r.id===id);
+byId('R09').base.flow=['책 목록 열기','목록 조회','목록 표시'];
+byId('R14').base.flow=['요청 접수','응답 대기','승인·거절','결과 알림'];
+byId('R23').base.flow=['반납 기한 경과','매일 알림','반납 확인'];
+Object.assign(byId('R09'),{after:{...byId('R09').base,response:'첫 20권이 2초 안에 보인다 (요청의 95%)',verify:'책 1,000권에서 첫 20권의 응답 시간 p95가 2초 이하다'},changed:['response','verify'],reason:'목록이 늦게 열려 이용자가 검색을 포기한다. 4초에서 2초로 목표를 강화한다.',source:'S2'});
+Object.assign(byId('R14'),{after:{...byId('R14').base,response:'주인에게 알리고 12시간 안에 승인·거절을 받는다',edge:'12시간 동안 답이 없으면 요청을 자동 취소하고 요청자에게 알린다',verify:'접수 후 12시간 동안 답이 없으면 요청이 취소되고 알림이 1건 생성된다',flow:['요청 접수','응답 대기','승인·거절 또는 자동 취소','결과 알림'],tests:['T14','T14-B']},changed:['response','edge','verify','flow','tests'],reason:'하루를 기다리는 시간이 너무 길다. 응답 기한을 줄이고 무응답 처리 기준도 함께 정한다.',source:'S1',related:['R26','R28']});
+Object.assign(byId('R23'),{after:{...byId('R23').base,response:'매일 반납 알림을 보내고, 7일 연체 시 새 대여 요청을 제한한다',edge:'기존 대여의 반납은 허용한다. 제한 해제 시점은 결정이 필요하다',verify:'7일 연체 회원의 신규 요청은 거절되고, 기존 대여 반납은 가능하다',flow:['반납 기한 경과','매일 알림','7일 경과','신규 요청 제한'],tests:['T23','T23-B'],open:['대여 제한은 반납 완료 즉시 풀까요, 관리자 확인 후 풀까요?']},changed:['response','edge','verify','flow','tests','open'],reason:'반납하지 않은 회원이 다른 책을 계속 빌리는 문제를 막는다. 제한을 언제 해제할지는 아직 합의하지 않았다.',source:'S3',related:['R24']});
+byId('R18').base.open=['동시에 들어온 요청 중 하나를 승인하면 나머지는 자동 거절할까요?'];
+const impactMap={R26:{from:'R14',reason:'자동 취소도 결과 알림 대상에 포함할지 확인'},R28:{from:'R14',reason:'자동 취소의 처리 주체를 시스템으로 기록할지 확인'},R24:{from:'R23',reason:'연체 제한과 관리자 해제 규칙이 충돌하는지 확인'}};
+const sources={
+ S0:{time:'10.12 · 14:20',user:'책을 등록하고, 동네에서 찾아 빌리고, 반납까지 확인하는 서비스를 만들고 싶어요.',assistant:'초기 요구사항을 회원·권한, 등록·검색, 요청·승인, 대여·반납, 알림·운영의 다섯 묶음으로 정리했습니다.',ids:[]},
+ S1:{time:'10.16 · 19:10',user:'하루는 너무 길어요. 12시간 안에 답이 없으면 취소하고, 요청한 사람에게도 알려주세요.',assistant:'R14의 응답 기한·무응답 예외·확인 예시를 변경 초안으로 묶었습니다. R26 알림과 R28 상태 기록은 영향 확인 대상으로 남겼습니다.',ids:['R14']},
+ S2:{time:'10.16 · 19:14',user:'목록이 너무 늦어요. 1,000권 정도는 처음 20권이 2초 안에 보이면 좋겠어요. 요청의 95%를 기준으로 해주세요.',assistant:'R09의 성능 목표와 검증 기준을 같은 수치로 맞췄습니다. 기존 4초 통과 결과는 새 기준을 증명하지 않으므로 재시험이 필요합니다.',ids:['R09']},
+ S3:{time:'10.16 · 19:18',user:'반납하지 않은 사람이 계속 빌리면 곤란해요. 일주일 연체하면 새 대여를 막아주세요.',assistant:'R23에 7일 연체 제한을 제안했습니다. 반납 완료 후 자동 해제할지 확인이 필요하며, R24의 관리자 해제 규칙도 함께 확인해야 합니다.',ids:['R23']}
+};
+let decisions={},answerApplied=false,eventLog=[],storageAvailable=true;
+try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1){decisions=saved.decisions||{};answerApplied=!!saved.answerApplied;eventLog=Array.isArray(saved.eventLog)?saved.eventLog:[]}}catch{storageAvailable=false}
+let mode='review',filter='all',selected='R14',tab='diff',query='',category='all',showUnchanged=false,checked=new Set(),sourceExpanded=false,toastTimer;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isChange=r=>!!r.after;
+const active=r=>mode==='review'&&r.after?proposed(r):r.base;
+function proposed(r){
+ if(r.id==='R23'&&answerApplied)return {...r.after,edge:'반납 확인 즉시 대여 제한을 자동 해제한다. 기존 대여의 반납은 항상 허용한다',verify:'7일 연체 시 신규 요청이 거절된다. 반납 완료 즉시 제한이 해제되어 다시 요청할 수 있다',flow:['반납 기한 경과','매일 알림','7일 경과','신규 요청 제한','반납 확인·자동 해제'],tests:['T23','T23-B','T23-C'],open:[]};
+ return r.after||r.base;
+}
+const pendingQuestions=r=>active(r).open.length;
+const changedReqs=()=>reqs.filter(isChange);
+const eligible=r=>isChange(r)&&!proposed(r).open.length&&!decisions[r.id];
+const decisionLabel=id=>({approved:'확정됨',held:'보류됨'}[decisions[id]]||'검토 대기');
+function persist(){if(!storageAvailable)return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify({schema:1,decisions,answerApplied,eventLog}))}catch{storageAvailable=false}}
+function toast(t){clearTimeout(toastTimer);const box=document.querySelector('#toast');box.textContent=t;box.hidden=false;toastTimer=setTimeout(()=>box.hidden=true,4300)}
+function wordDiff(before,after){
+ const A=String(before).split(' '),B=String(after).split(' ');let i=0,j=0;
+ while(i<A.length&&i<B.length&&A[i]===B[i])i++;
+ while(j<A.length-i&&j<B.length-i&&A[A.length-1-j]===B[B.length-1-j])j++;
+ const render=(arr,tag)=>esc(arr.slice(0,i).join(' '))+(i?' ':'')+(arr.slice(i,arr.length-j).length?'<'+tag+'>'+esc(arr.slice(i,arr.length-j).join(' '))+'</'+tag+'>':'')+(j?' '+esc(arr.slice(arr.length-j).join(' ')):'');
+ return [render(A,'del'),render(B,'ins')];
+}
+function slotState(r){
+ const x=active(r),comparison=mode==='review'&&isChange(r);
+ return ['ok',comparison?'changed':'ok',comparison&&r.changed.includes('edge')?'changed':'ok',comparison&&r.changed.includes('verify')?'changed':'ok',comparison&&(r.changed.includes('flow')||r.changed.includes('tests'))?'changed':'ok',x.open.length?'question':'ok'];
+}
+function statusBadge(r){
+ if(mode==='review'&&isChange(r)){
+  const d=decisions[r.id];return '<span class="badge '+(d==='approved'?'good':d==='held'?'change':pendingQuestions(r)?'open':'change')+'">'+(d?decisionLabel(r.id):pendingQuestions(r)?'미결 있음':'변경')+'</span>';
+ }
+ if(mode==='review'&&impactMap[r.id])return '<span class="badge focus">영향 확인</span>';
+ return pendingQuestions(r)?'<span class="badge open">질문 1</span>':'';
+}
+function counts(){return {all:reqs.length,changes:changedReqs().length,impact:Object.keys(impactMap).length,questions:reqs.filter(r=>pendingQuestions(r)).length,approved:changedReqs().filter(r=>decisions[r.id]==='approved').length}}
+function renderMetrics(){
+ const c=counts(),items=[['all','전체 요구사항',c.all,'5개 기능 묶음',''],['changes','직접 변경',mode==='review'?c.changes:0,'문장·기준이 달라짐','amber'],['impact','영향 확인',mode==='review'?c.impact:0,'현재 문장은 유지','purple'],['questions','미결 질문',c.questions,'결정할 내용이 남음','red'],['approved','확정한 변경',mode==='review'?c.approved:0,'구현·시험은 별도','purple']];
+ document.querySelector('#metrics').innerHTML=items.map(([id,label,note,sub,cls])=>'<button class="metric '+cls+'" data-act="filter" data-value="'+id+'" aria-pressed="'+(filter===id)+'"><strong>'+note+'</strong><span><b>'+label+'</b><small>'+sub+'</small></span></button>').join('');
+ document.querySelectorAll('[data-act=mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===mode)));
+ document.querySelector('#headline').textContent=mode==='review'?'30개 요구사항, 이번 변경은 3개':'현재 설계 v2, 요구사항 30개';
+ document.querySelector('[data-act=select-ready]').disabled=mode!=='review'||!reqs.some(eligible);
+}
+function visibleRows(){return reqs.filter(r=>{
+ if(category!=='all'&&r.group!==category)return false;
+ const x=active(r);if(query&&!([r.id,r.title,r.group,r.goal,x.response,x.edge,x.verify,...x.open].join(' ').toLowerCase().includes(query.toLowerCase())))return false;
+ return filter==='all'||filter==='changes'&&mode==='review'&&isChange(r)||filter==='impact'&&mode==='review'&&!!impactMap[r.id]||filter==='questions'&&pendingQuestions(r)>0||filter==='approved'&&mode==='review'&&decisions[r.id]==='approved';
+})}
+function renderList(){
+ const box=document.querySelector('#req-list'),scroll=box.scrollTop,rows=visibleRows();
+ const labels={all:'전체',changes:'직접 변경',impact:'영향 확인',questions:'미결 질문',approved:'확정한 변경'};
+ document.querySelector('#filter-label').textContent=labels[filter];
+ document.querySelector('#visible-count').textContent=rows.length+'개 표시 / 전체 30개';
+ box.innerHTML=rows.length?GROUPS.map(g=>{
+  const members=rows.filter(r=>r.group===g);if(!members.length)return '';
+  return '<div class="group-label">'+esc(g)+' <span class="mono">'+members.length+'</span></div>'+members.map(r=>{
+   const d=decisions[r.id],sub=mode==='review'&&isChange(r)?(d?decisionLabel(r.id):'변경 초안'):pendingQuestions(r)?'구체화 필요':'현재 설계';
+   return '<div class="req-row '+(selected===r.id?'active':'')+'">'+(mode==='review'&&isChange(r)?'<input type="checkbox" data-check="'+r.id+'" aria-label="'+r.id+' 변경 선택" '+(checked.has(r.id)?'checked':'')+'>':'<span class="check-spacer"></span>')+'<button class="req-pick" data-act="select" data-id="'+r.id+'" aria-pressed="'+(selected===r.id)+'"><span class="req-top"><span class="mono">'+r.id+'</span>'+statusBadge(r)+'</span><span class="req-title">'+esc(r.title)+'</span><span class="row-meta"><span class="slot-mini" aria-hidden="true">'+slotState(r).map(s=>'<i class="'+(s==='ok'?'':s)+'"></i>').join('')+'</span>'+esc(sub)+(pendingQuestions(r)?' · 질문 '+pendingQuestions(r):'')+'</span></button></div>';
+  }).join('');
+ }).join(''):'<div class="empty">조건에 맞는 요구사항이 없습니다.<br><button data-act="clear">검색·필터 초기화</button></div>';
+ box.scrollTop=scroll;
+}
+function traceHTML(r){const x=active(r);return '<div class="trace" aria-label="선택 요구사항의 추적 관계"><span>'+esc(r.goal)+'</span><b>→</b><span>'+r.id+'</span><b>→</b><span>'+esc(x.flow[0])+'</span><b>→</b><span>'+esc(x.flow.at(-1))+'</span><b>→</b><span>'+esc(x.tests.join(' · '))+'</span></div>'}
+function diffHTML(r){
+ if(mode==='current')return detailHTML(r);
+ if(!isChange(r)){
+  const im=impactMap[r.id];
+  return '<div class="info-box"><h3>'+(im?'영향 확인 대상 · 문장은 그대로':'현재 설계 유지')+'</h3><p>'+esc(im?im.reason:'이번 상담에서 직접 바뀐 내용이 없습니다.')+'</p>'+(im?'<button class="mini quiet" style="margin-top:9px" data-act="jump" data-id="'+im.from+'">원인이 된 '+im.from+' 변경 보기 →</button>':'')+'</div>'+detailHTML(r);
+ }
+ const a=r.base,b=proposed(r),fields=[['response','시스템 반응'],['edge','경계·예외'],['verify','확인 예시·합격 기준'],['flow','흐름 연결'],['tests','시험 연결'],['open','미결 질문']];
+ const text=(x,k)=>Array.isArray(x[k])?(x[k].join(k==='flow'?' → ':' · ')||'없음'):x[k];
+ const changed=fields.filter(([k])=>JSON.stringify(a[k])!==JSON.stringify(b[k]));
+ const same=fields.filter(([k])=>JSON.stringify(a[k])===JSON.stringify(b[k]));
+ const rows=(items,unchanged=false)=>items.map(([k,label])=>{
+  const A=text(a,k),B=text(b,k),d=unchanged?[esc(A),esc(B)]:wordDiff(A,B);
+  return '<div class="diff-field"><div><span>'+label+'</span><span>'+(unchanged?'유지':'변경')+'</span></div><div class="diff-values"><div>'+d[0]+'</div><div>'+d[1]+'</div></div></div>';
+ }).join('');
+ return '<div class="reason"><small>이 변경이 나온 이유 · '+sources[r.source].time+'</small>'+esc(r.reason)+'</div><div class="section-head"><h3>바뀐 내용 '+changed.length+'개</h3><button class="mini quiet" data-act="toggle-unchanged">'+(showUnchanged?'유지 항목 접기':'유지 항목도 보기')+'</button></div><div class="compare-labels"><span>AS-IS · 현재 v2</span><span>TO-BE · 변경 초안 v3</span></div>'+rows(changed)+(showUnchanged?rows(same,true)+'<div class="no-change">목적과 적용 조건은 이번 변경에서 유지합니다.</div>':'')+questionHTML(r)+relatedHTML(r);
+}
+function detailHTML(r){
+ const x=active(r);
+ return '<div class="info-box"><h3>왜 · 목적</h3><p>'+esc(r.goal)+'</p></div><div class="info-box"><h3>무엇 · 조건과 시스템 반응</h3><p><span class="muted">'+esc(x.condition)+'</span><br>'+esc(x.response)+'</p></div><div class="info-box"><h3>경계 · 예외와 제외</h3><p>'+esc(x.edge)+'</p></div><div class="info-box"><h3>확인 · 관찰 가능한 결과</h3><p>'+esc(x.verify)+'</p></div><div class="info-box"><h3>연결 · 목적에서 시험까지</h3>'+traceHTML(r)+'</div>'+questionHTML(r)+relatedHTML(r);
+}
+function questionHTML(r){
+ const x=active(r);if(!x.open.length)return '';
+ return '<div class="info-box warning"><h3>미결 질문 '+x.open.length+'건 · 결정 전에는 확정 대기</h3>'+x.open.map(q=>'<p class="question-line">? '+esc(q)+'</p>').join('')+(r.id==='R23'&&mode==='review'?'<button class="mini" data-act="answer">예시 답변 적용: 반납 완료 즉시 해제</button>':'<p class="small">상담에서 선택지를 검토하고 답을 요구사항에 반영합니다.</p>')+'</div>';
+}
+function relatedHTML(r){
+ if(mode!=='review'||!r.related.length)return '';
+ return '<div class="section-head" style="margin-top:16px"><h3>연결된 영향 확인 '+r.related.length+'건</h3><span class="small">자동 수정되지 않음</span></div><div class="related">'+r.related.map(id=>'<button data-act="jump" data-id="'+id+'"><span><span class="mono">'+id+'</span> '+esc(byId(id).title)+'<br><small>'+esc(impactMap[id].reason)+'</small></span><span aria-hidden="true">↗</span></button>').join('')+'</div>';
+}
+function flowSvg(r,after){
+ const color={normal:'#56525f',accent:'#c59559',text:'#d7d3de',mute:'#99939f'};
+ let nodes=[],links=[];
+ if(r.id==='R14'){
+  nodes=[['request','요청 접수',70,30],['wait',after?'12시간 응답 대기':'24시간 응답 대기',70,100],['yes','승인·거절',70,190],['end','결과 알림',70,270],['timeout',after?'무응답 → 자동 취소':'무응답 처리 미정',228,190]];
+  links=[['request','wait',''],['wait','yes','응답'],['yes','end',''],['wait','timeout',after?'12시간 경과':'기한 경과'],...(after?[['timeout','end','취소 알림']]:[])];
+ }else if(r.id==='R23'){
+  nodes=[['request','반납 기한 경과',70,30],['wait','매일 반납 알림',70,100],['yes',after?'7일 연체 → 대여 제한':'새 대여 요청 가능',70,190],['end',after&&answerApplied?'반납 완료 → 자동 해제':'반납 확인',70,270]];
+  links=[['request','wait',''],['wait','yes',after?'7일 경과':'기존 규칙'],['yes','end','']];
+ }else if(r.id==='R09'){
+  nodes=[['request','책 목록 열기',70,30],['wait','목록 조회',70,110],['yes',after?'20권 · p95 2초 이내':'20권 · p95 4초 이내',70,200],['end','목록 표시',70,280]];
+  links=[['request','wait',''],['wait','yes',''],['yes','end','']];
+ }else{
+  const x=active(r);nodes=[['request',x.condition.slice(0,16),70,35],['wait',r.title,70,125],['end','결과 확인·기록',70,225]];links=[['request','wait',''],['wait','end','']];
+ }
+ const pos=Object.fromEntries(nodes.map(n=>[n[0],n]));
+ const arrowId='arrow-'+r.id+'-'+after;
+ const link=(l)=>{const a=pos[l[0]],b=pos[l[1]],branch=l[1]==='timeout',returning=l[0]==='timeout';let d='',tx=0,ty=0;
+  if(branch){d='M'+(a[2]+56)+' '+(a[3]+16)+' L'+b[2]+' '+(a[3]+16)+' L'+b[2]+' '+(b[3]-18);tx=b[2]-28;ty=a[3]+39}
+  else if(returning){d='M'+b[2]+' '+(a[3]+18)+' L'+b[2]+' '+(b[3]-18);d='M'+a[2]+' '+(a[3]+18)+' L'+a[2]+' '+b[3]+' L'+(b[2]+59)+' '+b[3];tx=221;ty=246}
+  else{d='M'+a[2]+' '+(a[3]+18)+' L'+b[2]+' '+(b[3]-18);tx=a[2]+8;ty=(a[3]+b[3])/2}
+  const changed=after&&(branch||returning||r.id==='R23');
+  return '<path d="'+d+'" fill="none" stroke="'+(changed?color.accent:color.normal)+'" stroke-width="1.5" '+(branch&&!after?'stroke-dasharray="4 4"':'')+' marker-end="url(#'+arrowId+')"/>'+(l[2]?'<text x="'+tx+'" y="'+ty+'" fill="'+color.mute+'" font-size="8">'+esc(l[2])+'</text>':'');
+ };
+ const node=n=>{const changed=after&&(n[0]==='wait'&&r.id==='R14'||n[0]==='timeout'||n[0]==='yes'&&(r.id==='R09'||r.id==='R23')||n[0]==='end'&&r.id==='R23'&&answerApplied),missing=n[0]==='timeout'&&!after;
+  return '<g><rect x="'+(n[2]-59)+'" y="'+(n[3]-18)+'" width="118" height="36" rx="7" fill="'+(changed?'#342c23':'#23242a')+'" stroke="'+(changed?color.accent:missing?'#9b6a64':color.normal)+'" '+(missing?'stroke-dasharray="4 3"':'')+'/>'+(changed?'<circle cx="'+(n[2]-49)+'" cy="'+(n[3]-9)+'" r="2" fill="'+color.accent+'"/>':'')+'<text x="'+n[2]+'" y="'+(n[3]+3)+'" text-anchor="middle" fill="'+(changed?'#f0c894':color.text)+'" font-size="8.5">'+esc(n[1])+'</text></g>';
+ };
+ return '<svg viewBox="0 0 298 315" role="img" aria-label="'+r.id+' '+(after?'변경 후':'현재')+' 흐름도"><defs><marker id="'+arrowId+'" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#a398ae"/></marker></defs>'+links.map(link).join('')+nodes.map(node).join('')+'</svg>';
+}
+function flowHTML(r){
+ const compare=mode==='review'&&isChange(r),x=active(r),tests=x.tests;
+ return '<div class="section-head"><h3>선택 항목의 흐름과 시험</h3><span class="small">전체 연결망은 접고 관련 경로만 표시</span></div><div class="flow-pair" '+(!compare?'style="grid-template-columns:1fr"':'')+'><div class="flow-box"><div class="flow-title"><span>AS-IS · v2</span><span>현재 동작</span></div>'+flowSvg(r,false)+'</div>'+(compare?'<div class="flow-box proposed"><div class="flow-title"><span>TO-BE · v3 초안</span><span>주황 = 변경</span></div>'+flowSvg(r,true)+'</div>':'')+'</div><p class="flow-note">'+(compare?'주황 노드·연결은 변경 초안입니다. 새 기준에 대한 구현과 시험은 아직 진행하지 않았습니다.':'현재 설계의 선택 요구사항에 해당하는 경로입니다.')+'</p><div class="info-box"><h3>검증 계획 · 실제 실행 결과와 구분</h3>'+tests.map((id,i)=>'<div class="test-row"><span class="mono">'+id+'</span><div>'+(i?'추가 예외 시험':r.title+' 확인')+'<p>'+esc(i?'변경된 예외가 발생할 때 기대한 상태와 알림을 확인한다':x.verify)+'</p></div><span class="badge '+(compare?'change':'')+'">'+(compare?i?'추가 예정':'재시험 필요':r.testResult)+'</span></div>').join('')+'</div>'+progressHTML(r)+relatedHTML(r);
+}
+function progressHTML(r){
+ const change=mode==='review'&&isChange(r);
+ return '<div class="progress-cells"><div class="progress-cell">설계<strong>'+(change?decisionLabel(r.id):'현재 설계')+'</strong></div><div class="progress-cell">구현<strong>'+(change?'새 기준 반영 대기':r.implementation)+'</strong></div><div class="progress-cell">시험<strong>'+(change?'새 기준 미실행':r.testResult)+'</strong></div></div>';
+}
+function historyHTML(r){
+ const events=[{time:'10.12 · v2',title:'현재 설계에 포함',text:r.base.response},...(isChange(r)?[{time:sources[r.source].time,title:'상담에서 변경 초안 생성',text:r.reason}]:[]),...eventLog.filter(e=>e.id===r.id).map(e=>({time:e.time,title:e.action,text:e.detail}))];
+ return '<div class="timeline">'+events.map(e=>'<div class="event"><time>'+esc(e.time)+'</time><b>'+esc(e.title)+'</b><p>'+esc(e.text)+'</p></div>').join('')+'</div><div class="no-change">변경 이유와 대화 출처를 요구사항 ID에 연결해 보존합니다. '+(storageAvailable?'이 시안에서는 초기화 전까지 이 브라우저에 남습니다.':'이 보기에서는 화면을 닫기 전까지 결과를 유지합니다.')+'</div>';
+}
+function renderFocus(){
+ const r=byId(selected),changed=mode==='review'&&isChange(r),x=active(r),d=decisions[r.id];
+ const body={detail:detailHTML,diff:diffHTML,flow:flowHTML,history:historyHTML}[tab](r);
+ document.querySelector('#focus').innerHTML='<div class="focus-head"><div class="focus-meta"><span class="mono">'+r.id+'</span><span>'+r.group+'</span><span class="badge">'+r.kind+'</span><span class="badge">'+r.priority+'</span>'+(changed?statusBadge(r):'<span class="badge">'+(pendingQuestions(r)?'구체화 필요':'현재 설계')+'</span>')+'</div><h2>'+esc(r.title)+'</h2><p>'+esc(changed?'이번 상담에서 직접 바뀐 요구사항입니다. 변경 전후와 영향 확인 대상을 검토합니다.':impactMap[r.id]&&mode==='review'?'다른 요구사항의 변경으로 확인이 필요합니다. 이 항목의 문장은 아직 바뀌지 않았습니다.':'기존 설계 내용과 연결된 검증 기준을 확인합니다.')+'</p><div class="slot-strip" aria-label="요구사항 6칸 상태">'+slotState(r).map((s,i)=>'<div class="slot '+s+'" title="'+SLOT_NAMES[i]+': '+({ok:'채움',changed:'내용 변경',missing:'빈칸',question:'미결 질문'}[s])+'"><span class="symbol">'+({ok:'●',changed:'↗',missing:'○',question:'?'}[s])+'</span>'+SLOT_NAMES[i]+'</div>').join('')+'</div></div><div class="focus-tabs" role="tablist" aria-label="요구사항 상세 보기">'+[['detail','요구사항'],['diff','변경 전후'],['flow','흐름·시험'],['history','변경 이력']].map(([key,label])=>'<button role="tab" aria-selected="'+(tab===key)+'" data-act="tab" data-value="'+key+'">'+label+'</button>').join('')+'</div><div class="detail-body" role="tabpanel">'+(changed&&d?'<div class="decision-banner '+(d==='held'?'held':'')+'">'+(d==='approved'?'✓ 이 변경을 시안에서 확정했습니다. 구현·시험은 별도 진행합니다.':'이 변경을 보류했습니다. 현재 v2는 유지합니다.')+' <button class="mini quiet" data-act="undo" data-id="'+r.id+'">되돌리기</button></div>':'')+body+'</div><div class="focus-actions">'+(changed?'<div class="decision-help">'+(x.open.length?'미결 질문을 해결하면 이 변경을 확정할 수 있습니다.':d?'검토 결과에 반영되었습니다. 전체 결과에서 다른 항목도 확인하세요.':'이 항목만 확정하거나 여러 변경을 선택해 함께 확정할 수 있습니다.')+'</div><div class="action-buttons"><button data-act="decide" data-id="'+r.id+'" data-value="held" '+(d==='held'?'disabled':'')+'>보류</button><button class="primary" data-act="decide" data-id="'+r.id+'" data-value="approved" '+(x.open.length||d==='approved'?'disabled':'')+'>'+(d==='approved'?'확정됨':'이 변경 확정')+'</button></div>':'<span class="decision-help">'+(mode==='current'?'현재 채택된 설계입니다. 변경안 검토로 전환하면 차이를 볼 수 있습니다.':'이 항목은 직접 변경되지 않았으므로 이번 변경 확정 대상에 포함하지 않습니다.')+'</span><button class="mini quiet" data-act="tab" data-value="flow">흐름·시험 보기 →</button>')+'</div>';
+}
+function renderSource(){
+ const r=byId(selected),sourceId=mode==='current'?'S0':impactMap[r.id]?byId(impactMap[r.id].from).source:r.source,s=sources[sourceId],c=counts();
+ const answerThread=mode==='review'&&answerApplied&&(r.id==='R23'||r.id==='R24')?'<div class="chat-msg user"><small>나 · 미결 질문 답변</small><p>반납 완료 즉시 대여 제한을 자동 해제해주세요.</p></div><div class="chat-msg"><small>설계 상담 · 답변 반영</small><p>R23의 해제 조건·검증 예시·시험 계획을 갱신했습니다. R24의 관리자 해제 규칙은 충돌 여부를 확인할 대상으로 남겼습니다.</p></div>':'';
+ document.querySelector('#source').innerHTML='<div class="panel-title"><h2>대화 근거</h2><span class="badge">예시 상담</span></div><div class="side-body"><div class="thread-section"><div class="thread-label"><span>요구사항이 나온 대화</span><span>'+s.time+'</span></div><div class="chat-msg user"><small>나</small><p>'+esc(s.user)+'</p></div><div class="chat-msg"><small>설계 상담</small><p>'+esc(s.assistant)+'</p><div class="chat-links">'+s.ids.map(id=>'<button data-act="jump" data-id="'+id+'">'+id+' '+esc(byId(id).title)+'</button>').join('')+'</div></div>'+answerThread+'<button class="mini quiet" data-act="source-more" aria-expanded="'+sourceExpanded+'">'+(sourceExpanded?'대화 맥락 접기':'대화 맥락 더 보기')+'</button>'+(sourceExpanded?'<div class="source-extra">이 대화는 책 나눔 서비스의 현재 설계 v2를 기준으로 진행했습니다. 상담 내용은 초안으로 정리하며, 확정 전에는 기존 설계를 유지합니다. 동일 대화에서 나온 여러 변경도 요구사항 ID별로 추적합니다.</div>':'')+'<p class="side-note">대화 원문 → 변경 이유 → 요구사항 → 흐름 → 시험을 같은 ID로 이어서 확인합니다.</p></div><div class="review-section"><hr class="side-sep"><h3 class="side-label">이번 검토의 진행</h3><div class="side-stats"><div><span>직접 바뀐 요구사항</span><b>3건</b></div><div><span>확정한 변경</span><b>'+c.approved+'건</b></div><div><span>보류한 변경</span><b>'+changedReqs().filter(q=>decisions[q.id]==='held').length+'건</b></div><div><span>남은 검토</span><b>'+changedReqs().filter(q=>!decisions[q.id]).length+'건</b></div></div><button class="primary" data-act="summary">검토 결과 모아보기</button><hr class="side-sep"><div class="answer-demo"><p><b>미결 질문을 해소해 보세요</b><br>R23의 대여 제한 해제 기준에 답하면, 관련 조건과 검증 예시가 초안에 반영됩니다.</p><button data-act="answer" '+(answerApplied?'disabled':'')+'>'+(answerApplied?'예시 답변이 반영됨':'“반납 완료 즉시 해제” 답변 적용')+'</button></div><p class="side-note">확정은 설계에 대한 결정입니다. 구현 완료나 시험 통과로 표시하지 않습니다.</p></div></div>';
+}
+function renderBatch(){
+ const selectedChanges=changedReqs().filter(r=>checked.has(r.id)),ready=selectedChanges.filter(r=>!proposed(r).open.length),canApprove=ready.filter(r=>decisions[r.id]!=='approved');
+ document.querySelector('#batchbar').innerHTML='<div><b>'+checked.size+'건 선택</b> <span class="small">/ 직접 변경 3건'+(selectedChanges.some(r=>proposed(r).open.length)?' · 미결 항목은 확정에서 제외':'')+'</span></div><div class="batch-actions"><button class="mini quiet" data-act="clear-selection" '+(!checked.size?'disabled':'')+'>선택 해제</button><button data-act="batch" data-value="held" '+(!checked.size||mode!=='review'?'disabled':'')+'>선택 보류</button><button class="primary" data-act="batch" data-value="approved" '+(!canApprove.length||mode!=='review'?'disabled':'')+'>선택한 '+canApprove.length+'건 확정</button></div>';
+}
+function render(){document.querySelector('.guide .demo').textContent='동네 책 나눔 · 예시 데이터 · '+(storageAvailable?'검토 결과는 이 브라우저에만 저장':'검토 결과는 이 화면에서만 유지');renderMetrics();renderList();renderFocus();renderSource();renderBatch();const box=document.querySelector('#req-list'),row=box.querySelector('.active');if(row){const a=box.getBoundingClientRect(),b=row.getBoundingClientRect();if(b.top<a.top||b.bottom>a.bottom)box.scrollTop+=b.top-a.top-box.clientHeight/3}}
+function pick(id,scroll=false){selected=id;showUnchanged=false;sourceExpanded=false;render();if(scroll&&matchMedia('(max-width:720px)').matches)document.querySelector('#focus').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'})}
+function decide(id,value){
+ const r=byId(id);if(!isChange(r)||value==='approved'&&proposed(r).open.length)return false;
+ decisions[id]=value;eventLog.push({id,time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),action:value==='approved'?'변경 초안 확정':'변경 초안 보류',detail:value==='approved'?'검토한 변경을 시안에서 확정했습니다. 새 기준의 구현과 시험은 대기 중입니다.':'현재 설계를 유지하고 이번 변경을 보류했습니다.'});checked.delete(id);return true;
+}
+function showSummary(){
+ const dialog=document.querySelector('#summary');
+ const groups=[['approved','확정한 변경 · 구현할 범위'],['held','보류한 변경 · 현재 설계 유지'],['pending','남은 검토']];
+ dialog.innerHTML='<div class="modal-top"><div><h2 id="summary-title">이번 변경의 검토 결과</h2><span class="small">현재 v2와 비교한 3건의 결정만 모았습니다.</span></div><button data-act="close-summary" aria-label="검토 결과 닫기">×</button></div>'+groups.map(([key,label])=>{
+  const items=changedReqs().filter(r=>key==='pending'?!decisions[r.id]:decisions[r.id]===key);
+  return '<div class="summary-group"><h3>'+label+' · '+items.length+'건</h3>'+(items.length?items.map(r=>'<div class="summary-item"><span class="mono">'+r.id+'</span><div>'+esc(r.title)+'<small>'+(key==='approved'?'구현할 할일에 연결할 수 있는 상태 · 새 시험 미실행':key==='held'?'다음 검토에서 다시 결정 가능':proposed(r).open.length?'미결 질문을 먼저 확인':'변경 전후 검토 후 결정')+'</small></div><button class="mini quiet" data-act="summary-pick" data-id="'+r.id+'">보기 →</button></div>').join(''):'<div class="small muted">해당 항목 없음</div>')+'</div>';
+ }).join('')+'<div class="modal-bottom">영향 확인 3건(R24·R26·R28)은 직접 변경과 별도입니다. 확정한 항목과 연결된 규칙이 충돌하지 않는지 구현 전에 확인합니다.<br>이 시안은 실제 설계 판을 생성하거나 할일을 등록하지 않습니다.</div>';
+ if(!dialog.open)dialog.showModal();
+}
+document.querySelector('#category').innerHTML+='<optgroup label="기능별 보기">'+GROUPS.map(g=>'<option value="'+g+'">'+g+'</option>').join('')+'</optgroup>';
+document.querySelector('#search').addEventListener('input',e=>{query=e.target.value;renderList()});
+document.querySelector('#category').addEventListener('change',e=>{category=e.target.value;renderList()});
+document.addEventListener('change',e=>{if(e.target.matches('[data-check]')){e.target.checked?checked.add(e.target.dataset.check):checked.delete(e.target.dataset.check);renderBatch()}});
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const {act,value,id}=b.dataset;
+ if(act==='select')pick(id,true);
+ else if(act==='tab'){tab=value;renderFocus()}
+ else if(act==='filter'){filter=value;const rows=visibleRows();if(rows.length&&!rows.some(r=>r.id===selected))selected=rows[0].id;render()}
+ else if(act==='mode'){mode=value;filter='all';tab=mode==='current'?'detail':'diff';checked.clear();render()}
+ else if(act==='toggle-unchanged'){showUnchanged=!showUnchanged;renderFocus()}
+ else if(act==='source-more'){sourceExpanded=!sourceExpanded;renderSource()}
+ else if(act==='jump'){query='';category='all';filter='all';document.querySelector('#search').value='';document.querySelector('#category').value='all';selected=id;tab='diff';pick(id,true)}
+ else if(act==='clear'){query='';category='all';filter='all';document.querySelector('#search').value='';document.querySelector('#category').value='all';render()}
+ else if(act==='clear-selection'){checked.clear();renderList();renderBatch()}
+ else if(act==='select-ready'){checked=new Set(reqs.filter(eligible).map(r=>r.id));filter='changes';render();toast('미결 질문이 없는 검토 대기 변경 '+checked.size+'건을 선택했습니다.')}
+ else if(act==='decide'){if(decide(id,value)){persist();render();toast(id+' 변경을 '+(value==='approved'?'확정':'보류')+'했습니다. 실제 제품 데이터는 바뀌지 않습니다.')}}
+ else if(act==='undo'){delete decisions[id];eventLog.push({id,time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),action:'검토 결정 되돌림',detail:'변경 초안을 검토 대기로 돌렸습니다.'});persist();render();toast(id+'를 검토 대기로 돌렸습니다.')}
+ else if(act==='batch'){let n=0;const skipped=[];for(const rid of [...checked]){if(decide(rid,value))n++;else skipped.push(rid)}persist();render();toast(n+'건을 '+(value==='approved'?'확정':'보류')+'했습니다.'+(skipped.length?' '+skipped.join(', ')+'은 미결 질문으로 남겨 두었습니다.':''))}
+ else if(act==='answer'){
+  if(answerApplied){toast('예시 답변이 이미 반영되어 있습니다.');return}
+  answerApplied=true;delete decisions.R23;eventLog.push({id:'R23',time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),action:'미결 질문 답변 반영',detail:'반납 완료 즉시 자동 해제로 결정했습니다. 예외와 합격 기준을 함께 갱신했습니다.'});persist();mode='review';filter='all';selected='R23';tab='diff';query='';category='all';document.querySelector('#search').value='';document.querySelector('#category').value='all';render();toast('R23의 해제 기준·검증 예시를 초안에 반영했습니다. R24는 영향 확인으로 유지합니다.');
+ }
+ else if(act==='summary')showSummary();
+ else if(act==='close-summary')document.querySelector('#summary').close();
+ else if(act==='summary-pick'){document.querySelector('#summary').close();query='';category='all';document.querySelector('#search').value='';document.querySelector('#category').value='all';filter='all';selected=id;tab='diff';pick(id,true)}
+ else if(act==='guide'){
+  mode='review';query='';category='all';document.querySelector('#search').value='';document.querySelector('#category').value='all';
+  filter=value==='all'?'all':value==='changes'?'changes':'questions';selected=value==='questions'?'R23':'R14';tab=value==='all'?'detail':'diff';render();
+ }
+ else if(act==='reset'){
+  decisions={};answerApplied=false;eventLog=[];checked.clear();mode='review';filter='all';selected='R14';tab='diff';query='';category='all';sourceExpanded=false;showUnchanged=false;document.querySelector('#search').value='';document.querySelector('#category').value='all';persist();render();toast('예시를 처음 상태로 돌렸습니다. 변경 3건을 다시 검토할 수 있습니다.');
+ }
+});
+document.querySelector('#summary').addEventListener('click',e=>{if(e.target===e.currentTarget){const b=e.currentTarget.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)e.currentTarget.close()}});
+render();
+</script>
+</body>
+</html>
