@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+repo=$(git rev-parse --show-toplevel)
+public_root=${PATCHBAY_PUBLIC_ROOT:-4f41e31393302fd3feaec0b7162c552d70f8e6da}
+names_file=${PATCHBAY_PRIVATE_NAMES_FILE:-$repo/workspace/records/private-names.txt}
+zero=0000000000000000000000000000000000000000
+patterns=$(mktemp "${TMPDIR:-/tmp}/patchbay-private-names.XXXXXX")
+trap 'rm -f "$patterns"' EXIT HUP INT TERM
+
+if [ ! -f "$names_file" ]; then
+  echo "pre-push: 비공개 이름 목록을 찾지 못했습니다: $names_file" >&2
+  exit 1
+fi
+sed '/^[[:space:]]*$/d; /^[[:space:]]*#/d' "$names_file" > "$patterns"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if ! git merge-base --is-ancestor "$public_root" "$local_sha" 2>/dev/null; then
+    echo "pre-push: $local_ref 는 공개 첫 커밋에서 시작하지 않는다 — 옛(비공개) 이력이라 올리지 않는다." >&2
+    exit 1
+  fi
+  [ ! -s "$patterns" ] && continue
+  if git ls-tree -r --name-only "$local_sha" | grep -F -i -f "$patterns" >/dev/null; then
+    echo "pre-push: 공개 트리 파일 경로에서 비공개 이름을 찾았습니다." >&2
+    exit 1
+  fi
+  if git grep -I -F -i -f "$patterns" "$local_sha" -- . ':(exclude)workspace/**' >/dev/null; then
+    echo "pre-push: 공개 트리 내용에서 비공개 이름을 찾았습니다." >&2
+    exit 1
+  fi
+done

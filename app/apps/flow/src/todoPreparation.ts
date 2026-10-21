@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
   appendRoomMessage, latestPreparations, preparationDraftSchema, readAgents, readModes, readRoom, readRoomMeta,
-  readStudio, readTodoPreparations, readTodos, todoInputDigest, updateTodoPreparations, updateTodos,
+  readStudio, readTodoPreparations, readTodos, todoInputDigest, updateTodoPreparations, updateTodos, writeRoomMeta,
   type TodoPreparation,
 } from "@patchbay/core";
 import { applyTodoAction } from "./todoActions.js";
@@ -173,6 +173,8 @@ export function createTodoPreparationHost(home: string, deps: PreparationDeps = 
         const result = await applyTodoAction(home, alias, { action: "room", id: t.id }, room => !!deps.isBusy?.(alias, room));
         const meta = await readRoomMeta(home, alias, result.roomId!);
         if (meta.kept || meta.execution) fail("읽기 전용 또는 테스트 실행 대화는 대상에서 제외해주세요.");
+        // 새 대화는 참여자 없이 시작한다. 준비 결과를 검토할 수 있게 주 담당을 참여자로 넣는다.
+        if (!meta.members.length) await writeRoomMeta(home, alias, result.roomId!, { ...meta, members: [member] });
         versions.push({ id: randomUUID(), batchId, todoId: t.id, title: t.title, roomId: result.roomId!, inputDigest: todoInputDigest(t), baseline: "", member,
           modeId: "pending", reason: "업무 판단 대기", plan: [], completion: [], dependencies: [], artifacts: [], remaining: "계획 수립 후 결정", at, updatedAt: at, status: "queued", revisionNote });
       }
@@ -200,7 +202,24 @@ export function createTodoPreparationHost(home: string, deps: PreparationDeps = 
     if (action === "hold") {
       if (!["ready", "waiting"].includes(v.status)) fail("검토 대기 중인 준비본만 보류할 수 있습니다.");
       reserve(alias);
-      try { await patch(alias, id, { status: "held" }); await log(alias, v, "prepare", "waiting", "사용자가 준비 결과를 보류했습니다."); }
+      try {
+        const stopped = new Set([v.todoId]);
+        await updateTodoPreparations(home, alias, rows => {
+          const latestIds = new Set(latestPreparations(rows).map(item => item.id));
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const item of rows) if (latestIds.has(item.id) && !stopped.has(item.todoId) && item.dependencies.some(d => stopped.has(d.todoId))) {
+              stopped.add(item.todoId); changed = true;
+            }
+          }
+          return rows.map(item => item.id === id ? { ...item, status: "held" as const, updatedAt: new Date().toISOString() }
+            : latestIds.has(item.id) && stopped.has(item.todoId) && ["ready", "waiting"].includes(item.status)
+              ? { ...item, status: "stopped" as const, error: `보류한 연관 할일 「${v.title}」의 결정이 필요해 중지했습니다.`, updatedAt: new Date().toISOString() }
+              : item);
+        });
+        await log(alias, v, "prepare", "waiting", "사용자가 준비 결과를 보류했습니다. 연관된 뒤 할일만 중지하고 관계없는 할일은 계속할 수 있습니다.");
+      }
       finally { active.delete(alias); }
       return;
     }
@@ -218,7 +237,8 @@ export function createTodoPreparationHost(home: string, deps: PreparationDeps = 
       const p = await project(alias); lease = claimPreparationRoom(alias, v.roomId);
       const todos = await readTodos(home, alias); const todo = todos.find(t => t.id === v.todoId);
       if (!todo || todo.done || todo.inactive || todoInputDigest(todo) !== v.inputDigest) fail("할일 내용이 변경되었습니다.");
-      const queue = todos.filter(t => !t.done && !t.inactive);
+      const preparationByTodo = new Map(state.items.map(item => [item.todoId, item]));
+      const queue = todos.filter(t => !t.done && !t.inactive && !["held", "stopped"].includes(preparationByTodo.get(t.id)?.status ?? ""));
       if (queue[0]?.id !== todo.id) fail(`먼저 위의 할일 「${queue[0]?.title}」을 완료해주세요.`);
       if (v.dependencies.some(d => d.kind === "required" && !todos.find(t => t.id === d.todoId)?.done)) fail("필수 선행 할일을 먼저 완료해주세요.");
       if (v.baseline !== await fingerprint(p.path)) { await patch(alias, id, { status: "stale", error: "프로젝트 원문이 준비 당시와 다릅니다. 다시 준비해주세요." }); fail("프로젝트가 변경되어 재검토가 필요합니다."); }
@@ -226,6 +246,7 @@ export function createTodoPreparationHost(home: string, deps: PreparationDeps = 
       if (meta.kept || meta.execution) fail("이 대화는 실제 반영에 사용할 수 없습니다.");
       await patch(alias, id, { status: "applying", approvedAt: new Date().toISOString(), error: undefined });
       await appendRoomMessage(home, alias, v.roomId, { role: "user", text: `준비본 ${v.id}을 확인했습니다. 이 산출물로 그대로 진행하세요.` });
+      const heldTodos = state.items.filter(item => item.todoId !== v.todoId && item.status === "held").map(item => ({ todoId: item.todoId, title: item.title }));
       const heldLease = lease;
       run.done = (async () => {
         try {
@@ -233,11 +254,20 @@ export function createTodoPreparationHost(home: string, deps: PreparationDeps = 
           const prompt = [
             "사용자가 아래 준비본을 승인했다. 승인한 계획과 산출물을 재생성하지 말고 그대로 사용해 남은 작업만 수행한다.",
             `모드: ${v.mode?.name}\n규약: ${v.mode?.prompt}\n권한: ${v.mode?.execution ?? "read"}`,
-            "프로젝트 규칙을 따른다. 커밋·푸시·삭제·배포·서버 재시작은 하지 않는다. 할일 및 준비 상태 파일을 직접 수정하지 않는다. 추가 사용자 판단이 필요하면 실패로 보고한다.",
-            "각 완료 조건을 실제로 확인한다. 검증하지 못한 내용을 통과로 보고하지 않는다. JSON만 출력: {\"outcome\":\"passed 또는 failed\",\"summary\":\"실제 수행 결과\",\"checks\":[{\"condition\":\"아래 완료 조건 원문\",\"passed\":true,\"evidence\":\"검증 근거\"}]}",
+            "프로젝트 규칙을 따른다. 커밋·푸시·삭제·배포·서버 재시작은 하지 않는다. 할일 및 준비 상태 파일을 직접 수정하지 않는다.",
+            `보류한 할일: ${JSON.stringify(heldTodos)}. 수행 중 이 중 하나의 결정이 필요하다고 새로 드러나면 그 즉시 더 진행하지 말고 outcome=stopped, blockedByTodoId=그 할일 id, summary=중지 이유로 보고한다. 그 밖의 추가 사용자 판단이 필요하면 failed로 보고한다.`,
+            "각 완료 조건을 실제로 확인한다. 검증하지 못한 내용을 통과로 보고하지 않는다. JSON만 출력: {\"outcome\":\"passed 또는 failed 또는 stopped\",\"summary\":\"실제 수행 결과 또는 중지 이유\",\"blockedByTodoId\":\"stopped일 때 보류한 할일 id\",\"checks\":[{\"condition\":\"아래 완료 조건 원문\",\"passed\":true,\"evidence\":\"검증 근거\"}]}",
             JSON.stringify({ title: v.title, plan: v.plan, artifacts: v.artifacts, remaining: v.remaining, completion: v.completion }),
           ].join("\n");
-          const result = parseJson(await call(alias, v, p.path, prompt, v.mode?.execution ?? "read", AbortSignal.any([run.controller.signal, heldLease.signal]))) as { outcome?: string; summary?: string; checks?: { condition: string; passed: boolean; evidence: string }[] };
+          const result = parseJson(await call(alias, v, p.path, prompt, v.mode?.execution ?? "read", AbortSignal.any([run.controller.signal, heldLease.signal]))) as { outcome?: string; summary?: string; blockedByTodoId?: string; checks?: { condition: string; passed: boolean; evidence: string }[] };
+          if (result.outcome === "stopped") {
+            const blocker = heldTodos.find(item => item.todoId === result.blockedByTodoId);
+            if (!blocker || typeof result.summary !== "string" || !result.summary.trim()) fail("보류한 할일과 연결된 중지 근거가 부족합니다.");
+            const reason = `수행 중 보류한 연관 할일 「${blocker.title}」의 결정이 필요해 중지했습니다. ${result.summary.trim()}`;
+            await patch(alias, id, { status: "stopped", error: reason });
+            await log(alias, v, "act", "waiting", reason);
+            return;
+          }
           if (result.outcome !== "passed" || typeof result.summary !== "string" || !result.summary.trim() || !Array.isArray(result.checks) || !v.completion.every(c => result.checks!.some(check => check.condition === c && check.passed === true && typeof check.evidence === "string" && check.evidence.trim()))) fail(result.summary || "완료 조건의 검증 근거가 부족합니다.");
           await log(alias, v, "check", "completed", `${result.summary}\n${result.checks.map(c => `${c.condition}: ${c.evidence}`).join("\n")}`);
           const freshTodo = (await readTodos(home, alias)).find(t => t.id === v.todoId);

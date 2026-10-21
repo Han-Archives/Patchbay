@@ -18,6 +18,8 @@ export async function runRoomGuard(readInput: () => Promise<string> = readStdin,
     });
     if (decision?.deny) {
       write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: decision.deny } }));
+    } else if (decision?.ask) {
+      write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: decision.ask } }));
     }
   } catch (error) {
     console.error(`patchbay room guard: ${(error as Error).message}`);

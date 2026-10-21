@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readRoom, readRoomMeta, readTodos, readTodoHistory, todosPath, registerProject, writeTodos } from "@patchbay/core";
+import { readAgents, readRoom, readRoomMeta, readTodos, readTodoHistory, readTrash, todosPath, registerProject, writeAgents, writeTodos } from "@patchbay/core";
 import { applyTodoAction } from "./todoActions.js";
 import { createFlowApp } from "./server.js";
 import { saveRoomCast, sendRoomTurn } from "./roomHost.js";
@@ -15,23 +15,66 @@ async function setup() {
 const now = new Date("2026-10-14T09:30:00.000Z");
 
 describe("할일 변경", () => {
-  it("연결된 할일은 위에서 아래 순서로 실행하고, 위에 할일이 남아 있으면 막지 않고 읽기로만 답한다", async () => {
+  it("삭제는 완료 기록을 만들지 않고 연결된 대화와 다른 할일을 보존한다", async () => {
+    const home = await setup();
+    const added = await applyTodoAction(home, "demo", { action: "add", title: "삭제할 작업" }, () => false, now);
+    const id = added.todos[0]!.id;
+    const room = await applyTodoAction(home, "demo", { action: "room", id }, () => false, now);
+    await applyTodoAction(home, "demo", { action: "add", title: "유지할 작업" }, () => false, now);
+    const app = createFlowApp({ studioHome: home });
+    try {
+      const response = await app.request("/api/todos/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: "demo", action: "delete", id }) });
+      expect(response.status).toBe(200);
+      expect((await readTodos(home, "demo")).map(row => row.title)).toEqual(["유지할 작업"]);
+      expect((await readTrash(home, "demo", now))[0]).toMatchObject({ kind: "todo", recordId: id });
+      expect(await readTodoHistory(home, "demo")).toEqual([]);
+      expect((await readRoom(home, "demo", room.roomId!))?.messages[0]?.text).toBe("삭제할 작업");
+      const changes = fs.readFileSync(path.join(home, "projects/demo/log/events/changes.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line));
+      expect(changes.filter(row => row.id === id).map(row => row.change)).toEqual(["add", "delete"]);
+      await expect(applyTodoAction(home, "demo", { action: "delete", id }, () => false)).rejects.toMatchObject({ status: 404 });
+    } finally { await app.close(); }
+  });
+
+  it("삭제한 자동 추천은 다시 동기화해도 활성화하거나 완료로 보관하지 않는다", async () => {
+    const home = await setup();
+    const suggestion = { id: "stage-delete", title: "삭제할 추천", source: "stage", done: false, at: "" };
+    await applyTodoAction(home, "demo", { action: "sync", suggestions: [suggestion] }, () => false, now);
+    await applyTodoAction(home, "demo", { action: "delete", id: suggestion.id }, () => false, now);
+    await applyTodoAction(home, "demo", { action: "sync", suggestions: [] }, () => false, now);
+    const result = await applyTodoAction(home, "demo", { action: "sync", suggestions: [suggestion] }, () => false, now);
+    expect(result.todos).toHaveLength(1);
+    expect(result.todos[0]).toMatchObject({ done: false, inactive: true, deletedAt: now.toISOString() });
+    expect(result.todos[0]?.completedAt).toBeUndefined();
+    expect(await readTodoHistory(home, "demo")).toEqual([]);
+    await expect(applyTodoAction(home, "demo", { action: "room", id: suggestion.id }, () => false)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("채팅으로 맡긴 일이 최우선이다 — 대화의 할일을 Tasks 맨 위로 올리고 바로 실행한다", async () => {
     const home = await setup();
     const room = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "codex", model: "", role: "작업한다" }] });
     if (!room.ok) throw new Error(room.error);
-    await writeTodos(home, "demo", [{ id: "first", title: "먼저 할일", done: false, at: now.toISOString() }, { id: "second", title: "뒤의 할일", done: false, at: now.toISOString(), roomId: room.roomId }]);
+    await writeTodos(home, "demo", [{ id: "done", title: "끝난 할일", done: true, at: now.toISOString() }, { id: "first", title: "먼저 할일", done: false, at: now.toISOString() }, { id: "second", title: "뒤의 할일", done: false, at: now.toISOString(), roomId: room.roomId }]);
     const calls: { execution?: string; prompt: string }[] = [];
     const deps = { bin: "mock", snapshot: async () => null, runner: async (req: { execution?: string; prompt: string }) => { calls.push(req); return { ok: true as const, text: "작업 결과", ms: 1 }; } };
-    const talk = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "실행", round: "talk" }, deps);
-    if (!talk.ok) throw new Error(talk.error);
-    await talk.done;
-    expect(calls[0]?.execution).toBe("read");
-    expect(calls[0]?.prompt).toContain("먼저 할일");
-    await applyTodoAction(home, "demo", { action: "move", id: "second", beforeId: "first" }, () => false);
     const sent = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "실행", round: "talk" }, deps);
     if (!sent.ok) throw new Error(sent.error);
     await sent.done;
-    expect(calls[1]?.execution).toBe("apply");
+    expect(calls[0]?.execution).toBe("apply");
+    expect(calls[0]?.prompt).not.toContain("연결된 할일이 없다");
+    expect((await readTodos(home, "demo")).map(row => row.id)).toEqual(["done", "second", "first"]);
+  });
+
+  it("할일이 없는 대화에서 맡긴 일은 LLM이 Tasks 맨 위에 이 대화로 등록하게 한다", async () => {
+    const home = await setup();
+    const room = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "codex", model: "", role: "작업한다" }] });
+    if (!room.ok) throw new Error(room.error);
+    await writeTodos(home, "demo", [{ id: "first", title: "먼저 할일", done: false, at: now.toISOString() }]);
+    const calls: { prompt: string }[] = [];
+    const sent = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "이거 고쳐줘", round: "talk" }, { bin: "mock", snapshot: async () => null, runner: async (req: { prompt: string }) => { calls.push(req); return { ok: true as const, text: "작업 결과", ms: 1 }; } });
+    if (!sent.ok) throw new Error(sent.error);
+    await sent.done;
+    expect(calls[0]?.prompt).toContain("add 명령에 --first를 붙여 첫 미완료 할일 앞에 추가");
+    expect(calls[0]?.prompt).toContain(`--room '${room.roomId}'`);
   });
   it("화면이 닫혀 있어도 Agent 완료 파일과 마지막 응답을 즉시 보관한다", async () => {
     const home = await setup();
@@ -48,6 +91,25 @@ describe("할일 변경", () => {
     await sent.done;
     expect((await readTodoHistory(home, "demo"))[0]).toMatchObject({ id: "background", completedAt: now.toISOString(), roomId: room.roomId });
   });
+  it("새 대화는 등록된 LLM 없이 시작하고 선택한 참여자는 다시 열어도 유지한다", async () => {
+    const home = await setup();
+    const agents = [
+      { id: "codex", speaker: "codex" as const, model: "", role: "구현" },
+      { id: "claude", speaker: "claude-code" as const, model: "", role: "검토" },
+    ];
+    await writeAgents(home, "demo", agents);
+    const added = await applyTodoAction(home, "demo", { action: "add", title: "LLM 직접 선택" }, () => false, now);
+    const id = added.todos[0]!.id;
+    const room = await applyTodoAction(home, "demo", { action: "room", id }, () => false, now);
+    expect((await readRoomMeta(home, "demo", room.roomId!)).members).toEqual([]);
+    expect(await readAgents(home, "demo")).toEqual(agents);
+
+    const cast = await saveRoomCast(home, { alias: "demo", roomId: room.roomId!, members: [agents[0]!] });
+    expect(cast.ok).toBe(true);
+    expect((await applyTodoAction(home, "demo", { action: "room", id }, () => false)).roomId).toBe(room.roomId);
+    expect((await readRoomMeta(home, "demo", room.roomId!)).members).toMatchObject([{ ...agents[0], enabled: true }]);
+  });
+
   it("대화는 해당 요구사항만 담고 중복 생성하지 않으며 호출하지 않는다", async () => {
     const home = await setup();
     const added = await applyTodoAction(home, "demo", { action: "add", title: "실제 사용자 제목", detail: "실제 요구사항" }, () => false, now);
@@ -75,6 +137,7 @@ describe("할일 변경", () => {
     expect((await readTodos(home, "demo")).map(row => row.id)).toEqual(["d", "b", "a", "c"]);
     await expect(applyTodoAction(home, "demo", { action: "move", id: "b", beforeId: "c" }, running)).rejects.toThrow("이동");
     await expect(applyTodoAction(home, "demo", { action: "complete", id: "b" }, running)).rejects.toThrow("실행 중");
+    await expect(applyTodoAction(home, "demo", { action: "delete", id: "b" }, running)).rejects.toThrow("실행 중");
     await Promise.all(["e", "f"].map(title => applyTodoAction(home, "demo", { action: "add", title }, running)));
     expect((await readTodos(home, "demo")).slice(-2).map(row => row.title)).toEqual(["e", "f"]);
   });

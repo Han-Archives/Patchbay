@@ -3,7 +3,7 @@ import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { projectStudioDir } from "./studioStore.js";
-import { readRoom, readRoomMeta } from "../rooms/store.js";
+import { readRoom, readRoomMeta, withFileLock } from "../rooms/store.js";
 import { appendLogChanges, todoChanges } from "../log/changes.js";
 
 /**
@@ -14,6 +14,8 @@ import { appendLogChanges, todoChanges } from "../log/changes.js";
  */
 export const TODOS_FILE_NAME = "todos.json";
 
+/** 시각. Agent가 파일을 직접 고치며 `+09:00` 같은 시간대를 붙여도 읽고, UTC(`Z`)로 맞춰 저장한다. */
+const isoTime = z.string().datetime({ offset: true }).transform(value => new Date(value).toISOString());
 export const todoItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1).max(200),
@@ -21,10 +23,12 @@ export const todoItemSchema = z.object({
   detail: z.string().max(2000).optional(),
   done: z.boolean(),
   at: z.string(),
-  completedAt: z.string().datetime().optional(),
+  completedAt: isoTime.optional(),
   roomId: z.string().min(1).refine(id => !/[\\/]/.test(id) && id !== "." && id !== "..").optional(),
   source: z.enum(["stage", "attention"]).optional(),
   inactive: z.boolean().optional(),
+  /** 삭제한 자동 추천이 동기화로 다시 나타나지 않게 하는 표시. */
+  deletedAt: isoTime.optional(),
 });
 export type TodoItem = z.infer<typeof todoItemSchema>;
 export const TODO_VISIBLE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -34,20 +38,35 @@ export interface TodoHistoryEntry { id: string; title: string; at: string; compl
 const writes = new Map<string, Promise<unknown>>();
 
 const todosFileSchema = z.object({ todos: z.array(todoItemSchema) });
+// 예전 직접 파일 쓰기가 세부 항목의 출처를 할일에 섞어 적은 경우만 읽기 호환한다.
+// 새 저장은 todoItemSchema로 엄격히 검사하며, 알 수 없는 오류나 항목은 버리지 않는다.
+const storedTodoSchema = z.preprocess(value => {
+  if (value && typeof value === "object" && "source" in value && value.source === "llm") {
+    const { source: _source, ...todo } = value;
+    return todo;
+  }
+  return value;
+}, todoItemSchema);
 
 export function todosPath(studioHome: string, alias: string): string {
   return path.join(projectStudioDir(studioHome, alias), TODOS_FILE_NAME);
 }
 
 export async function readTodos(studioHome: string, alias: string): Promise<TodoItem[]> {
+  return (await readStoredTodos(studioHome, alias)).todos;
+}
+
+async function readStoredTodos(studioHome: string, alias: string): Promise<{ todos: TodoItem[]; migrated: boolean }> {
   let text: string;
   try {
     text = await fs.readFile(todosPath(studioHome, alias), "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { todos: [], migrated: false };
     throw error;
   }
-  return todosFileSchema.parse(JSON.parse(text)).todos;
+  const stored = z.object({ todos: z.array(z.unknown()) }).parse(JSON.parse(text));
+  const migrated = stored.todos.some(row => row && typeof row === "object" && "source" in row && row.source === "llm");
+  return { todos: z.array(storedTodoSchema).parse(stored.todos), migrated };
 }
 
 async function atomicWrite(file: string, text: string): Promise<void> {
@@ -100,28 +119,31 @@ async function archiveTodos(studioHome: string, alias: string, todos: TodoItem[]
   await writeIfChanged(path.join(root, "index.md"), `# 할일 기록\n\n| ID | 제목 | 등록일 | 완료 일시 | 대화 ID | 폴더 |\n| --- | --- | --- | --- | --- | --- |\n${rows.map(row => `| ${[row.id, row.title, row.at, row.completedAt, row.roomId ?? "", row.folder].map(cell).join(" | ")} |`).join("\n")}\n`);
 }
 
-/** 한 서버 안에서 추가·정렬·완료가 서로의 변경을 덮어쓰지 않도록 직렬화한다. */
+/** 서버와 CLI가 같은 파일을 변경해도 유실되지 않도록 큐와 파일 잠금을 함께 쓴다. */
 export function updateTodos(studioHome: string, alias: string, change: (fresh: TodoItem[]) => TodoItem[] | Promise<TodoItem[]>, now = new Date()): Promise<TodoItem[]> {
   const file = todosPath(studioHome, alias);
   const next = (writes.get(file) ?? Promise.resolve()).catch(() => undefined).then(async () => {
-    const fresh = await readTodos(studioHome, alias);
-    const previous = new Map(fresh.map(row => [row.id, row]));
-    const todos = todosFileSchema.parse({ todos: await change(fresh) }).todos.map(row => {
-      const old = previous.get(row.id);
-      const merged = { ...old, ...row };
-      if (merged.done) merged.completedAt = row.completedAt ?? (old?.done ? old.completedAt : undefined) ?? now.toISOString();
-      else delete merged.completedAt;
-      return merged;
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    return withFileLock(file, async () => {
+      const { todos: fresh, migrated } = await readStoredTodos(studioHome, alias);
+      const previous = new Map(fresh.map(row => [row.id, row]));
+      const todos = todosFileSchema.parse({ todos: await change(fresh) }).todos.map(row => {
+        const old = previous.get(row.id);
+        const merged = { ...old, ...row };
+        if (merged.done) merged.completedAt = row.completedAt ?? (old?.done ? old.completedAt : undefined) ?? now.toISOString();
+        else delete merged.completedAt;
+        return merged;
+      });
+      if (new Set(todos.map(row => row.id)).size !== todos.length) throw new Error("할일 ID가 중복된다.");
+      if (migrated || JSON.stringify(fresh) !== JSON.stringify(todos)) {
+        await atomicWrite(file, `${JSON.stringify({ todos }, null, 2)}\n`);
+        // 화면이 상태를 보고 만드는 항목(source)은 사람의 변동이 아니라서 Log에 남기지 않는다.
+        const human = (rows: TodoItem[]) => rows.filter(row => !row.source);
+        await appendLogChanges(studioHome, alias, todoChanges(human(fresh), human(todos), now.toISOString()));
+      }
+      await archiveTodos(studioHome, alias, todos);
+      return todos;
     });
-    if (new Set(todos.map(row => row.id)).size !== todos.length) throw new Error("할일 ID가 중복된다.");
-    if (JSON.stringify(fresh) !== JSON.stringify(todos)) {
-      await atomicWrite(file, `${JSON.stringify({ todos }, null, 2)}\n`);
-      // 화면이 상태를 보고 만드는 항목(source)은 사람의 변동이 아니라서 Log에 남기지 않는다.
-      const human = (rows: TodoItem[]) => rows.filter(row => !row.source);
-      await appendLogChanges(studioHome, alias, todoChanges(human(fresh), human(todos), now.toISOString()));
-    }
-    await archiveTodos(studioHome, alias, todos);
-    return todos;
   });
   writes.set(file, next);
   void next.finally(() => { if (writes.get(file) === next) writes.delete(file); }).catch(() => undefined);

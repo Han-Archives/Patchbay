@@ -13,7 +13,8 @@ import { findBinding } from "./mirror.js";
  *
  * Write · Edit · MultiEdit · NotebookEdit 는 경로로 정확히 본다. Bash 는 명령 글을 읽어 짐작한다:
  * 쓰는 명령(rm · mv · cp · 리다이렉트 · sed -i · git commit 등)이 있을 때, 지금 폴더나 명령에 적힌
- * 경로가 범위 밖이면 막는다. `node -e` 처럼 스크립트 안에서 쓰는 것까지는 잡지 못한다.
+ * 경로가 범위 밖이면 막는다. 셸에 감싼 짧은 스크립트의 대표 파일 쓰기 API도 같은 범위로 검사한다.
+ * 삭제 명령은 범위 안이어도 PreToolUse가 사람의 승인을 묻게 한다.
  */
 
 export interface GuardInput {
@@ -27,17 +28,34 @@ export interface GuardDecision {
   alias: string;
   /** 막는 까닭. null 이면 허락. */
   deny: string | null;
+  /** 삭제처럼 범위 안이지만 사람 확인이 필요한 까닭. */
+  ask?: string;
 }
 
 const FILE_TOOLS: Record<string, string> = { Write: "file_path", Edit: "file_path", MultiEdit: "file_path", NotebookEdit: "notebook_path" };
 
 const SHELL_WRITE = [
-  /(?:^|[\s;&|(`])(?:rm|rmdir|mv|cp|tee|touch|mkdir|ln|chmod|chown|truncate|dd|install|rsync|unzip|tar)\s/,
-  /(?:^|[\s;&|(`])sed\s+(?:-[a-zA-Z]*i|--in-place)/,
-  /(?:^|[\s;&|(`])git\s+(?:-C\s+\S+\s+)?(?:commit|push|reset|checkout|switch|merge|rebase|stash|add|rm|mv|restore|clean|apply|cherry-pick|tag|branch|init|clone)\b/,
+  /(?:^|[\s;&|(`'"])(?:rm|rmdir|mv|cp|tee|touch|mkdir|ln|chmod|chown|truncate|dd|install|rsync|unzip|tar)\s/,
+  /(?:^|[\s;&|(`'"])sed\s+(?:-[a-zA-Z]*i|--in-place)/,
+  /(?:^|[\s;&|(`'"])git\s+(?:-C\s+\S+\s+)?(?:commit|push|reset|checkout|switch|merge|rebase|stash|add|rm|mv|restore|clean|apply|cherry-pick|tag|branch|init|clone)\b/,
+  /\b(?:writeFile|writeFileSync|appendFile|appendFileSync|mkdir|mkdirSync|rename|renameSync|copyFile|copyFileSync|rm|rmSync|unlink|unlinkSync)\s*\(/,
+  /\b(?:open|Path)\s*\([^)]*,\s*['"](?:w|a|x)[+b]?['"]|\.(?:write_text|write_bytes|mkdir|rename|replace|unlink|rmdir)\s*\(/,
   // 리다이렉트로 파일에 쓰기 (2>&1 · >/dev/null 은 뺀다)
   /(?<![0-9&<>])>{1,2}\s*(?!&|\/dev\/)[^\s;&|]/,
 ];
+
+const SHELL_DELETE = [
+  /(?:^|[\s;&|(`'"])(?:rm|rmdir)\s/,
+  /(?:^|[\s;&|(`'"])git\s+(?:-C\s+\S+\s+)?(?:rm|clean)\b/,
+  /\b(?:rm|rmSync|unlink|unlinkSync|rmdir|rmdirSync)\s*\(/,
+  /\.(?:unlink|rmdir)\s*\(/,
+];
+
+export function requiresDeleteApproval(toolName: string, toolInput: Record<string, unknown>): boolean {
+  if (toolName !== "Bash") return false;
+  const command = typeof toolInput.command === "string" ? toolInput.command : "";
+  return SHELL_DELETE.some(pattern => pattern.test(command));
+}
 
 /** 아직 없는 파일도 실제 위치로 — 있는 조상까지 realpath 하고 나머지를 붙인다 (/tmp → /private/tmp). */
 function realish(target: string): string {
@@ -124,7 +142,9 @@ export async function guardTool(studioHome: string, input: GuardInput, shared: r
   const project = (await readStudio(studioHome)).projects.find((row) => row.alias === binding.alias);
   const roots = guardRoots(studioHome, binding.alias, project?.path, shared);
   const target = outsideTarget(input.toolName, input.toolInput, input.cwd || process.cwd(), roots);
-  if (!target) return { alias: binding.alias, deny: null };
+  if (!target) return { alias: binding.alias, deny: null, ...(requiresDeleteApproval(input.toolName, input.toolInput) ? {
+    ask: `파일 삭제는 사람의 승인이 필요합니다. 삭제 대상과 되돌리는 방법을 확인한 뒤 승인해 주세요.`,
+  } : {}) };
   return {
     alias: binding.alias,
     deny: `이 세션은 Patchbay 프로젝트 「${binding.alias}」에 묶여 있어 그 폴더(${project?.path ?? projectStudioDir(studioHome, binding.alias)}) 밖에는 쓸 수 없습니다: ${target}. 다른 프로젝트의 일이면 사용자에게 먼저 묻고, 허락을 받으면 room_bind 로 그 프로젝트에 다시 묶습니다.`,

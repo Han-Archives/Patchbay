@@ -72,6 +72,39 @@ describe("할일 사전 준비", () => {
     await updateTodos(home,"demo",rows=>rows.map(t=>t.id==="t0"?{...t,detail:"요구 변경"}:t));
     state=await host.list("demo"); expect(state.items.every(v=>v.status==="stale")).toBe(true);
   });
+  it("보류하면 추천 연관의 뒤 할일만 연쇄 중지하고 관계없는 뒤 할일은 승인할 수 있다", async () => {
+    const { home } = await setup(4); let draftCall = 0;
+    const dependencies = [[], [{ todoId: "t0", kind: "required", reason: "A 결정 필요" }], [{ todoId: "t1", kind: "reference", reason: "B 결과 참고" }], []];
+    const host = createTodoPreparationHost(home, { bin: "mock", fingerprint: async () => "same", runner: async req => {
+      if (req.prompt.includes("모드를 하나 선택")) return { ok: true, ms: 1, text: JSON.stringify({ modeId: "report", reason: "보고서" }) };
+      if (req.prompt.includes("승인했다")) return { ok: true, ms: 1, text: JSON.stringify({ outcome: "passed", summary: "반영 및 검증 완료", checks: [{ condition: "필수 내용 포함", passed: true, evidence: "확인" }] }) };
+      return { ok: true, ms: 1, text: JSON.stringify(draft(dependencies[draftCall++]!)) };
+    } });
+    await host.start("demo", ["t0", "t1", "t2", "t3"], "lead"); await host.wait("demo");
+    let state = await host.list("demo"); await host.action("demo", state.items[0]!.id, "hold");
+    state = await host.list("demo");
+    expect(state.items.map(v => v.status)).toEqual(["held", "stopped", "stopped", "ready"]);
+    await host.action("demo", state.items[3]!.id, "approve"); await host.wait("demo");
+    expect((await readTodos(home, "demo"))[3]!.done).toBe(true);
+  });
+  it("수행 중 보류한 할일의 결정이 필요하다고 드러나면 그 할일만 중지한다", async () => {
+    const { home } = await setup(3); let executionPrompt = "";
+    const mock = runner(); const host = createTodoPreparationHost(home, { bin: "mock", fingerprint: async () => "same", runner: async req => {
+      if (req.execution !== "edit") return mock(req);
+      executionPrompt = req.prompt;
+      return req.prompt.includes('"todoId":"t0"')
+        ? { ok: true, ms: 1, text: JSON.stringify({ outcome: "stopped", blockedByTodoId: "t0", summary: "A의 선택 없이는 출력 형식을 정할 수 없습니다.", checks: [] }) }
+        : mock(req);
+    } });
+    await host.start("demo", ["t0", "t1", "t2"], "lead"); await host.wait("demo");
+    let state = await host.list("demo"); await host.action("demo", state.items[0]!.id, "hold");
+    state = await host.list("demo"); await host.action("demo", state.items[1]!.id, "approve"); await host.wait("demo");
+    state = await host.list("demo");
+    expect(executionPrompt).toContain('"todoId":"t0"');
+    expect(state.items.map(item => item.status)).toEqual(["held", "stopped", "ready"]);
+    expect(state.items[1]!.error).toContain("A의 선택 없이는");
+    expect((await readTodos(home, "demo")).every(todo => !todo.done)).toBe(true);
+  });
   it("승인한 버전과 완료 조건을 실행에 전달하고 검증 통과 시에만 완료·보관한다",async()=>{
     const {home}=await setup(1);let executionPrompt="";
     const mock=runner(); const host=createTodoPreparationHost(home,{bin:"mock",fingerprint:async()=>"same",runner:async req=>{if(req.execution==="edit")executionPrompt=req.prompt;return mock(req)}});

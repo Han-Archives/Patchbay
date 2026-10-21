@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeStudio } from "../studio/studioStore.js";
-import { guardRoots, guardTool, outsideTarget } from "./guard.js";
+import { guardRoots, guardTool, outsideTarget, requiresDeleteApproval } from "./guard.js";
 
 const bindCall = { type: "assistant", message: { model: "m", content: [{ type: "tool_use", id: "b1", name: "mcp__patchbay__room_bind", input: { alias: "demo" } }] } };
 const bindResult = { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "b1", content: [{ type: "text", text: JSON.stringify({ bound: true, alias: "demo", roomId: "r1" }) }] }] } };
@@ -54,5 +54,16 @@ describe("묶인 세션의 쓰기 범위", () => {
     expect(bash("sed -i '' s/a/b/ ../other/a.ts")).toBe(path.join(other, "a.ts"));
     expect(bash("git commit -m x", other)).toBe(other);
     expect(bash(`cd ${other} && git add .`)).toBe(other);
+    expect(bash(`node -e "require('node:fs').writeFileSync('${other}/x', 'x')"`)).toBe(path.join(other, "x"));
+    expect(bash(`python -c "open('${other}/x', 'w').write('x')"`)).toBe(path.join(other, "x"));
+    expect(bash(`node -e "require('node:fs').writeFileSync('inside.txt', 'x')"`)).toBeNull();
+  });
+
+  it("프로젝트 안 삭제도 사람 승인 대상으로 올리고 바깥 삭제는 먼저 거절한다", async () => {
+    const { home, repo, other, transcript } = await setup(true);
+    expect(requiresDeleteApproval("Bash", { command: `rm -rf ${repo}/dist` })).toBe(true);
+    expect((await guardTool(home, { transcriptPath: transcript, toolName: "Bash", toolInput: { command: `rm -rf ${repo}/dist` }, cwd: repo }, []))?.ask).toContain("사람의 승인");
+    const outside = await guardTool(home, { transcriptPath: transcript, toolName: "Bash", toolInput: { command: `rm ${other}/a.ts` }, cwd: repo }, []);
+    expect(outside?.deny).toContain(other); expect(outside?.ask).toBeUndefined();
   });
 });
