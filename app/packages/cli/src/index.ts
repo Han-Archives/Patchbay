@@ -16,11 +16,13 @@ import { runRunsDraftEvals } from "./commands/runsDraftEvals.js";
 import { runVersionCompare } from "./commands/versionCompare.js";
 import { runIrDiff } from "./commands/irDiff.js";
 import { runIrGenerate } from "./commands/irGenerate.js";
+import { runBuildLink } from "./commands/buildLink.js";
 import { runInit } from "./commands/init.js";
 import { runBackup } from "./commands/backup.js";
 import { runPatch } from "./commands/patch.js";
 import { runProgress } from "./commands/progress.js";
 import { runProgressWrite } from "./commands/progressWrite.js";
+import { runTodo } from "./commands/todo.js";
 import { runProjectAdd } from "./commands/projectAdd.js";
 import { runProjectNew } from "./commands/projectNew.js";
 import { runProjectTriage } from "./commands/projectTriage.js";
@@ -246,6 +248,22 @@ ir.command("generate")
     process.exitCode = await runAction(() => runIrGenerate(opts));
   });
 
+const build = program
+  .command("build")
+  .description("2 구현 — 이미 구현된 프로젝트의 요구사항 ↔ 기존 테스트 연결 (사용자 결정 2026-10-20)");
+
+build.command("link")
+  .description("Propose a link from an adopted requirement to an existing test — a person confirms it in the console")
+  .option("--project <alias>", "alias of the registered project")
+  .option("--requirement <id>", "requirement id in the approved IR (R1.1)")
+  .option("--file <path>", "test file, relative to the project folder")
+  .option("--test <name>", "describe/it names joined with ' > ' (omit for the whole file)")
+  .option("--code <path>", "the code file that implements it, relative to the project folder")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runBuildLink(opts));
+  });
+
 const knowledge = program
   .command("knowledge")
   .description("Query the project's knowledge graph — 문서 호출과 복제본 점검 (기획서 3·4단계)");
@@ -426,6 +444,18 @@ progress
   .action(async (opts) => {
     process.exitCode = await runAction(() => runProgressWrite(opts));
   });
+
+const todo = program.command("todo").description("Read and change tasks through validated storage");
+for (const action of ["list", "add", "update"] as const) {
+  const command = todo.command(action)
+    .requiredOption("--project <alias>", "registered project")
+    .option("--json", "machine-readable output");
+  if (action !== "list") command.option("--id <id>", "task ID").option("--title <text>", "task title")
+    .option("--detail <text>", "task requirements").option("--room <id>", "linked conversation");
+  if (action === "add") command.option("--first", "insert before the first active task");
+  if (action === "update") command.option("--done", "mark completed").option("--pending", "mark unfinished");
+  command.action(async opts => { process.exitCode = await runAction(() => runTodo(action, opts)); });
+}
 
 const room = program.command("room").description("Conversation rooms (the console's right-hand chat)");
 

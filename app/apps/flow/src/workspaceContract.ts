@@ -54,6 +54,8 @@ export interface ProjectFacts {
   runs: number;
   /** 테스트에서 실제로 일한 설계 노드 수 (`test/passed-nodes.json`). */
   nodes?: { total: number; passed: number };
+  /** 「이미 구현됨」 길을 골랐으면 요구사항 수 · 확인된 연결이 있는 수 · 통과 수 (`existing-build.json`). */
+  existing?: { total: number; linked: number; passed: number } | null;
 }
 
 export interface WorkspaceLatest {
@@ -155,7 +157,7 @@ function dashboardStage(facts: ProjectFacts): StageState {
   if (facts.scan === null) {
     return { id: "dashboard", tone: "now", status: "스캔 전", next: "대시보드의 레포 구조 칸에서 「스캔」을 누른다" };
   }
-  const parts = [facts.adopted?.version ? `설계 v${facts.adopted.version}` : null, facts.nodes?.total ? `노드 ${facts.nodes.passed}/${facts.nodes.total} 지남` : null]
+  const parts = [facts.adopted?.version ? `설계 v${facts.adopted.version}` : null, facts.nodes?.total && !facts.existing ? `노드 ${facts.nodes.passed}/${facts.nodes.total} 지남` : null]
     .filter(Boolean)
     .join(" · ");
   return {
@@ -176,6 +178,7 @@ export function stagesOf(facts: ProjectFacts): StageState[] {
   const dashboard = dashboardStage(facts);
   const design = designStage(facts);
   const designed = design.tone === "done";
+  if (designed && facts.existing) return [dashboard, design, ...existingStages(facts.existing)];
   const filled = facts.filled ?? null;
 
   const build: StageState = !designed
@@ -226,6 +229,36 @@ export function stagesOf(facts: ProjectFacts): StageState[] {
     : { id: "docs", tone: "locked", status: `노드 ${nodes.passed}/${nodes.total || "?"} 지난 뒤`, next: waiting };
 
   return [dashboard, design, build, test, graph, docs];
+}
+
+/**
+ * 「이미 구현됨」 길 (사용자 결정 2026-10-20, 절차 `이미구현-길-설계안_20261020_v1`). 2 구현은 요구사항마다
+ * 기존 테스트를 잇는 일, 3 테스트는 이은 테스트가 통과하는 일이다. 4 · 5는 LangGraph 실행 기록으로
+ * 근거 경로를 만드는데 이 길에는 그 기록이 없어서 열지 않는다(같은 결정).
+ */
+function existingStages(existing: { total: number; linked: number; passed: number }): StageState[] {
+  const linkedAll = existing.total > 0 && existing.linked >= existing.total;
+  const passedAll = linkedAll && existing.passed >= existing.total;
+  const build: StageState = linkedAll
+    ? { id: "build", tone: "done", status: `요구사항 이음 ${existing.linked}/${existing.total} · 이미 구현됨`, next: "요구사항이 바뀌면 연결을 다시 본다" }
+    : {
+        id: "build",
+        tone: "now",
+        status: `요구사항 이음 ${existing.linked}/${existing.total} · 이미 구현됨`,
+        next: "구현 화면에서 요구사항마다 그것을 지키는 기존 테스트를 잇고 확인한다",
+      };
+  const test: StageState = !linkedAll
+    ? { id: "test", tone: "locked", status: "연결 뒤", next: "2 구현에서 모든 요구사항에 테스트를 잇기를 기다린다" }
+    : passedAll
+      ? { id: "test", tone: "done", status: `요구사항 통과 ${existing.passed}/${existing.total}`, next: "코드를 바꾸면 이은 테스트를 다시 돌린다" }
+      : { id: "test", tone: "now", status: `요구사항 통과 ${existing.passed}/${existing.total}`, next: "이은 테스트를 돌리고 실패한 요구사항을 고친다" };
+  const closed = "이미 구현됨 길에서는 열지 않는다 — 근거 경로를 만들 LangGraph 실행 기록이 없다 (사용자 결정 2026-10-20)";
+  return [
+    build,
+    test,
+    { id: "graph", tone: "locked", status: "이 길에서는 닫힘", next: closed },
+    { id: "docs", tone: "locked", status: "이 길에서는 닫힘", next: closed },
+  ];
 }
 
 /**

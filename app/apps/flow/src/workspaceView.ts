@@ -10,7 +10,10 @@ import {
   readRunRecords,
   readStudio,
   readPassedNodes,
+  readExistingBuild,
+  summarizeExistingBuild,
 } from "@patchbay/core";
+import type { ExistingBuild, Ir } from "@patchbay/core";
 import { countCompleteCells } from "./irContract.js";
 import { loadIrView } from "./irView.js";
 import {
@@ -82,6 +85,12 @@ async function filledFact(graphFile: string, total: number): Promise<{ total: nu
   }
 }
 
+function existingFact(ir: Ir, build: ExistingBuild | null): ProjectFacts["existing"] {
+  if (!build) return null;
+  const { total, linked, passed } = summarizeExistingBuild(ir, build);
+  return { total, linked, passed };
+}
+
 async function projectFacts(studioHome: string, alias: string, repo: string): Promise<ProjectFacts> {
   const overlay = await readOverlay(studioHome, alias);
   const adoptedRead = overlay.ir ? parseIr(overlay.ir) : null;
@@ -102,6 +111,7 @@ async function projectFacts(studioHome: string, alias: string, repo: string): Pr
     filled: await filledFact(path.join(scaffoldDir, SCAFFOLD_FILES.graph), total),
     runs: records.length,
     nodes: { total, passed: Object.keys(passed.nodes).filter((id) => nodeIds.has(id)).length },
+    existing: adoptedRead?.ok ? existingFact(adoptedRead.ir, await readExistingBuild(studioHome, alias)) : null,
   };
 }
 

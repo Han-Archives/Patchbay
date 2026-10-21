@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 const shapes = {
   home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v11h14V10M9 21v-7h6v7" /></>,
-  architecture: <><rect x="8" y="3" width="8" height="5" rx="1.5" /><path d="M12 8v5M5 16v-3h14v3" /><rect x="2" y="16" width="6" height="5" rx="1.5" /><rect x="16" y="16" width="6" height="5" rx="1.5" /></>,
+  architecture: <><rect x="3" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="10" width="7" height="5" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /><path d="M6.5 8v8M10 5.5h3.5a1 1 0 0 1 1 1V10" /></>,
   files: <path d="M3 7V6a1 1 0 0 1 1-1h5l3 3h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />,
   plan: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
   graph: <><path d="m8.5 6.5 6-1M8 9l7 7M6 9.5v6M8.5 18h6" /><circle cx="6" cy="7" r="2.5" /><circle cx="17" cy="5" r="2.5" /><circle cx="6" cy="18" r="2.5" /><circle cx="17" cy="18" r="2.5" /></>,

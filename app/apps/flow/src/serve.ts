@@ -2,11 +2,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
-import { requireStudioHome, seedBundledSkills } from "@patchbay/core";
+import { migrateLegacyRoomDirs, requireStudioHome, seedBundledSkills } from "@patchbay/core";
 import open from "open";
 import { resolveLangGraphUrl } from "./langgraphContract.js";
 import { resolveNeo4jPassword, resolveNeo4jUri, resolveNeo4jUser } from "./neo4jContract.js";
 import { createFlowApp } from "./server.js";
+import { createClaudeQuotaRefresh } from "./claudeQuotaHost.js";
 import { dialHost, isLoopbackHost, resolveFlowHost } from "./serveContract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,9 +28,13 @@ if (!isLoopbackHost(host) && !access.token && !access.readToken) {
   throw new Error("원격 접속에는 PATCHBAY_FLOW_TOKEN 또는 조회 전용 PATCHBAY_FLOW_READ_TOKEN을 설정한다.");
 }
 const studioHome = requireStudioHome();
+// 대화방 폴더 rooms/ → chats/ (사용자 요청 2026-10-16). 서버가 아직 듣기 전이라 이 프로세스가 옛 폴더에 쓰는 일이 없다.
+const movedChats = migrateLegacyRoomDirs(studioHome);
+if (movedChats.length > 0) console.log(`대화방 폴더를 rooms/ → chats/ 로 옮겼다: ${movedChats.join(", ")}`);
 void seedBundledSkills(studioHome, BUNDLED_SKILLS).catch(() => undefined);
 const app = createFlowApp({
   studioHome,
+  claudeQuotaRefresh: createClaudeQuotaRefresh(studioHome),
   project: process.env.PATCHBAY_FLOW_PROJECT || undefined,
   watch: true,
   access,

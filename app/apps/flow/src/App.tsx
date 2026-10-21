@@ -1,28 +1,29 @@
 import { SidebarIcon } from "./SidebarIcon.js";
 import { LOG_OPEN_EVENT, ProjectLogPane } from "./ProjectLogPane.js";
 import { ProjectTools } from "./ProjectTools.js";
-import { SystemArchitecturePanel } from "./SystemArchitecturePanel.js";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ArchitecturePane } from "./ArchitecturePane.js";
+import { ExistingTestStage } from "./ExistingBuildPane.js";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { readLastWork, readRoomLink, rememberWork, workLocation, type ResumeAction, type WorkLocation, type WorkspacePlace } from "./workspaceNavigation.js";
 import { AddProjectDialog } from "./AddProjectDialog.js";
 import { BoardPane } from "./BoardPane.js";
 import { BuildPane } from "./BuildPane.js";
-import { ROOM_EVENT_NAME, STUDIO_EVENT_NAMES } from "./eventsContract.js";
+import { ROOM_EVENT_NAME, SEMANTIC_EVENT_NAME, STUDIO_EVENT_NAMES } from "./eventsContract.js";
 import { FilePeek } from "./FilePeek.js";
 import { IrPane } from "./IrPane.js";
 import { KnowledgePane } from "./KnowledgePane.js";
 import { DashboardPane } from "./DashboardPane.js";
 import { UsePane } from "./UsePane.js";
 import { ProcessBar } from "./ProcessBar.js";
-import { ScanButton } from "./ScanButton.js";
-import { EMPTY_PROCESS_VIEW, isProjectViewOk, type ProjectViewResponse } from "./projectContract.js";
-import { StructurePane } from "./StructurePane.js";
+import { EMPTY_PROCESS_VIEW, type ProjectViewResponse } from "./projectContract.js";
+import { FilesPane } from "./FilesPane.js";
 import { ConsultPane } from "./ConsultPane.js";
+import { RequirementsPane } from "./RequirementsPane.js";
 import { PrdPane } from "./PrdPane.js";
 import { RoomPanel } from "./RoomPanel.js";
 import { LlmHealthRail } from "./LlmHealthRail.js";
 import {
   adapterLabel,
-  projectLabel,
   type AdapterStatus,
   type ShellResponse,
 } from "./shellContract.js";
@@ -30,12 +31,12 @@ import {
   projectInitials,
   projectIconColor,
   stageMeta,
-  type StageId,
   type WorkspaceProject,
   type WorkspaceResponse,
 } from "./workspaceContract.js";
 
-type Place = "home" | StageId | "board" | "plan" | "architecture" | "files" | "log";
+type Place = WorkspacePlace;
+function navigationStorage() { try { return window.localStorage; } catch { return null; } }
 
 export default function App() {
   const [session, setSession] = useState<{ role: "read" | "write" | null } | null>(null);
@@ -58,11 +59,6 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const [place, setPlace] = useState<Place>("dashboard");
   // History 칸에서 날짜를 고르면 Log 의 그날을 연다 (사용자 결정 2026-10-15 — History 는 Log 의 입력 · 요약창).
   const [logDate, setLogDate] = useState<string | null>(null);
-  useEffect(() => {
-    const open = (event: Event) => { setLogDate((event as CustomEvent<{ date: string }>).detail.date); setPlace("log"); };
-    window.addEventListener(LOG_OPEN_EVENT, open);
-    return () => window.removeEventListener(LOG_OPEN_EVENT, open);
-  }, []);
   const [project, setProject] = useState<string>("");
   const [revision, setRevision] = useState(0);
   // 대화방 파일만 바뀌면 대화 칸만 다시 읽는다 — 폰 세션의 말이 훅으로 들어올 때 (ROOM_EVENT_NAME).
@@ -109,10 +105,38 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const aliases = shellProjects.map((item) => item.alias);
   const hasProjects = aliases.length > 0;
   const selected = hasProjects ? project || aliases[0]! : "";
-  const label = projectLabel(shellProjects, selected);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const current = workspace?.projects.find((item) => item.alias === selected);
+  const [rememberedWork, setRememberedWork] = useState<Record<string, WorkLocation>>({});
+  const navigate = useCallback((next: Place, date?: string | null) => {
+    const alias = selectedRef.current;
+    const location = workLocation(alias, next, date);
+    if (location) {
+      setRememberedWork(prev => ({ ...prev, [alias]: location }));
+      rememberWork(location, navigationStorage());
+    }
+    if (next === "log") setLogDate(location?.logDate ?? null);
+    setPlace(next);
+  }, []);
+  useEffect(() => {
+    const open = (event: Event) => navigate("log", (event as CustomEvent<{ date: string }>).detail.date);
+    window.addEventListener(LOG_OPEN_EVENT, open);
+    return () => window.removeEventListener(LOG_OPEN_EVENT, open);
+  }, [navigate]);
+  const lastWork = rememberedWork[selected] ?? readLastWork(selected, navigationStorage());
+  function continueWork(action: ResumeAction) {
+    if (action.kind === "place") {
+      if (action.location.alias !== selected) return;
+      setLogDate(action.location.logDate ?? null);
+      setPlace(action.location.place); // Restoring is not a new work-history entry.
+      return;
+    }
+    setChatOpen(true); setChatAside(false);
+    if (action.kind === "start") setDraftRequest(prev => ({ text: "", nonce: (prev?.nonce ?? 0) + 1 }));
+    // RoomPanel owns last/new/deleted-room selection; no room hash is created here.
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>(".workspace-chat-panel textarea")?.focus());
+  }
 
   useEffect(() => {
     const source = new EventSource("/api/events");
@@ -139,8 +163,10 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
       source.addEventListener(name, onStudioEvent);
     }
     source.addEventListener(ROOM_EVENT_NAME, onRoomEvent);
+    source.addEventListener(SEMANTIC_EVENT_NAME, onStudioEvent);
     return () => {
       source.removeEventListener(ROOM_EVENT_NAME, onRoomEvent);
+      source.removeEventListener(SEMANTIC_EVENT_NAME, onStudioEvent);
       for (const name of STUDIO_EVENT_NAMES) {
         source.removeEventListener(name, onStudioEvent);
       }
@@ -148,25 +174,39 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
     };
   }, []);
 
+  const registeredAliasKey = JSON.stringify(aliases);
+  const appliedRoomHash = useRef<string | null>(null);
   useEffect(() => {
-    const read = () => {
-      const match = /^#room\/([^/]+)\/([^/]+)$/.exec(window.location.hash);
-      if (!match) {
+    const registeredAliases: string[] = JSON.parse(registeredAliasKey);
+    const read = (force = false) => {
+      const hash = window.location.hash;
+      if (!force && appliedRoomHash.current === hash) return;
+      const room = readRoomLink(hash);
+      if (!room) {
+        appliedRoomHash.current = hash;
         setLinkedRoom(null);
         return;
       }
-      setLinkedRoom({ alias: decodeURIComponent(match[1]), id: decodeURIComponent(match[2]) });
-      setProject(decodeURIComponent(match[1]));
+      // Initial links are retried when registration arrives; an empty initial list is not a rejection.
+      if (!registeredAliases.length) return;
+      appliedRoomHash.current = hash;
+      if (!registeredAliases.includes(room.alias)) { setLinkedRoom(null); return; }
+      setLinkedRoom(room);
+      setProject(room.alias);
       setChatOpen(true);
+      setChatAside(false);
     };
     read();
-    window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
-  }, []);
+    const onHashChange = () => read(true);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [registeredAliasKey]);
 
   function pickProject(alias: string) {
     setProject(alias);
     setPlace("dashboard");
+    setLogDate(null);
+    setPeekPath(null);
     if (window.location.hash.startsWith("#room/")) {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       setLinkedRoom(null);
@@ -277,16 +317,16 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           </div>
         ) : null}
         {hasProjects ? (
-          <><div className="rail-divider" aria-hidden="true" /><ProjectTools place={place} onNavigate={setPlace} /></>
+          <><div className="rail-divider" aria-hidden="true" /><ProjectTools place={place} onNavigate={navigate} /></>
         ) : null}
         <div className="rail-foot">
           <LlmHealthRail revision={revision + roomRevision} readOnly={readOnly} />
           <SidecarDot
             name="LangGraph"
             status={shell?.adapters.langgraph ?? "disconnected"}
-            onClick={() => setPlace("build")}
+            onClick={() => navigate("build")}
           />
-          <SidecarDot name="Neo4j" status={shell?.adapters.neo4j ?? "disconnected"} onClick={() => setPlace("graph")} />
+          <SidecarDot name="Neo4j" status={shell?.adapters.neo4j ?? "disconnected"} onClick={() => navigate("graph")} />
         </div>
       </nav>
 
@@ -310,17 +350,13 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               readOnly={readOnly}
               logDate={logDate}
               project={selected}
-              label={label}
               revision={revision}
               projects={workspace.projects}
-              onOpenStage={(id) => setPlace(id)}
+              onOpenStage={navigate}
+              lastWork={lastWork}
+              onContinue={continueWork}
               onOpenFile={setPeekPath}
               onWorkspaceChanged={() => setRevision((n) => n + 1)}
-              onAsk={(text) => {
-                setChatOpen(true);
-                setChatAside(false);
-                setDraftRequest((current) => ({ text, nonce: (current?.nonce ?? 0) + 1 }));
-              }}
               consultRequest={consultRequest?.project === selected ? consultRequest.note : undefined}
               onConsultSent={() => setConsultRequest(null)}
               onLangGraphStatus={(status) => {
@@ -360,7 +396,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               readOnly={readOnly}
               draftRequest={draftRequest}
               onConsult={(note) => {
-                setPlace("design");
+                navigate("design");
                 setChatOpen(false);
                 setConsultRequest(note ? { project: selected, note } : null);
               }}
@@ -385,8 +421,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           onClose={() => setAdding(false)}
           onAdded={(alias) => {
             setAdding(false);
-            setProject(alias);
-            setPlace("dashboard");
+            pickProject(alias);
             setRevision((n) => n + 1);
           }}
         />
@@ -400,7 +435,6 @@ function PlaceBody({
   readOnly,
   logDate,
   project,
-  label,
   revision,
   projects,
   onOpenStage,
@@ -408,15 +442,15 @@ function PlaceBody({
   onLangGraphStatus,
   onNeo4jStatus,
   onWorkspaceChanged,
-  onAsk,
   consultRequest,
   onConsultSent,
+  lastWork,
+  onContinue,
 }: {
   place: Place;
   readOnly: boolean;
   logDate: string | null;
   project: string;
-  label: string;
   revision: number;
   projects: WorkspaceProject[];
   onOpenStage: (id: Place) => void;
@@ -425,14 +459,16 @@ function PlaceBody({
   onNeo4jStatus: (status: AdapterStatus) => void;
   /** 단계 띠를 다시 읽는다 — 테스트에서 지난 노드가 늘었을 때. */
   onWorkspaceChanged: () => void;
-  onAsk: (text: string) => void;
   consultRequest?: string;
   onConsultSent: () => void;
+  lastWork: WorkLocation | null;
+  onContinue: (action: ResumeAction) => void;
 }) {
   if (place === "design") {
     return (
       <DesignPane
         project={project}
+        readOnly={readOnly}
         revision={revision}
         onOpenFile={onOpenFile}
         onGoBuild={() => onOpenStage("build")}
@@ -454,18 +490,22 @@ function PlaceBody({
   }
   if (place === "graph" || place === "docs") {
     return (
-      <KnowledgePane project={project} revision={revision} stage={place} onNeo4jStatus={onNeo4jStatus} />
+      <KnowledgePane project={project} revision={revision} stage={place} readOnly={readOnly} onNeo4jStatus={onNeo4jStatus} />
     );
   }
   if (place === "test") {
-    return <UsePane project={project} revision={revision} onOpenStage={onOpenStage} onPassedChange={onWorkspaceChanged} />;
+    return (
+      <ExistingTestStage project={project} revision={revision} onOpenFile={onOpenFile}>
+        <UsePane project={project} revision={revision} onOpenStage={onOpenStage} onPassedChange={onWorkspaceChanged} />
+      </ExistingTestStage>
+    );
   }
   if (place === "log") return <ProjectLogPane project={project} revision={revision} workspace={projects.find(p => p.alias === project)} initialDate={logDate} />;
   if (place === "architecture") {
-    return <section className="project-architecture-page"><h2>아키텍처</h2><SystemArchitecturePanel /></section>;
+    return <ArchitecturePane project={project} revision={revision} onOpenStage={onOpenStage} onLangGraphStatus={onLangGraphStatus} />;
   }
   if (place === "files") {
-    return <StructureHost project={project} label={label} revision={revision} />;
+    return <FilesPane project={project} revision={revision} readOnly={readOnly} />;
   }
   if (place === "board") {
     return <BoardPane project={project} revision={revision} />;
@@ -476,6 +516,7 @@ function PlaceBody({
   if (place === "dashboard" || place === "home") {
     return (
       <DashboardPane
+        key={project}
         project={project}
         readOnly={readOnly}
         onProjectRenamed={onWorkspaceChanged}
@@ -483,8 +524,9 @@ function PlaceBody({
         onOpenStage={onOpenStage}
         onOpenFile={onOpenFile}
         workspace={projects.find((item) => item.alias === project)}
-        onAsk={onAsk}
-        repo={<StructureHost project={project} label={label} revision={revision} />}
+        lastWork={lastWork}
+        onContinue={onContinue}
+        repo={<FilesPane project={project} revision={revision} readOnly={readOnly} />}
       />
     );
   }
@@ -498,6 +540,7 @@ function PlaceBody({
  */
 function DesignPane({
   project,
+  readOnly,
   revision,
   onOpenFile,
   onGoBuild,
@@ -505,18 +548,20 @@ function DesignPane({
   onConsultSent,
 }: {
   project: string;
+  readOnly: boolean;
   revision: number;
   onOpenFile: (path: string) => void;
   onGoBuild: () => void;
   consultRequest?: string;
   onConsultSent: () => void;
 }) {
-  const [tab, setTab] = useState<"consult" | "prd" | "ir">("consult");
+  const [tab, setTab] = useState<"requirements" | "consult" | "prd" | "ir">("requirements");
   const [pendingFix, setPendingFix] = useState<{ n: number; note: string; raw?: boolean } | null>(null);
   useEffect(() => {
     if (consultRequest) { setPendingFix({ n: 0, note: consultRequest, raw: true }); setTab("consult"); }
   }, [consultRequest]);
   const tabs: { id: typeof tab; label: string; hint: string }[] = [
+    { id: "requirements", label: "요구사항", hint: "개요 · 변경 · 흐름 · 근거" },
     { id: "consult", label: "상담", hint: "말하면 설계가 자란다" },
     { id: "prd", label: "PRD 검토", hint: "절마다 확인 · 채택" },
     { id: "ir", label: "설계도와 검사", hint: "칸 보기 · 직접 고치기" },
@@ -531,7 +576,11 @@ function DesignPane({
           </button>
         ))}
       </div>
-      {tab === "consult" ? (
+      {tab === "requirements" ? (
+        <RequirementsPane key={project} project={project} revision={revision} readOnly={readOnly}
+          onConsult={note => { if (note) setPendingFix({ n: 0, note, raw: true }); setTab("consult"); }}
+          onManage={() => setTab("ir")} onAdopt={() => setTab("prd")} onGoBuild={onGoBuild} />
+      ) : tab === "consult" ? (
         <ConsultPane
           project={project}
           revision={revision}
@@ -602,66 +651,6 @@ function PlanPane({
         onOpenFile={onOpenFile}
       />
     </>
-  );
-}
-
-function StructureHost({ project, label, revision }: { project: string; label: string; revision: number }) {
-  const [view, setView] = useState<ProjectViewResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-  const [scanNote, setScanNote] = useState<string | null>(null);
-  // 결정을 남긴 뒤 다시 읽기. 스캔 횟수(`tick`)와 따로 둔다 — 항목 설명까지 다시 읽을 일이 아니다.
-  const [reload, setReload] = useState(0);
-
-  useEffect(() => setScanNote(null), [project]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/project?alias=${encodeURIComponent(project)}`)
-      .then(async (res) => {
-        const body = (await res.json()) as ProjectViewResponse | { error: string };
-        if (cancelled) return;
-        if (!res.ok || "error" in body) {
-          setError("error" in body ? body.error : `HTTP ${res.status}`);
-          return;
-        }
-        setError(null);
-        setView(body);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [project, revision, tick, reload]);
-
-  if (error) return <p className="flow-error">{error}</p>;
-  if (!view) return <p>불러오는 중</p>;
-  const rescan = () => setTick((n) => n + 1);
-  if (!isProjectViewOk(view)) {
-    return (
-      <div className="empty">
-        <h2>{label}</h2>
-        {view.broken ? (
-          <>
-            <p>스캔 결과 파일이 깨져서 읽지 못했다. 다시 스캔하면 새로 쓴다.</p>
-            <p className="ir-note">{view.broken}</p>
-          </>
-        ) : (
-          <p>스캔이 아직 없다. 폴더를 읽어 항목과 연결을 찾으면 구조가 열린다.</p>
-        )}
-        <ScanButton project={project} first={!view.broken} onScanned={rescan} note={scanNote} onNote={setScanNote} />
-      </div>
-    );
-  }
-  return (
-    <StructurePane
-      view={view}
-      scans={tick}
-      onChanged={() => setReload((n) => n + 1)}
-      action={<ScanButton project={project} first={false} onScanned={rescan} note={scanNote} onNote={setScanNote} />}
-    />
   );
 }
 

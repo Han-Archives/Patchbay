@@ -103,6 +103,19 @@ describe("stagesOf", () => {
     expect(currentStage(stagesOf(all))).toBe("graph");
   });
 
+  it("이미 구현됨 길 — 2 구현은 요구사항 연결, 3 테스트는 통과, 4 · 5는 노드를 다 지나도 닫힌다 (사용자 결정 2026-10-20)", () => {
+    const base = { ...NONE, adopted: { version: 2 }, nodes: { total: 9, passed: 9 } };
+    const some = { ...base, existing: { total: 63, linked: 40, passed: 0 } };
+    expect(stagesOf(some)[2]).toMatchObject({ tone: "now", status: "요구사항 이음 40/63 · 이미 구현됨" });
+    expect(tones(some).slice(3)).toEqual(["test:locked", "graph:locked", "docs:locked"]);
+    expect(stagesOf(some)[0]!.status).toBe("설계 v2");
+    const linked = { ...base, existing: { total: 63, linked: 63, passed: 60 } };
+    expect(stagesOf(linked)[3]).toMatchObject({ tone: "now", status: "요구사항 통과 60/63" });
+    const passed = { ...base, existing: { total: 63, linked: 63, passed: 63 } };
+    expect(tones(passed).slice(2)).toEqual(["build:done", "test:done", "graph:locked", "docs:locked"]);
+    expect(stagesOf(passed)[4]!.next).toContain("이미 구현됨 길에서는 열지 않는다");
+  });
+
   it("실행 기록은 설계 없이도 보인다 — 들어온 것을 숨기지 않는다", () => {
     expect(stagesOf({ ...NONE, runs: 3 })[3]).toMatchObject({ tone: "now", status: "노드 정보 없음 · 실행 기록 3건" });
   });

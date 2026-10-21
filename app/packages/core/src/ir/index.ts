@@ -9,3 +9,4 @@ export * from "./patchDraft.js";
 export * from "./guides.js";
 export * from "./survey/index.js";
 export * from "./consult/index.js";
+export * from "./requirements.js";

@@ -16,6 +16,22 @@ import {
 } from "@patchbay/core";
 import { TodoPreparationReview } from "./TodoPreparationPanel.js";
 import { RoomExecutionPanel } from "./RoomExecutionPanel.js";
+import { ChatText } from "./ChatText.js";
+
+function roomRequestError(reason: unknown) {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  return /failed to fetch|fetch failed|load failed|networkerror|network request failed/i.test(message)
+    ? "Patchbay 서버에 연결할 수 없습니다. 입력 내용은 유지됩니다. 연결이 복구되면 다시 눌러주세요."
+    : message;
+}
+
+async function roomJson<T>(response: Response, label: string): Promise<T> {
+  let body: T & { error?: string };
+  try { body = await response.json(); }
+  catch { throw new Error(`${label}을 불러오지 못했습니다 (HTTP ${response.status}). 다시 확인해주세요.`); }
+  if (!response.ok || body.error) throw new Error(body.error ?? `${label}을 불러오지 못했습니다 (HTTP ${response.status}).`);
+  return body;
+}
 
 const CHIP: Record<RoomSpeaker, { mark: string; color: string }> = {
   "claude-code": { mark: "Cla", color: "#3d6fe0" },
@@ -181,7 +197,7 @@ function chipMark(member: RoomMember): string {
 }
 
 /** HTML 아이콘 → 이미지 → 글자 순서. HTML은 sandbox(스크립트 막음) 칸에서 모양만 그린다. */
-function chipFace(member: RoomMember): ReactNode {
+export function chipFace(member: RoomMember): ReactNode {
   if (member.iconHtml?.trim()) return <iframe className="room-chip-img room-chip-html" sandbox="" srcDoc={iconDoc(member.iconHtml)} title="" tabIndex={-1} aria-hidden="true" />;
   return member.image ? <img className="room-chip-img" src={member.image} alt="" /> : chipMark(member);
 }
@@ -213,7 +229,7 @@ function shrinkIcon(file: File): Promise<string> {
 }
 
 /** 이름이나 색이 있는 Agent만 색을 칠한다. 비우면 남색. */
-function chipStyle(member: RoomMember): CSSProperties | undefined {
+export function chipStyle(member: RoomMember): CSSProperties | undefined {
   // 이미지 · HTML 아이콘은 크기를 고정한다. iframe 기본 폭(300px)이 칸을 늘리지 않게.
   if (member.image || member.iconHtml?.trim()) return { padding: 0, overflow: "hidden", width: 36, minWidth: 36, flex: "none" };
   if (!member.name?.trim() && !member.color) return undefined;
@@ -270,6 +286,7 @@ interface RoomBody {
   members: RoomMember[];
   modeId?: string | null;
   preparationStatus?: string;
+  preparationWarning?: string;
   execution?: RoomExecution | null;
   error?: string;
 }
@@ -299,6 +316,8 @@ export function RoomPanel({
   const [modes, setModes] = useState<RoomMode[]>([]);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState<RoomBody | null>(null);
+  const [roomLoadError, setRoomLoadError] = useState<string | null>(null);
+  const [roomsLoadError, setRoomsLoadError] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [dockOpen, setDockOpen] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
@@ -336,6 +355,9 @@ export function RoomPanel({
 
   useEffect(() => {
     setRoom(null);
+    setRooms([]);
+    setRoomLoadError(null);
+    setRoomsLoadError(null);
     setQuickOpen(false);
     setMenuFor(null);
     setDraft("");
@@ -349,7 +371,7 @@ export function RoomPanel({
     setRoomId(kept ?? "");
     let cancelled = false;
     fetch(`/api/rooms?alias=${encodeURIComponent(project)}`)
-      .then((res) => res.json() as Promise<{ rooms?: RoomRow[] }>)
+      .then((res) => roomJson<{ rooms?: RoomRow[] }>(res, "대화 목록"))
       .then((body) => {
         if (cancelled || !Array.isArray(body.rooms)) return;
         if (kept === "" || (kept && body.rooms.some((row) => row.id === kept))) return;
@@ -357,7 +379,7 @@ export function RoomPanel({
         setRoomId(latest);
         if (latest) rememberRoom(project, latest);
       })
-      .catch(() => undefined);
+      .catch(reason => { if (!cancelled) setRoomsLoadError(roomRequestError(reason)); });
     return () => {
       cancelled = true;
     };
@@ -402,11 +424,12 @@ export function RoomPanel({
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/rooms?alias=${encodeURIComponent(project)}`)
-      .then((res) => res.json() as Promise<{ rooms: RoomRow[] }>)
+      .then((res) => roomJson<{ rooms: RoomRow[] }>(res, "대화 목록"))
       .then((body) => {
-        if (!cancelled && Array.isArray(body.rooms)) setRooms(body.rooms);
+        if (!Array.isArray(body.rooms)) throw new Error("대화 목록의 응답 형식이 올바르지 않습니다.");
+        if (!cancelled) { setRooms(body.rooms); setRoomsLoadError(null); }
       })
-      .catch(() => undefined);
+      .catch(reason => { if (!cancelled) setRoomsLoadError(roomRequestError(reason)); });
     return () => {
       cancelled = true;
     };
@@ -415,17 +438,19 @@ export function RoomPanel({
   useEffect(() => {
     if (!roomId) {
       setRoom(null);
+      setRoomLoadError(null);
       return;
     }
     let cancelled = false;
     fetch(`/api/room?alias=${encodeURIComponent(project)}&id=${encodeURIComponent(roomId)}`)
-      .then(async (res) => {
-        const body = (await res.json()) as RoomBody;
+      .then(res => roomJson<RoomBody>(res, "대화 내용"))
+      .then(body => {
+        if (body.id !== roomId || !Array.isArray(body.messages)) throw new Error("대화 내용의 응답 형식이 올바르지 않습니다.");
         if (cancelled) return;
-        if (body.error) setError(body.error);
-        else setRoom(body);
+        setRoom(body);
+        setRoomLoadError(null);
       })
-      .catch(() => undefined);
+      .catch(reason => { if (!cancelled) setRoomLoadError(roomRequestError(reason)); });
     return () => {
       cancelled = true;
     };
@@ -435,15 +460,15 @@ export function RoomPanel({
     if (!titleFocus) setTitleDraft(room?.displayTitle ?? "");
   }, [room?.displayTitle, roomId, titleFocus]);
 
-  const waiting = room?.running === true || !room?.execution && room?.status === "waiting";
+  const waiting = !roomLoadError && room?.running === true;
   // 같은 프로젝트의 다른 방에서 LLM이 답하는 중이면 위에 띄우고, 끝날 때까지 목록을 다시 읽는다.
-  const busyElsewhere = rooms.filter((row) => row.running && row.id !== roomId);
+  const busyElsewhere = roomsLoadError ? [] : rooms.filter((row) => row.running && row.id !== roomId);
   const othersBusy = busyElsewhere.length > 0;
   useEffect(() => {
-    if (!waiting && !othersBusy) return;
-    const timer = setInterval(() => setTick((n) => n + 1), 1500);
+    if (!waiting && !othersBusy && !roomLoadError && !roomsLoadError) return;
+    const timer = setInterval(() => setTick((n) => n + 1), roomLoadError || roomsLoadError ? 5000 : 1500);
     return () => clearInterval(timer);
-  }, [waiting, othersBusy]);
+  }, [waiting, othersBusy, roomLoadError, roomsLoadError]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -553,7 +578,7 @@ export function RoomPanel({
 
   async function send(text: string, round?: "talk" | "discuss") {
     const line = text.trim();
-    if ((!line && !round) || busy || waiting || kept) return;
+    if ((!line && !round) || busy || waiting || kept || roomLoadError) return;
     setBusy(true);
     setError(null);
     try {
@@ -569,7 +594,7 @@ export function RoomPanel({
         if (body.roomId) show(body.roomId);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "연결을 확인한 뒤 다시 시도한다.");
+      setError(roomRequestError(err));
     } finally {
       setBusy(false);
       setTick((n) => n + 1);
@@ -584,7 +609,7 @@ export function RoomPanel({
       const body = (await res.json()) as { error?: string };
       if (!res.ok || body.error) setError(body.error ?? `HTTP ${res.status}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "연결을 확인한 뒤 다시 시도한다.");
+      setError(roomRequestError(err));
     } finally {
       setTick((n) => n + 1);
     }
@@ -860,6 +885,8 @@ export function RoomPanel({
             <>
               {room?.preparationStatus ? <div className="prep-room-tabs" role="group" aria-label="준비 대화 보기"><button type="button" className={preparationView ? "is-on" : ""} aria-pressed={preparationView} onClick={() => setPreparationView(true)}>준비 결과</button><button type="button" className={!preparationView ? "is-on" : ""} aria-pressed={!preparationView} onClick={() => setPreparationView(false)}>대화 기록</button></div> : null}
               <div className="thread-body room-stage">
+                {roomLoadError || roomsLoadError ? <p className="thread-err" role="alert">{roomLoadError ?? roomsLoadError} 현재 실행 상태를 확인할 수 없습니다. <button type="button" className="flow-btn" onClick={() => setTick(n => n + 1)}>다시 확인</button></p> : null}
+                {room?.preparationWarning ? <p className="thread-note" role="status">{room.preparationWarning}</p> : null}
                 {room?.preparationStatus && preparationView ? <TodoPreparationReview key={`${project}/${roomId}`} project={project} roomId={roomId} readOnly={readOnly || !!room?.kept} /> : <>
                 {(!roomId || room) && !room?.messages.length && !room?.execution && !waiting ? (
                   <div className="msg room-welcome">안녕하세요. 무엇을 도와드릴까요?</div>
@@ -868,7 +895,7 @@ export function RoomPanel({
                   execution={room?.execution ?? null} waiting={!!waiting} kept={kept} revision={revision}
                   onChanged={() => setTick(n => n + 1)} onConsult={note => onConsult?.(note)} onAddMembers={() => setFace("llm")} /> : null}
                 {room?.messages.map((m) => (
-                  <RoomLine key={m.seq} message={m} />
+                  <RoomLine key={m.seq} message={m} project={project} />
                 ))}
                 {waiting ? <p className="thread-note">{room?.execution ? "테스트 실행 처리 중" : enabled.some((m) => m.speaker === "claude-code" || m.speaker === "codex") ? "답하는 중 · 고쳐 달라는 요청이면 직접 고치고 검사한다 (몇 분 걸릴 수 있다)" : "한 바퀴를 말하는 중"}</p> : null}
                 <div ref={endRef} />
@@ -950,10 +977,10 @@ export function RoomPanel({
                     <input ref={docRef} type="file" accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain" hidden onChange={(e) => void onPickedFile(e)} />
                   </div>
                   <div className="room-call-actions">
-                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || !draft.trim()} onClick={() => void send(draft)}>Record</button>
+                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || !!roomLoadError || !draft.trim()} onClick={() => void send(draft)}>Record</button>
                     <button type="button" className="flow-btn room-stop" disabled={room?.running !== true} onClick={() => void stopTurn()}>Stop</button>
                     {/* 보내기는 맨 오른쪽 (사용자 요청 2026-10-16) */}
-                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
+                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || !!roomLoadError || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
                   </div>
                   </div>
                 </div>
@@ -1134,16 +1161,16 @@ export function RoomPanel({
   );
 }
 
-function RoomLine({ message: m }: { message: RoomMessage }) {
+function RoomLine({ message: m, project }: { message: RoomMessage; project: string }) {
   if (m.role === "operation") return <div className={`msg is-operation is-${m.status}`}>
     <span className="msg-meta">{{ consult: "상담 연결", prepare: "실행 배정", act: "수행", check: "검증", deploy: "적용" }[m.stage]} · {{ started: "시작", completed: "완료", failed: "실패", waiting: "대기" }[m.status]}</span>
-    {m.text}{m.result !== undefined ? <details><summary>실행 근거</summary><pre>{JSON.stringify(m.result, null, 2)}</pre></details> : null}
+    <ChatText text={m.text} project={project} />{m.result !== undefined ? <details><summary>실행 근거</summary><pre>{JSON.stringify(m.result, null, 2)}</pre></details> : null}
   </div>;
   if (m.role === "memory") {
     return (
       <div className="msg is-memory">
         <span className="msg-meta">맥락 · 이전 기록</span>
-        {m.text}
+        <ChatText text={m.text} project={project} />
       </div>
     );
   }
@@ -1164,12 +1191,12 @@ function RoomLine({ message: m }: { message: RoomMessage }) {
             </span>
           ) : null}
         </span>
-        {m.text}
+        <ChatText text={m.text} project={project} />
       </div>
     );
   }
   if (m.role === "system") {
-    return <div className="msg is-system">{m.text}</div>;
+    return <div className="msg is-system"><ChatText text={m.text} project={project} /></div>;
   }
   const name = m.speaker === "local" && m.model ? m.model : ROOM_SPEAKER_LABEL[m.speaker];
   return (
@@ -1178,7 +1205,7 @@ function RoomLine({ message: m }: { message: RoomMessage }) {
         {name}
         {m.speaker !== "local" && m.model ? ` · ${m.model}` : ""}{m.effort ? ` · ${m.effort}` : ""}{m.via === "claude-session" ? " · Claude Code 세션" : ""} · {(m.ms / 1000).toFixed(1)}초
       </span>
-      {m.text}
+      <ChatText text={m.text} project={project} />
     </div>
   );
 }

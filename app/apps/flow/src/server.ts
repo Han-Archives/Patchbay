@@ -1,4 +1,7 @@
 import fs from "node:fs/promises";
+import { registerSemanticRoutes } from "./semanticHost.js";
+import { registerRagRoutes } from "./ragHost.js";
+import { registerRequirementRoutes } from "./requirementView.js";
 import { HISTORY_DOMAINS, historyDomainTags } from "./historyContract.js";
 import { createTodoPreparationHost, PreparationError } from "./todoPreparation.js";
 import path from "node:path";
@@ -17,6 +20,9 @@ import {
   listRefs,
   refFilePath,
   readStudio,
+  listWorkspaceDir,
+  loadWorkspaceFile,
+  saveWorkspaceFile,
   readTodos,
   readProgress,
   readDashboardHistory,
@@ -53,12 +59,10 @@ import {
   LLM_QUOTA_PRESETS,
   LLM_QUOTA_PROVIDERS,
   PRESET_CAPS,
-  clearLlmQuotaExhausted,
   loadLlmQuotaSnapshot,
   providerCapSchema,
   updateLlmQuotaConfig,
   type LlmQuotaPreset,
-  type LlmQuotaProvider,
 } from "@patchbay/core";
 import {
   SSE_KEEPALIVE_COMMENT,
@@ -74,7 +78,7 @@ import { resolveLangGraphUrl } from "./langgraphContract.js";
 import { delegateFlowRun, loadFlowView } from "./flowView.js";
 import { loadImpactView } from "./impactView.js";
 import { adoptIrView, loadIrView, saveCellView, startDraftView } from "./irView.js";
-import { generateScaffoldView, loadBuildView } from "./buildView.js";
+import { existingBuildAction, generateScaffoldView, loadBuildView } from "./buildView.js";
 import { loadWorkspace } from "./workspaceView.js";
 import { addProjectView, rescanProjectView } from "./projectAddView.js";
 import { addDecisionView } from "./decisionView.js";
@@ -110,11 +114,12 @@ import {
   unlinkBoardItems,
 } from "./boardView.js";
 import { acceptSkillDraftView, distillSkillDraft, patchSkillView } from "./skillView.js";
-import { loadSourceFile, saveSourceFile } from "./sourceFileView.js";
+import { loadProjectFile, loadSourceFile, projectRelFromAbsolute, saveSourceFile } from "./sourceFileView.js";
 import { loadShell } from "./shell.js";
 import { startStudioWatch, type StudioWatch } from "./studioWatch.js";
 import {
   closeConsultConversation,
+  consultAgentInput,
   consultRunInfo,
   detectConsultHosts,
   isConsultRunning,
@@ -157,6 +162,26 @@ const CLIENT_DIST = path.resolve(__dirname, "..", "dist-client");
 const THREAD_OVERDUE_CHECK_MS = 15_000;
 
 /** JSON 본문을 객체로 읽는다. 없거나 깨졌으면 null. */
+/** 한글 파일 이름도 그대로 받게 — `filename` 은 옛 브라우저용 ASCII, `filename*` 이 실제 이름. */
+function downloadDisposition(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
+/**
+ * 프로젝트 파일은 에이전트가 만든 것이라 믿지 않는다. `sandbox`(allow-same-origin 없음)로 열면 시안 HTML 의
+ * 스크립트는 돌지만 콘솔 출처가 아니라서, 콘솔 API 를 쿠키 달고 부르거나 콘솔 화면을 건드리지 못한다.
+ */
+function fileHeaders(contentType: string, rel: string, download: boolean): Record<string, string> {
+  return {
+    "content-type": contentType,
+    "content-security-policy": "sandbox allow-scripts allow-popups allow-forms allow-modals",
+    "x-content-type-options": "nosniff",
+    "cache-control": "no-store",
+    ...(download ? { "content-disposition": downloadDisposition(path.posix.basename(rel)) } : {}),
+  };
+}
+
 async function jsonRecord(c: Context): Promise<Record<string, unknown> | null> {
   try {
     const payload: unknown = await c.req.json();
@@ -168,6 +193,8 @@ async function jsonRecord(c: Context): Promise<Record<string, unknown> | null> {
 
 export interface FlowAppOptions {
   studioHome: string;
+  /** serve.ts만 실제 CLI 조회를 연결한다. 테스트·임시 앱은 명시적으로 주입하지 않으면 호출하지 않는다. */
+  claudeQuotaRefresh?: () => Promise<void>;
   /** Registered alias to prefer in the console. Omitted -> first registered project. */
   project?: string;
   /**
@@ -273,6 +300,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
   const neo4jUri = resolveNeo4jUri(options.neo4j?.uri);
   const neo4jPort = options.neo4j ? createNeo4jDriverPort(options.neo4j) : undefined;
+  const semanticHost = registerSemanticRoutes(app, options.studioHome, { neo4j: neo4jPort, runner: options.roomRunner, bin: options.roomBin });
+  const ragHost = registerRagRoutes(app, options.studioHome, { runner: options.roomRunner, bin: options.roomBin, reflect: semanticHost.reflect });
   const ingestTracker = createIngestTracker();
 
   let studioWatch: StudioWatch | undefined;
@@ -317,7 +346,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   // 레일 불빛 — 대화방 · 상담 · 테스트 실행 어디서든 LLM이 일하는 중인 프로젝트.
   app.get("/api/running", (c) => {
     c.header("Cache-Control", "no-store");
-    return c.json({ aliases: [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases()])] });
+    return c.json({ aliases: [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases(), ...semanticHost.busyAliases(), ...ragHost.busyAliases()])] });
   });
 
   app.post("/api/project/name", async (c) => {
@@ -328,7 +357,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     try {
       const result = await renameProject(options.studioHome, rec.alias, rec.name, {
         protectedPaths: [__dirname],
-        isBusy: alias => runningRoomAliases().includes(alias) || runningConsultAliases().includes(alias) || roomExecution.busyAliases().includes(alias) || todoPreparation.isBusy(alias),
+        isBusy: alias => runningRoomAliases().includes(alias) || runningConsultAliases().includes(alias) || roomExecution.busyAliases().includes(alias) || todoPreparation.isBusy(alias) || semanticHost.busyAliases().includes(alias) || ragHost.busyAliases().includes(alias),
       });
       for (const alias of result.affectedAliases) emit({ event: "board", alias });
       return c.json({ ok: true, alias: result.project.alias, name: result.project.name!, path: result.project.path });
@@ -517,6 +546,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
         threadId: rec.threadId,
         checkpointId: rec.checkpointId,
         input: rec.input,
+        node: rec.node,
       },
       langgraphUrl,
     );
@@ -549,6 +579,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     }
     return c.json(result.body);
   });
+
+  registerRequirementRoutes(app, options.studioHome);
 
   app.get("/api/ir", async (c) => {
     const result = await loadIrView(options.studioHome, c.req.query("alias"), c.req.query("source"));
@@ -616,6 +648,19 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       return c.json({ ok: false, error: result.error }, result.status);
     }
     return c.json(result.body);
+  });
+
+  /** 「이미 구현됨」 길 — 고르기 · 잇기 · 확인 · 버리기 · 이은 테스트 실행 (사용자 결정 2026-10-20). */
+  app.post("/api/build/existing", async (c) => {
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ ok: false, error: "JSON body is required." }, 400);
+    }
+    const rec = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+    const result = await existingBuildAction(options.studioHome, rec);
+    return c.json(result.body, result.status);
   });
 
   /**
@@ -814,6 +859,29 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     return c.json(result.body);
   });
 
+  // 대화방 · 상담 창의 링크 — 파일을 그대로 연다(`?download=1` 이면 받는다). 경로를 URL 길에 두어
+  // 시안 HTML 의 옆 파일 참조(`style.css`, `img/a.png`)가 같은 길로 풀린다.
+  app.get("/api/project-file/:alias/*", async (c) => {
+    const alias = c.req.param("alias");
+    const prefix = `/api/project-file/${encodeURIComponent(alias)}/`;
+    const raw = c.req.path.startsWith(prefix) ? c.req.path.slice(prefix.length) : "";
+    let rel: string;
+    try {
+      rel = raw.split("/").map(decodeURIComponent).join("/");
+    } catch {
+      return c.json({ error: "경로를 읽지 못했다." }, 400);
+    }
+    const query = new URL(c.req.url).search;
+    if (rel.startsWith("/")) {
+      const inside = await projectRelFromAbsolute(options.studioHome, alias, rel);
+      if (!inside) return c.json({ error: "프로젝트 밖의 파일이다." }, 403);
+      return c.redirect(`${prefix}${inside.split("/").map(encodeURIComponent).join("/")}${query}`);
+    }
+    const result = await loadProjectFile(options.studioHome, alias, rel);
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return new Response(new Uint8Array(result.data), { headers: fileHeaders(result.contentType, result.rel, c.req.query("download") === "1") });
+  });
+
   app.put("/api/source", async (c) => {
     let payload: unknown;
     try {
@@ -827,6 +895,22 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       return c.json({ error: result.error }, result.status);
     }
     return c.json(result.body);
+  });
+
+  // 「폴더 · 문서」 편집기 — 그 프로젝트의 기록 폴더(`projects/<alias>/`)만. 쓰기는 커널 `saveWorkspaceFile`.
+  app.get("/api/workspace-files", async (c) => {
+    const result = await listWorkspaceDir(options.studioHome, c.req.query("alias"), c.req.query("dir"));
+    return result.ok ? c.json(result.body) : c.json({ error: result.error }, result.status);
+  });
+  app.get("/api/workspace-file", async (c) => {
+    const result = await loadWorkspaceFile(options.studioHome, c.req.query("alias"), c.req.query("path"));
+    return result.ok ? c.json(result.body) : c.json({ error: result.error }, result.status);
+  });
+  app.put("/api/workspace-file", async (c) => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    const result = await saveWorkspaceFile(options.studioHome, rec);
+    return result.ok ? c.json(result.body) : c.json({ error: result.error, ...(result.hash ? { hash: result.hash } : {}) }, result.status);
   });
 
   // 1 설계 설문 — 묻고 고르는 설계 (사용자 결정 2026-10-05). 답 → 초안은 커널이 만든다.
@@ -874,6 +958,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
           // SVG 안의 스크립트가 콘솔 출처로 돌지 않게.
           "content-security-policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
           "x-content-type-options": "nosniff",
+          ...(c.req.query("download") === "1" ? { "content-disposition": downloadDisposition(path.basename(file)) } : {}),
         },
       });
     } catch {
@@ -1099,14 +1184,28 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   app.post("/api/consult/send", async (c) => {
     const rec = await jsonRecord(c);
     if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    const alias = typeof rec.alias === "string" ? rec.alias : "";
+    // 등록 LLM을 골랐으면 그 Agent의 공급자 · 모델 · 강도로 부른다. 아니면 예전처럼 호스트 · 모델을 그대로 받는다.
+    let caller: Pick<Parameters<typeof sendConsultTurn>[1], "host" | "model" | "effort" | "agent"> = {
+      host: (typeof rec.host === "string" ? rec.host : "claude-code") as "claude-code",
+      model: typeof rec.model === "string" ? rec.model : "",
+    };
+    if (typeof rec.agentId === "string" && rec.agentId) {
+      const loaded = await loadAgents(options.studioHome, alias);
+      if (!loaded.ok) return c.json({ error: loaded.error }, loaded.status);
+      const agent = loaded.agents.find((a) => a.id === rec.agentId);
+      if (!agent) return c.json({ error: "등록된 LLM 목록에 그 LLM이 없다 — LLM 호출에서 다시 고른다." }, 404);
+      const picked = consultAgentInput(agent);
+      if (!picked.ok) return c.json({ error: picked.error }, 400);
+      caller = { host: picked.host, model: picked.model, agent: picked.agent, ...(picked.effort ? { effort: picked.effort } : {}) };
+    }
     const result = await sendConsultTurn(
       options.studioHome,
       {
-        alias: typeof rec.alias === "string" ? rec.alias : "",
+        alias,
         ...(typeof rec.consultId === "string" && rec.consultId ? { consultId: rec.consultId } : {}),
         text: typeof rec.text === "string" ? rec.text : "",
-        host: (typeof rec.host === "string" ? rec.host : "claude-code") as "claude-code",
-        model: typeof rec.model === "string" ? rec.model : "",
+        ...caller,
         ...(typeof rec.prdSection === "number" ? { prdSection: rec.prdSection } : {}),
         ...(Array.isArray(rec.attachments) ? { attachments: rec.attachments.filter((a): a is string => typeof a === "string") } : {}),
       },
@@ -1152,8 +1251,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     if (!alias) return c.json({ error: "alias is required." }, 400);
     const rooms = await roomListView(options.studioHome, alias);
     // 준비 상태는 덧붙이는 정보다 — 등록되지 않은 프로젝트면 없이 목록만 준다.
-    const prepared = (await todoPreparation.list(alias).catch((e: unknown) => { if (e instanceof PreparationError && e.status === 404) return { items: [] }; throw e; })).items;
-    return c.json({ rooms: rooms.map((row) => ({ ...row, preparationStatus: prepared.find(v => v.roomId === row.id)?.status, running: row.running || roomExecution.isBusy(alias, row.id) })) });
+    const prepared = await todoPreparation.list(alias).then(result => ({ items: result.items, warning: undefined as string | undefined })).catch(() => ({ items: [], warning: "할일 준비 상태를 불러오지 못했습니다. 할일 목록을 확인해주세요." }));
+    return c.json({ rooms: rooms.map((row) => ({ ...row, preparationStatus: prepared.items.find(v => v.roomId === row.id)?.status, running: row.running || roomExecution.isBusy(alias, row.id) })), ...(prepared.warning ? { preparationWarning: prepared.warning } : {}) });
   });
 
   app.get("/api/room", async (c) => {
@@ -1167,8 +1266,9 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       return c.json({ error: (error as Error).message }, 400);
     }
     if (!read) return c.json({ error: `대화방 ${id} 가 없다.` }, 404);
-    const preparation = (await todoPreparation.list(alias)).items.find(v => v.roomId === id);
-    return c.json({ ...read, preparationStatus: preparation?.status, running: read.running || roomExecution.isBusy(alias, id) });
+    const prepared = await todoPreparation.list(alias).then(result => ({ items: result.items, warning: undefined as string | undefined })).catch(() => ({ items: [], warning: "할일 준비 상태를 불러오지 못했습니다. 할일 목록을 확인해주세요." }));
+    const preparation = prepared.items.find(v => v.roomId === id);
+    return c.json({ ...read, preparationStatus: preparation?.status, running: read.running || roomExecution.isBusy(alias, id), ...(prepared.warning ? { preparationWarning: prepared.warning } : {}) });
   });
 
   app.get("/api/room/approved", async (c) => {
@@ -1515,6 +1615,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   // LLM 구독제 토큰 체력바 (왼쪽 하단 레일 + 상세 창).
   app.get("/api/llm-quota", async (c) => {
     try {
+      await options.claudeQuotaRefresh?.().catch(() => undefined);
       return c.json(await loadLlmQuotaSnapshot(options.studioHome));
     } catch (error) {
       return c.json({ error: (error as Error).message }, 500);
@@ -1525,14 +1626,6 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     const rec = await jsonRecord(c);
     if (!rec) return c.json({ error: "JSON body is required." }, 400);
     try {
-      if (rec.action === "recover") {
-        const provider = typeof rec.provider === "string" ? rec.provider : "";
-        if (!(LLM_QUOTA_PROVIDERS as readonly string[]).includes(provider)) {
-          return c.json({ error: "유효한 LLM 공급자가 아닙니다." }, 400);
-        }
-        await clearLlmQuotaExhausted(options.studioHome, provider as LlmQuotaProvider);
-        return c.json(await loadLlmQuotaSnapshot(options.studioHome));
-      }
       const preset = typeof rec.preset === "string" && (LLM_QUOTA_PRESETS as readonly string[]).includes(rec.preset)
         ? (rec.preset as LlmQuotaPreset)
         : undefined;
@@ -1613,6 +1706,8 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
       todoPreparation.stopAll();
       await studioWatch?.close();
       studioWatch = undefined;
+      semanticHost.close();
+      ragHost.close();
       await neo4jPort?.close();
     },
   });

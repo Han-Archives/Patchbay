@@ -16,3 +16,6 @@ export * from "./backup.js";
 export * from "./llmQuotaStore.js";
 export * from "./todoPreparationStore.js";
 export * from "./dashboardHistoryStore.js";
+export * from "./workspaceFiles.js";
+export * from "./existingBuildStore.js";
+export * from "./trashStore.js";

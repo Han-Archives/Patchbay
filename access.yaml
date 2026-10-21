@@ -9,15 +9,24 @@
 
 version: 1
 rules:
+  - path: "workspace/projects/*/knowledge/**"
+    tier: 허가
+    why: 선택한 지식 자료 원문 버전 · 인용 근거 · 사용자 검토 이력
   - path: "workspace/projects/*/dashboard-history.json"
     tier: 허가
     why: 사용자가 작성한 일자별 변경 기록
   - path: "workspace/projects/*/todo-preparations.json"
     tier: 허가
     why: 할일 사전 준비 산출물과 사용자 승인 이력
-  - path: "workspace/projects/*/rooms/**"
+  - path: "workspace/projects/*/ir.requirement-review.json"
+    tier: 허가
+    why: 요구사항 변경 당시 내용과 사용자 검토 이력
+  - path: "workspace/projects/*/chats/**"
     tier: 허가
     why: 대화방 원문 — 사용자 대화가 그대로 있다
+  - path: "workspace/projects/*/rooms/**"
+    tier: 허가
+    why: 대화방 원문의 옛 이름 — 콘솔 서버가 켜질 때 chats/로 옮긴다
   - path: "workspace/projects/*/consult/**"
     tier: 허가
     why: 상담 원문

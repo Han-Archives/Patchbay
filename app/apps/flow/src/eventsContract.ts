@@ -19,6 +19,9 @@ export const STUDIO_EVENT_FILES = {
   // 상담의 출처 · PRD 검토 — 초안과 같이 읽는 저작 상태라 같은 이름이다 (명세 20261006a §12.6 · §14.2).
   "ir.provenance.yaml": "overlay",
   "ir.review.yaml": "overlay",
+  "ir.requirement-review.json": "overlay",
+  // 「이미 구현됨」 길의 연결 · 결과 — 승인본 옆의 구현 쪽 사실이라 같은 이름이다 (사용자 결정 2026-10-20).
+  "existing-build.json": "overlay",
   "board.yaml": "board",
 } as const;
 
@@ -38,11 +41,13 @@ export const THREAD_EVENT_NAME = "thread";
 export const CONSULT_EVENT_NAME = "consult";
 
 /**
- * 대화방 파일은 `projects/<alias>/rooms/<id>.jsonl` (+ `.meta.json`). 콘솔 밖(Claude Code 훅
+ * 대화방 파일은 `projects/<alias>/chats/<id>.jsonl` (+ `.meta.json`, 옮기기 전이면 `rooms/`). 콘솔 밖(Claude Code 훅
  * `patchbay room mirror`)에서도 쓰므로, 화면이 다시 읽도록 알린다. 아래 이름 목록에는 넣지 않는다 —
  * 그 목록은 화면 전체를 다시 읽게 하는데, 방의 한 줄마다 그럴 일은 아니다. 대화 칸만 다시 읽는다.
  */
 export const ROOM_EVENT_NAME = "room";
+/** 선택한 지식 자료와 근거별 검토 기록. 설계 변경과 구별한다. */
+export const SEMANTIC_EVENT_NAME = "knowledge";
 
 export const STUDIO_EVENT_NAMES = [
   "progress",
@@ -54,7 +59,7 @@ export const STUDIO_EVENT_NAMES = [
 ] as const;
 
 export interface StudioEvent {
-  event: StudioEventName | typeof THREAD_EVENT_NAME | typeof CONSULT_EVENT_NAME | typeof ROOM_EVENT_NAME;
+  event: StudioEventName | typeof THREAD_EVENT_NAME | typeof CONSULT_EVENT_NAME | typeof ROOM_EVENT_NAME | typeof SEMANTIC_EVENT_NAME;
   alias: string;
   /** 대화 이벤트일 때만 — 바뀐 대화. */
   threadId?: string;
@@ -90,11 +95,13 @@ export function parseStudioEvent(filePath: string, studioHome?: string): StudioE
     }
   }
 
+  const semantic = /(?:^|\/)projects\/([^/]+)\/knowledge\/semantic\.json$/.exec(relative);
+  if (semantic?.[1]) return { event: SEMANTIC_EVENT_NAME, alias: semantic[1] };
   const thread = /(?:^|\/)projects\/([^/]+)\/threads\/([^/]+)\.jsonl$/.exec(relative);
   if (thread?.[1] && thread[2]) return { event: THREAD_EVENT_NAME, alias: thread[1], threadId: thread[2] };
   const consult = /(?:^|\/)projects\/([^/]+)\/consult\/([^/]+)\.jsonl$/.exec(relative);
   if (consult?.[1] && consult[2]) return { event: CONSULT_EVENT_NAME, alias: consult[1], consultId: consult[2] };
-  const room = /(?:^|\/)projects\/([^/]+)\/rooms\/([^/]+?)(?:\.meta\.json|\.jsonl)$/.exec(relative);
+  const room = /(?:^|\/)projects\/([^/]+)\/(?:chats|rooms)\/([^/]+?)(?:\.meta\.json|\.jsonl)$/.exec(relative);
   if (room?.[1] && room[2]) return { event: ROOM_EVENT_NAME, alias: room[1], roomId: room[2] };
 
   const match = /(?:^|\/)projects\/([^/]+)\/([^/]+)$/.exec(relative);

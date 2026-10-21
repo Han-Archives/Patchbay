@@ -680,6 +680,35 @@ describe("GET/PUT /api/source", () => {
   });
 });
 
+describe("/api/workspace-files · /api/workspace-file", () => {
+  it("기록 폴더만 보이고, 조회 전용 연결은 저장하지 못하며, 연 뒤에 바뀐 파일은 409", async () => {
+    const studioHome = tmpStudioHome();
+    await ensureStudioInitialized(studioHome);
+    await registerProject(studioHome, { alias: "demo", kind: "local_repo", path: fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-ws-repo-")) });
+    const record = path.join(studioHome, "projects/demo");
+    fs.mkdirSync(record, { recursive: true });
+    fs.writeFileSync(path.join(record, "todos.json"), '{"todos":[]}\n');
+    const app = createFlowApp({ studioHome, access: { token: "write", readToken: "read" } });
+    const as = (token: string) => ({ authorization: `Bearer ${token}` });
+    const put = (body: unknown, token = "write") => app.request("/api/workspace-file", { method: "PUT", headers: { "content-type": "application/json", ...as(token) }, body: JSON.stringify(body) });
+    try {
+      const list = await app.request("/api/workspace-files?alias=demo", { headers: as("read") });
+      expect(list.status).toBe(200);
+      expect(((await list.json()) as { entries: { name: string }[] }).entries.map((entry) => entry.name)).toEqual(["todos.json"]);
+      expect((await app.request("/api/workspace-files?alias=demo&dir=..", { headers: as("read") })).status).toBe(400);
+
+      const opened = (await (await app.request("/api/workspace-file?alias=demo&path=todos.json", { headers: as("read") })).json()) as { hash: string };
+      expect((await put({ alias: "demo", path: "todos.json", content: "{}\n", expectedHash: opened.hash }, "read")).status).toBe(403);
+      expect((await put({ alias: "demo", path: "todos.json", content: "{}\n", expectedHash: opened.hash })).status).toBe(200);
+      const stale = await put({ alias: "demo", path: "todos.json", content: "[]\n", expectedHash: opened.hash });
+      expect(stale.status).toBe(409);
+      expect(fs.readFileSync(path.join(record, "todos.json"), "utf8")).toBe("{}\n");
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 describe("PUT /api/project/process", () => {
   it("stores the installer process on overlay.yaml", async () => {
     const studioHome = tmpStudioHome();
@@ -789,7 +818,7 @@ describe("POST /api/project/hidden", () => {
 });
 
 describe("GET · POST /api/llm-quota", () => {
-  it("스냅샷을 반환하고 체력통 설정 · 수동 회복을 반영한다", async () => {
+  it("스냅샷을 반환하고 체력통 설정을 반영한다", async () => {
     const studioHome = tmpStudioHome();
     await ensureStudioInitialized(studioHome);
     const app = createFlowApp({ studioHome });
@@ -821,9 +850,57 @@ describe("GET · POST /api/llm-quota", () => {
     };
     expect(updated.preset).toBe("custom");
     expect(updated.providers[0]?.session.capTokens).toBe(500_000);
-
-    const recRes = await post({ action: "recover", provider: "claude-code" });
-    expect(recRes.status).toBe(200);
   });
 });
 
+
+describe("GET /api/project-file", () => {
+  async function seeded() {
+    const studioHome = tmpStudioHome();
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-file-repo-"));
+    fs.mkdirSync(path.join(repo, "시안"));
+    fs.writeFileSync(path.join(repo, "시안", "홈 화면.html"), "<link rel=stylesheet href=style.css><h1>시안</h1>");
+    fs.writeFileSync(path.join(repo, "시안", "style.css"), "h1{color:red}");
+    fs.writeFileSync(path.join(repo, ".env"), "KEY=secret");
+    await ensureStudioInitialized(studioHome);
+    await registerProject(studioHome, { alias: "demo", kind: "local_repo", path: repo });
+    return { app: createFlowApp({ studioHome }), repo };
+  }
+  const url = (rel: string) => `/api/project-file/demo/${rel.split("/").map(encodeURIComponent).join("/")}`;
+
+  it("serves a design draft sandboxed away from the console's origin", async () => {
+    const { app } = await seeded();
+    const res = await app.request(url("시안/홈 화면.html"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    expect(res.headers.get("content-security-policy")).toMatch(/^sandbox /);
+    expect(res.headers.get("content-security-policy")).not.toContain("allow-same-origin");
+    expect(res.headers.get("content-disposition")).toBeNull();
+    expect(await res.text()).toContain("<h1>시안</h1>");
+    // 시안이 옆 파일을 상대 경로로 부르면 같은 길로 풀린다.
+    expect((await app.request(url("시안/style.css"))).headers.get("content-type")).toContain("text/css");
+  });
+
+  it("hands the file over as a download with its Korean name", async () => {
+    const { app } = await seeded();
+    const res = await app.request(`${url("시안/홈 화면.html")}?download=1`);
+    expect(res.headers.get("content-disposition")).toContain(`filename*=UTF-8''${encodeURIComponent("홈 화면.html")}`);
+  });
+
+  it("moves an absolute path inside the project onto its relative address", async () => {
+    const { app, repo } = await seeded();
+    const res = await app.request(`/api/project-file/demo/${encodeURIComponent(path.join(repo, "시안", "홈 화면.html"))}?download=1`);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${url("시안/홈 화면.html")}?download=1`);
+  });
+
+  it("refuses files outside the project, secrets, and unknown projects", async () => {
+    const { app } = await seeded();
+    expect((await app.request(`/api/project-file/demo/${encodeURIComponent("/etc/hosts")}`)).status).toBe(403);
+    expect((await app.request("/api/project-file/demo/..%2F..%2Fetc%2Fhosts")).status).toBe(400);
+    expect((await app.request(url(".env"))).status).toBe(403);
+    expect((await app.request(url("시안/없음.png"))).status).toBe(404);
+    expect((await app.request(url("시안"))).status).toBe(400);
+    expect((await app.request("/api/project-file/nope/a.html")).status).toBe(404);
+  });
+});
