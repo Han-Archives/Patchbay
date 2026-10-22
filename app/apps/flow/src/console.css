@@ -7240,7 +7240,8 @@ span.cycle-item-icon { cursor: default; }
 .main-shell.is-dashboard .todo-active-list { max-height: calc(7 * 53px); }
 .main-shell.is-dashboard .main-todos > header { height: 49px; min-height: 49px; }
 .main-shell.is-dashboard .todo-completed-head { padding: 12px 16px 4px; }
-.main-shell.is-dashboard .todo-completed-list { flex: 0 0 212px; height: 212px; min-height: 212px; max-height: 212px; overflow-y: auto; }
+/* 낮은 화면에서는 줄어든다 — 고정 212px이 Tasks 칸 바닥 밖으로 밀려 잘렸다 (R1.3 실측 2026-10-21). */
+.main-shell.is-dashboard .todo-completed-list { flex: 0 1 212px; height: auto; min-height: 68px; max-height: 212px; overflow-y: auto; }
 /* 옆 작업 표 윗변에 완료 바를 고정한다. 진행 목록만 남은 공간에서 스크롤한다. */
 @media (min-width: 901px) {
   .main-shell.is-dashboard .todo-active-list { flex: 0 0 var(--todo-active-height, 240px); height: var(--todo-active-height, 240px); max-height: none; }
