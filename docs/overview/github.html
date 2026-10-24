@@ -1,0 +1,507 @@
+<title>Patchbay 개요 초안</title>
+<style>
+/* Layout: 저장소의 README 파일 보기 — 가운데 한 단, 테두리 친 파일 상자(머리줄 고정 + 목차 버튼) 안에 마크다운 본문.
+   글꼴 · 색 · 표 · 알림 상자 · 할 일 목록은 GitHub 마크다운 렌더링 관례를 따른다. 로고 · 저장소 머리는 넣지 않는다. */
+:root {
+  --canvas: #ffffff;
+  --canvas-subtle: #f6f8fa;
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --border: #d1d9e0;
+  --border-muted: #d1d9e0b3;
+  --accent: #0969da;
+  --success: #1a7f37;
+  --success-subtle: #dafbe1;
+  --attention: #9a6700;
+  --done: #8250df;
+  --code-bg: #818b981f;
+  --hover-bg: #818b981a;
+  --shadow: 0 8px 24px rgba(140, 149, 159, .2);
+  --shot-bg: #121212;
+  --badge-label: #555555;
+  --badge-blue: #007ec6;
+  --badge-green: #3c9a17;
+  --badge-olive: #8a8c19;
+  --badge-fg: #ffffff;
+  --f-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Helvetica, Arial, sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --f-badge: Verdana, Geneva, "DejaVu Sans", "Apple SD Gothic Neo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #0d1117; --canvas-subtle: #151b23; --fg: #f0f6fc; --fg-muted: #9198a1;
+    --border: #3d444d; --border-muted: #3d444db3; --accent: #4493f8; --success: #3fb950;
+    --success-subtle: rgba(46, 160, 67, .15); --attention: #d29922; --done: #ab7df8;
+    --code-bg: #656c7633; --hover-bg: #656c7633; --shadow: 0 8px 24px #010409;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #0d1117; --canvas-subtle: #151b23; --fg: #f0f6fc; --fg-muted: #9198a1;
+  --border: #3d444d; --border-muted: #3d444db3; --accent: #4493f8; --success: #3fb950;
+  --success-subtle: rgba(46, 160, 67, .15); --attention: #d29922; --done: #ab7df8;
+  --code-bg: #656c7633; --hover-bg: #656c7633; --shadow: 0 8px 24px #010409;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--canvas); color: var(--fg);
+  font-family: var(--f-sans); font-size: 16px; line-height: 1.5;
+  padding-inline: 16px; padding-block: 24px 64px;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+
+/* 파일 상자 */
+.file { max-width: 1012px; margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); }
+.file-head {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 8px 8px 16px; background: var(--canvas); border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+}
+.file-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; min-width: 0; }
+.file-name svg { color: var(--fg-muted); flex: none; }
+.file-tools { display: flex; align-items: center; gap: 12px; position: relative; }
+.file-date { font-size: 12px; color: var(--fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.icon-btn {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer;
+  color: var(--fg-muted); background: transparent; border: 1px solid transparent; border-radius: 6px;
+}
+.icon-btn:hover, .icon-btn[aria-expanded="true"] { background: var(--hover-bg); color: var(--fg); }
+.outline {
+  position: absolute; right: 0; top: calc(100% + 6px); width: min(340px, calc(100vw - 48px));
+  max-height: min(70vh, 560px); overflow: auto; padding: 8px;
+  background: var(--canvas); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
+}
+.outline b { display: block; padding: 6px 8px 8px; font-size: 12px; font-weight: 600; color: var(--fg-muted); }
+.outline ul { list-style: none; margin: 0; padding: 0; }
+.outline a { display: block; padding: 6px 8px; border-radius: 6px; font-size: 14px; color: var(--fg); text-decoration: none; line-height: 1.4; }
+.outline a:hover { background: var(--hover-bg); }
+.outline .lv3 a { padding-left: 24px; color: var(--fg-muted); }
+.outline .lv3 a:hover { color: var(--fg); }
+
+/* 마크다운 본문 */
+.markdown-body { padding: 32px; min-width: 0; }
+@media (max-width: 767px) { .markdown-body { padding: 16px; } }
+.markdown-body > :first-child { margin-top: 0 !important; }
+.markdown-body a { color: var(--accent); text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  position: relative; margin: 24px 0 16px; font-weight: 600; line-height: 1.25; text-wrap: balance;
+  scroll-margin-top: 64px;
+}
+.markdown-body h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--border-muted); }
+.markdown-body h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--border-muted); margin-top: 40px; }
+.markdown-body h3 { font-size: 1.25em; margin-top: 32px; }
+.markdown-body .anchor {
+  position: absolute; left: -24px; top: 0; bottom: 0; display: flex; align-items: center; width: 24px;
+  color: var(--fg); opacity: 0;
+}
+.markdown-body h1:hover .anchor, .markdown-body h2:hover .anchor, .markdown-body h3:hover .anchor, .markdown-body .anchor:focus-visible { opacity: 1; }
+@media (max-width: 767px) { .markdown-body .anchor { display: none; } }
+.markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body blockquote,
+.markdown-body table, .markdown-body figure, .markdown-body .markdown-alert, .markdown-body .diagram, .markdown-body .pair { margin: 0 0 16px; }
+.markdown-body ul, .markdown-body ol { padding-left: 2em; }
+.markdown-body li + li { margin-top: .25em; }
+.markdown-body strong { font-weight: 600; }
+.markdown-body code {
+  padding: .2em .4em; font-family: var(--f-mono); font-size: 85%; white-space: break-spaces;
+  background: var(--code-bg); border-radius: 6px;
+}
+.markdown-body blockquote { padding: 0 1em; color: var(--fg-muted); border-left: .25em solid var(--border); }
+.markdown-body blockquote strong { color: var(--fg); }
+.markdown-body .goal { font-size: 1.125em; }
+
+/* 표 */
+.markdown-body table {
+  display: block; width: max-content; max-width: 100%; overflow: auto;
+  border-spacing: 0; border-collapse: collapse; font-variant-numeric: tabular-nums;
+}
+.markdown-body th, .markdown-body td { padding: 6px 13px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.markdown-body th { font-weight: 600; }
+.markdown-body tr { background: var(--canvas); border-top: 1px solid var(--border-muted); }
+.markdown-body tr:nth-child(2n) { background: var(--canvas-subtle); }
+.markdown-body td.nowrap { white-space: nowrap; }
+
+/* 배지 */
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.badge { display: inline-flex; height: 20px; border-radius: 3px; overflow: hidden; font: 11px/20px var(--f-badge); color: var(--badge-fg); white-space: nowrap; }
+.badge span { padding: 0 6px; text-shadow: 0 1px 0 rgba(1, 1, 1, .3); }
+.badge span:first-child { background: var(--badge-label); }
+.badge .blue { background: var(--badge-blue); }
+.badge .green { background: var(--badge-green); }
+.badge .olive { background: var(--badge-olive); }
+.written { color: var(--fg-muted); font-size: 14px; }
+.written time { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 라벨 (이슈 라벨 모양) */
+.label {
+  display: inline-block; padding: 0 7px; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap;
+  border: 1px solid; border-radius: 2em; vertical-align: 1px;
+}
+.label.ok { color: var(--success); border-color: color-mix(in srgb, var(--success) 45%, transparent); }
+.label.part { color: var(--attention); border-color: color-mix(in srgb, var(--attention) 45%, transparent); }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* 알림 상자 */
+.markdown-alert { padding: 8px 16px; border-left: .25em solid var(--alert); }
+.markdown-alert > :last-child { margin-bottom: 0; }
+.markdown-alert-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px !important; font-weight: 500; color: var(--alert); line-height: 1; }
+.markdown-alert-title svg { flex: none; }
+.markdown-alert-note { --alert: var(--accent); }
+.markdown-alert-important { --alert: var(--done); }
+
+/* 할 일 목록 */
+.contains-task-list { list-style: none; }
+.task-list-item input { margin: 0 .2em .25em -1.4em; vertical-align: middle; }
+
+/* 고리 그림 */
+.diagram { border: 1px solid var(--border); border-radius: 6px; padding: 16px; overflow-x: auto; background: var(--canvas); }
+.diagram svg { display: block; min-width: 640px; width: 100%; height: auto; }
+.diagram .node rect { fill: var(--success-subtle); stroke: var(--success); }
+.diagram .node.end rect { fill: var(--canvas); stroke: var(--fg-muted); stroke-dasharray: 4 4; }
+.diagram .t { fill: var(--fg); font: 600 15px var(--f-sans); }
+.diagram .s { fill: var(--fg-muted); font: 400 11.5px var(--f-sans); }
+.diagram .edge { stroke: var(--fg-muted); fill: none; stroke-width: 1.4; }
+.diagram .back { stroke: var(--attention); fill: none; stroke-width: 1.4; stroke-dasharray: 5 4; }
+.diagram .lab { fill: var(--fg-muted); font: 500 11.5px var(--f-mono); }
+.diagram .lab.now { fill: var(--attention); }
+.diagram .arrow { fill: var(--fg-muted); }
+.diagram .arrow.now { fill: var(--attention); }
+
+/* 그림 */
+figure { display: grid; gap: 6px; min-width: 0; }
+figure button { all: unset; display: block; cursor: zoom-in; border-radius: 6px; }
+figure img { display: block; width: 100%; height: auto; max-width: 100%; border: 1px solid var(--border); border-radius: 6px; background: var(--shot-bg); }
+figcaption { font-size: 14px; color: var(--fg-muted); }
+figcaption strong { color: var(--fg); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; align-items: start; }
+.pair.tall { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 340px)); }
+.pair.tall img { max-width: 320px; }
+
+/* 확대 보기 */
+dialog.zoom { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; }
+dialog.zoom::backdrop { background: rgba(1, 4, 9, .85); }
+dialog.zoom img { display: block; max-width: 96vw; max-height: 88vh; width: auto; height: auto; border-radius: 6px; }
+dialog.zoom p { color: #f0f6fc; font-size: 14px; margin: 8px 0 0; max-width: 96vw; }
+dialog.zoom form { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; }
+dialog.zoom button { font: 500 14px var(--f-sans); color: #f0f6fc; background: #21262d; border: 1px solid #3d444d; border-radius: 6px; padding: 5px 16px; cursor: pointer; }
+</style>
+
+<div class="file">
+  <div class="file-head">
+    <div class="file-name">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+      <span>README.md</span>
+    </div>
+    <div class="file-tools">
+      <span class="file-date">2026-10-24 작성</span>
+      <button class="icon-btn" id="outline-btn" type="button" aria-label="목차" aria-expanded="false" aria-controls="outline">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>
+      </button>
+      <nav class="outline" id="outline" aria-label="목차" hidden><b>목차</b><ul id="outline-list"></ul></nav>
+    </div>
+  </div>
+
+  <article class="markdown-body" id="doc">
+    <h1 id="patchbay">Patchbay</h1>
+    <p class="badges" aria-label="지금 숫자">
+      <span class="badge"><span>요구사항</span><span class="blue">63</span></span>
+      <span class="badge"><span>테스트로 확인</span><span class="olive">56/63</span></span>
+      <span class="badge"><span>전체 시험</span><span class="green">1,332 통과</span></span>
+      <span class="badge"><span>MCP 도구</span><span class="blue">23</span></span>
+    </p>
+    <p class="written">작성일 <time datetime="2026-10-24">2026-10-24</time> · 숫자마다 기준일이 다르며, 맨 아래 <a href="#sources">숫자의 출처</a>에 적었습니다.</p>
+
+    <!-- ───────── 개요 ───────── -->
+    <h2 id="overview">개요</h2>
+
+    <h3 id="goal">목표</h3>
+    <p class="goal"><strong>사용자의 요구사항을 구체적이고 명확하게 하여, 완성도 높은 아키텍처 구현을 지원한다.</strong></p>
+    <p>LLM(대화형 AI 모델)과 함께 프로젝트를 만들면 요구사항은 대화 속에 흩어지고, 구현이 그 요구사항을 지키는지는 다시 물어봐야 압니다. Patchbay는 요구사항을 대화로 끌어내 설계로 굳히고, 구현과 테스트가 그 설계를 지키는지 그림으로 대조하는 로컬 작업 화면입니다.</p>
+    <ul>
+      <li><strong>지금까지의 방식</strong>: Claude에게 설계 구조나 진행 과정을 물어서 파악했습니다. 답은 글로 오고, 한눈에 그림으로 보이지 않습니다.</li>
+      <li><strong>Patchbay의 방식</strong>: 요구사항 · 설계 · 테스트 결과를 파일로 남기고, 화면은 그 파일을 그립니다. 채팅에서 한 일도 화면과 파일에 남습니다.</li>
+      <li><strong>모델과 규칙의 나눔</strong>: 사람의 말과 코드를 읽고 판단하는 일만 모델이 맡습니다. 흐름도 그리기, 차단, 백업, 사용량 표시는 규칙이 합니다.</li>
+    </ul>
+    <div class="markdown-alert markdown-alert-note">
+      <p class="markdown-alert-title"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>참고</p>
+      <p>조작은 Claude Code · Codex · 터미널에서 하고, 결과는 이 Mac의 브라우저 콘솔(127.0.0.1)에 나타납니다. 설계와 작업 기록은 이 Mac에 저장합니다. 외부 모델을 쓰면 대화와 필요한 자료가 그 서비스로 전달되고, 문서 발췌는 자료마다 허용한 것만 보냅니다.</p>
+    </div>
+
+    <h3 id="cycle">한 바퀴: 설계 → 구현 → 테스트 → 검토</h3>
+    <p>프로젝트는 이 고리를 돌도록 설계되어 있습니다. 각 단계는 앞 단계의 결과만 받아서 시작하고, 앞이 비어 있으면 다음 단계는 잠깁니다. 검토에서 반려되면 이유를 들고 설계로 돌아가 다음 판을 만들고, 승인되면 그 판이 결과가 됩니다.</p>
+    <p>지금은 설계 · 구현 · 테스트가 동작하고, 대시보드가 이 고리를 표시합니다. 검토에서 승인 · 반려를 기록하고 다음으로 넘기는 화면은 다음 판에 만듭니다(R4.1a).</p>
+    <div class="diagram" role="img" aria-label="설계, 구현, 테스트, 검토 순서로 돌고, 검토에서 승인되면 결과, 반려되면 설계로 돌아가는 고리. 검토와 결과는 아직 화면이 없는 점선 칸">
+      <svg viewBox="0 0 860 210" aria-hidden="true">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow now" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <g class="node"><rect x="10" y="40" width="150" height="74" rx="6"/><text class="t" x="26" y="68">1 설계</text><text class="s" x="26" y="90">요구사항 → 설계 파일</text><text class="s" x="26" y="105">채택은 사람만</text></g>
+        <g class="node"><rect x="190" y="40" width="150" height="74" rx="6"/><text class="t" x="206" y="68">2 구현</text><text class="s" x="206" y="90">뼈대 생성, 또는</text><text class="s" x="206" y="105">기존 테스트 잇기</text></g>
+        <g class="node"><rect x="370" y="40" width="150" height="74" rx="6"/><text class="t" x="386" y="68">3 테스트</text><text class="s" x="386" y="90">실행 기록 ·</text><text class="s" x="386" y="105">요구사항별 통과</text></g>
+        <g class="node end"><rect x="550" y="40" width="130" height="74" rx="6"/><text class="t" x="566" y="68">검토</text><text class="s" x="566" y="90">승인 · 반려</text><text class="s" x="566" y="105">화면은 다음 판</text></g>
+        <g class="node end"><rect x="730" y="40" width="120" height="74" rx="6"/><text class="t" x="746" y="68">결과</text><text class="s" x="746" y="90">승인된 판</text></g>
+        <path class="edge" d="M160 77 H186" marker-end="url(#ah)"/>
+        <path class="edge" d="M340 77 H366" marker-end="url(#ah)"/>
+        <path class="edge" d="M520 77 H546" marker-end="url(#ah)"/>
+        <path class="edge" d="M680 77 H726" marker-end="url(#ah)"/>
+        <text class="lab" x="686" y="68">승인</text>
+        <path class="back" d="M615 114 V168 H85 V118" marker-end="url(#ahn)"/>
+        <text class="lab now" x="290" y="188">반려 → 이유를 들고 설계로, 판을 올려 다시</text>
+      </svg>
+    </div>
+    <div class="markdown-alert markdown-alert-note">
+      <p class="markdown-alert-title"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>참고</p>
+      <p>초록 칸은 동작하는 단계, 점선 칸은 아직 화면이 없는 단계입니다. 실행 기록을 쓰는 4 지식 그래프 · 5 문서 호출 단계는 테스트에서 설계의 노드를 모두 한 번 이상 지난 뒤 열리고, 이미 구현된 프로젝트의 길에서는 닫혀 있습니다. 왼쪽 도구 칸의 문서 기반 지식 그래프 · RAG는 이 단계 상태와 상관없이 쓸 수 있습니다.</p>
+    </div>
+    <blockquote>
+      <p><strong>설계 파일(IR)</strong>: 노드 · 상태 · 연결 · 도구 · 권한 · 문서 · 평가를 기계가 읽을 수 있게 적은 설계. <strong>판</strong>: 채택된 설계의 버전. 새 판을 채택해도 이전 판과 그 평가 결과는 지우지 않고 보관합니다.</p>
+    </blockquote>
+
+    <h3 id="features">주요 기능</h3>
+    <p>기능은 Patchbay 자신의 설계에 적힌 요구사항 묶음(R1~R9)을 따라 나눴습니다. 오른쪽 칸의 숫자는 그 묶음의 요구사항 중 기존 테스트로 확인된 수이고, 확인된 56개는 2026-10-23 실행에서 모두 통과했습니다.</p>
+    <table>
+      <thead><tr><th>기능</th><th>하는 일</th><th>테스트 확인</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap"><a href="#f-dashboard">대시보드</a></td><td>진행 흐름 · 할 일 · 기록을 스크롤 없는 한 화면에</td><td class="nowrap"><span class="label ok">R1 · 6/6</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-design">요구사항 설계</a></td><td>대화로 끌어낸 요구사항을 절마다 확인하고 설계로 채택</td><td class="nowrap"><span class="label ok">R2 · 6/6</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-arch">아키텍처</a></td><td>설계를 그래프로 그리고 실행 · 테스트 상태를 겹쳐 봄</td><td class="nowrap"><span class="label ok">R3 · 5/5</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-build">구현 · 테스트</a></td><td>요구사항마다 지키는 테스트를 잇고 돌려서 판정</td><td class="nowrap"><span class="label part">R4 · 4/5</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-room">대화방과 에이전트</a></td><td>Claude · Codex · Grok · 로컬 모델을 한 방에서 역할대로</td><td class="nowrap"><span class="label ok">R6 · 9/9</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-tasks">할 일과 승인</a></td><td>미리 준비하고, 사람이 승인한 뒤에만 실행</td><td class="nowrap"><span class="label ok">R7 · 10/10</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-log">기록과 리포트</a></td><td>날짜별 기록 · 태그 색인 · 요약과 보고서 바탕</td><td class="nowrap"><span class="label part">R8 · 3/8</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-knowledge">지식 그래프 · RAG</a></td><td>원문 인용으로 확인한 관계와 출처가 달린 답</td><td class="nowrap"><span class="label ok">R5 · 4/4</span></td></tr>
+        <tr><td class="nowrap"><a href="#f-safety">연결과 안전장치</a></td><td>MCP로 밖에서 쓰고, 비밀 · 경로 · 삭제는 규칙으로 지킴</td><td class="nowrap"><span class="label part">R9 · 9/10</span></td></tr>
+      </tbody>
+    </table>
+
+    <!-- ───────── 기능별 동작 ───────── -->
+    <h2 id="how">기능별 동작</h2>
+    <p>그림은 대부분 Patchbay가 자기 자신을 프로젝트로 등록해 쓰고 있는 2026-10-24 화면입니다. 지식 그래프 · RAG 그림만 예외이고, 그 절에 따로 적었습니다. 그림을 누르면 크게 봅니다.</p>
+
+    <h3 id="f-dashboard">대시보드 · 프로젝트의 지금을 한 화면에</h3>
+    <p class="meta"><code>R1 프로젝트와 화면</code><span class="label ok">6/6 통과</span></p>
+    <p>프로젝트를 열면 늘 대시보드가 먼저 열립니다. 스크롤 없이 진행 흐름, 할 일, 기록이 한 화면에 모입니다.</p>
+    <ol>
+      <li><strong>Workflow</strong>가 설계 → 구현 → 테스트 → Review → 결과 고리를 그리고, 지금 단계를 주황으로 표시합니다. 반려되면 설계로 돌아가는 선도 함께 있습니다.</li>
+      <li>그 아래 작업 표가 지금 단계의 작업을 보입니다. 행을 누르면 세부 항목이 펼쳐집니다.</li>
+      <li>오른쪽에 <strong>Tasks</strong>(할 일), 아래에 <strong>History</strong>(기록)와 캘린더가 있습니다. 캘린더 날짜를 누르면 그날의 기록만 봅니다.</li>
+      <li><strong>이어하기</strong>는 다른 화면에서 하던 작업으로 돌아가고, <strong>개요</strong>는 이 문서를 엽니다. 상단 이름을 더블클릭하면 표시명과 실제 폴더 이름을 함께 바꿉니다.</li>
+    </ol>
+    <figure><button type="button" data-zoom><img src="img/dashboard.jpg" alt="Patchbay 대시보드: 왼쪽 Workflow 흐름도와 구현 단계 작업 표, 오른쪽 Tasks, 아래 History와 캘린더, 맨 오른쪽 대화창" loading="lazy" width="3024" height="1890"></button>
+      <figcaption><strong>대시보드.</strong> 지금 단계는 구현(주황 테두리), 요구사항 이음 56/63. 맨 오른쪽은 프로젝트 대화창입니다.</figcaption></figure>
+
+    <h3 id="f-design">요구사항 설계 · 말한 것을 설계로 굳힌다</h3>
+    <p class="meta"><code>R2 요구사항과 설계</code><span class="label ok">6/6 통과</span></p>
+    <p>요구사항은 대화로 끌어내고, 절마다 사람이 확인한 뒤에야 설계로 채택됩니다. 모든 줄에 출처가 남습니다.</p>
+    <ol>
+      <li><strong>상담</strong>: 대화방에 등록한 LLM(Claude Code · Codex) 중 하나에게 상담을 맡깁니다. 목표 · 시나리오 · 환경 · 제약 · UI · 보안 · 미비 일곱 영역을 차례로 묻고, 답은 오른쪽 요약에 바로 쌓입니다.</li>
+      <li><strong>요구사항</strong>: 요구사항이 많아도 개요와 초점으로 봅니다. 하나를 고르면 왜 · 무엇 · 경계 · 확인 · 연결 · 미결 여섯 칸, 변경 전후, 관련 흐름과 시험, 그 문장이 나온 대화 근거가 함께 보입니다.</li>
+      <li><strong>PRD 검토</strong>(제품 요구사항 문서): 설계 초안을 11개 절로 보입니다. 줄마다 출처(말함 · 해석 · 기본값)가 붙고, 절마다 「맞아요」나 「고쳐 주세요」를 누릅니다. 옆의 아키텍처 그림도 같은 초안에서 그려집니다.</li>
+      <li><strong>채택</strong>: 11절이 모두 「맞아요」이고 설계 규칙 검사를 통과해야 채택할 수 있습니다. 검사는 모델 없이 돌고, 실패하면 돌아갈 칸을 짚습니다. 채택은 사람만 누릅니다.</li>
+    </ol>
+    <figure><button type="button" data-zoom><img src="img/design-req.jpg" alt="요구사항 화면: 63개 요구사항 개요 목록, R1.1의 여섯 칸과 변경 전후, 오른쪽 대화 근거" loading="lazy" width="2892" height="1890"></button>
+      <figcaption><strong>요구사항.</strong> 63개 중 R1.1을 고른 상태. 오른쪽 「대화 근거」는 이 요구사항이 나온 상담 발언입니다.</figcaption></figure>
+    <div class="pair">
+      <figure><button type="button" data-zoom><img src="img/design-consult.jpg" alt="상담 화면: 왼쪽 상담 대화, 오른쪽 일곱 영역 진행 막대와 요구사항 요약" loading="lazy" width="2300" height="1890"></button>
+        <figcaption><strong>상담.</strong> 위 막대가 일곱 영역의 진행, 오른쪽 요약의 「말함」은 사용자가 직접 한 말입니다.</figcaption></figure>
+      <figure><button type="button" data-zoom><img src="img/design-prd.jpg" alt="PRD 검토 화면: 왼쪽 절별 확인 카드, 오른쪽 같은 초안에서 그린 아키텍처 그래프" loading="lazy" width="2300" height="1890"></button>
+        <figcaption><strong>PRD 검토.</strong> 9/11절 확인. 줄마다 말함 · 해석 출처가 붙습니다.</figcaption></figure>
+    </div>
+
+    <h3 id="f-arch">아키텍처 · 설계를 그림으로 보고 실물과 맞춘다</h3>
+    <p class="meta"><code>R3 구현과 아키텍처</code><span class="label ok">5/5 통과</span></p>
+    <p>실행 · 구조 · 흐름 세 장으로 나눠 봅니다. 실행 장은 승인된 설계에 실제 상태를 겹치고, 구조 · 흐름 장은 프로젝트에 적어 둔 구조도 문서를 그립니다.</p>
+    <ol>
+      <li><strong>실행</strong>: 설계의 노드마다 지금 상태를 겹칩니다. LangGraph(에이전트 그래프를 실행하는 도구)로 만든 프로젝트는 실행 상태를 겹치고 그래프 전체나 노드 하나를 실행할 수 있습니다. 이미 구현된 프로젝트는 그 노드의 요구사항을 지키는 테스트가 통과했는지를 겹칩니다.</li>
+      <li>노드를 누르면 오른쪽에 그 노드의 요구사항과, 요구사항마다 이은 테스트 파일과 결과가 나옵니다.</li>
+      <li><strong>구조</strong>: 프로젝트의 구조도 문서를 읽어 시스템이 무엇으로 이루어지고 데이터가 어디에 저장되는지 그립니다. 요소를 누르면 하위 분해로 들어갑니다.</li>
+      <li><strong>흐름</strong>: 같은 구조도 문서로 한 가지 일이 어떤 순서로 처리되어 저장되는지 시나리오를 그립니다.</li>
+    </ol>
+    <figure><button type="button" data-zoom><img src="img/arch-run.jpg" alt="아키텍처 실행 장: 아홉 기능 묶음 노드가 세로로 이어진 그래프, 오른쪽에 group-r4의 요구사항과 테스트 결과" loading="lazy" width="2300" height="1890"></button>
+      <figcaption><strong>실행 장.</strong> 보라 테두리는 일부 통과. 「개발 주기와 평가」를 누르자 R4.1~R4.4와 이은 테스트가 나왔습니다. R4.1a는 아직 테스트가 없습니다.</figcaption></figure>
+    <figure><button type="button" data-zoom><img src="img/arch-structure.jpg" alt="아키텍처 구조 장: 콘솔, MCP 서버, 커널, Neo4j, LLM 호스트 사이의 데이터 연결 그래프" loading="lazy" width="2300" height="1890"></button>
+      <figcaption><strong>구조 장.</strong> 처리 · 저장 · 바깥 요소와 그 사이의 데이터 연결. 점선은 근거를 확인하지 않은 연결입니다.</figcaption></figure>
+
+    <h3 id="f-build">구현 · 테스트 · 요구사항마다 지키는 테스트를 잇는다</h3>
+    <p class="meta"><code>R4 개발 주기와 평가</code><span class="label part">4/5 통과</span></p>
+    <p>구현 단계는 처음 만드는 프로젝트인지, 이미 구현된 프로젝트인지에 따라 두 길로 나뉩니다.</p>
+    <ol>
+      <li><strong>처음 만드는 프로젝트</strong>: 채택한 설계에서 LangGraph 뼈대와 실패하는 평가 시험을 한 번 생성합니다. 빈 노드를 모두 채워야 구현을 지납니다. 다시 생성해도 사람이 고친 부분은 덮지 않습니다.</li>
+      <li><strong>사용 창</strong>: 처음 만드는 프로젝트의 테스트에서는 만든 서비스 화면을 Patchbay 안에 띄워 직접 써 봅니다. 아래 「실행 기록」을 열면 실행 내역과 설계 대조 결과가 나옵니다. 설계의 노드를 모두 한 번 이상 지나야 테스트를 지납니다.</li>
+      <li><strong>이미 구현된 프로젝트</strong>: 요구사항마다 그것을 지키는 기존 테스트를 잇습니다. 에이전트가 연결을 제안하면 사람이 테스트 본문을 보고 확정합니다.</li>
+      <li><strong>이은 테스트 실행</strong>은 확정한 연결이 들어 있는 테스트 파일을 프로젝트의 vitest(테스트 도구)로 돌린 뒤, 이은 테스트의 결과만 골라 요구사항별 통과 · 실패를 표시합니다.</li>
+      <li>실행이 실패하면 그 기록으로 평가 케이스 초안을 만들고, 설계 단계에서 검토해 채택합니다. 새 판이 나오면 이전 판과 평가 점수를 비교합니다.</li>
+    </ol>
+    <figure><button type="button" data-zoom><img src="img/build.jpg" alt="구현 화면 이미 구현됨 길: 요구사항 이음 56/63, 통과 56/63, 기능 묶음별 통과 수, 요구사항 목록" loading="lazy" width="2300" height="1890"></button>
+      <figcaption><strong>구현 · 이미 구현됨 길.</strong> Patchbay 자신은 요구사항 63개 중 56개에 테스트를 이었고, 마지막 실행(2026-10-23 18:02)에서 56개가 모두 통과했습니다.</figcaption></figure>
+
+    <h3 id="f-room">대화방과 에이전트 · 여러 LLM을 한 방에서</h3>
+    <p class="meta"><code>R6 대화와 에이전트</code><span class="label ok">9/9 통과</span></p>
+    <p>프로젝트마다 대화방을 두고, 등록한 LLM을 참여자로 불러 같은 기록을 함께 쓰게 합니다.</p>
+    <ol>
+      <li><strong>LLM 호출</strong>에서 Claude Code · Codex · Grok · LM Studio(로컬) 모델을 고르고 역할명 · 아이콘 · 주요 역할을 정해 Agents 목록에 등록합니다. 방마다 켜고 끕니다.</li>
+      <li>새 대화는 모델을 고르지 않은 상태로 시작합니다. <strong>Record</strong>는 모델을 부르지 않고 기록만 하고, <strong>Send</strong>는 켜진 모델을 부르고, <strong>Stop</strong>은 실행 중일 때만 멈춥니다.</li>
+      <li>작업 모드(토의 · 보고서 · 플래닝 · 디자인 · 스터디 · 코딩)를 고르면 그 모드의 참여 모델 · 권한 · 규약이 적용됩니다. 토의는 Claude가 주장, Codex가 반론, Grok이 빠진 점, 로컬 모델이 정리하는 순서로 돕니다.</li>
+      <li>문서 · URL · 프로젝트 파일을 첨부하고, 답에 나온 산출물 링크는 새 탭으로 열거나 내려받습니다.</li>
+      <li>폰의 Claude 앱에서 Remote Control로 이 Mac의 Claude Code 세션을 쓰거나 터미널에서 Claude Code를 쓸 때, 그 세션을 대화방에 묶으면 설치해 둔 훅이 대화를 옮겨 적습니다.</li>
+    </ol>
+    <div class="pair tall">
+      <figure><button type="button" data-zoom><img src="img/chat.jpg" alt="프로젝트 대화창: Claude의 진행 보고와 Record, Stop, Send 버튼, 아래 참여 에이전트 아이콘" loading="lazy" width="640" height="1834"></button>
+        <figcaption><strong>대화창.</strong> 아래 아이콘이 이 방에 켜진 에이전트입니다.</figcaption></figure>
+      <figure><button type="button" data-zoom><img src="img/chat-llm.jpg" alt="LLM 호출 패널: 사용 가능한 LLM, 버전, 강도, 역할명, 아이콘을 정해 Agents 목록에 등록, 아래 이 대화의 LLM 켜고 끄기" loading="lazy" width="640" height="1834"></button>
+        <figcaption><strong>LLM 호출.</strong> 모델 · 강도 · 역할을 정해 등록하고, 방마다 켜고 끕니다.</figcaption></figure>
+    </div>
+
+    <h3 id="f-tasks">할 일과 승인 · 미리 준비하고, 승인한 뒤 실행한다</h3>
+    <p class="meta"><code>R7 작업과 승인</code><span class="label ok">10/10 통과</span></p>
+    <p>작업 중 생긴 후속 일은 할 일로 모입니다. 실행 전에 계획과 완료 조건을 사람이 승인합니다.</p>
+    <ol>
+      <li><strong>Tasks</strong>에 할 일이 모입니다. 길게 눌러 순서를 바꾸고, 할 일마다 전용 대화를 엽니다. 완료하면 완료 시각과 함께 보관되고, 지운 것은 휴지통에 4일 남습니다.</li>
+      <li><strong>자동 업무 수행</strong>: 최대 5개와 주 담당 LLM을 고르면 할 일마다 계획 · 앞선 할 일과의 연계 · 산출물을 미리 준비합니다.</li>
+      <li>준비본(계획과 완료 조건)을 사람이 승인해야 실행합니다. 실행 뒤에는 완료 조건마다 검증 근거가 있어야 완료로 봅니다.</li>
+      <li>하나를 보류하면 그 결과에 기대는 뒤 할 일은 멈추고, 관계없는 할 일은 계속합니다.</li>
+      <li>폰으로 맡긴 일은 1시간 안에 결과를 내도록 시간을 재고, 넘기면 Workflow에 표시합니다. 준비본의 승인 · 보류 · 수정 요청은 폰에서도 PC에서도 합니다.</li>
+    </ol>
+    <div class="pair">
+      <figure><button type="button" data-zoom><img src="img/tasks.jpg" alt="Tasks 카드: 진행할 할 일 목록과 완료된 할 일, 위쪽 자동 · 추가 · 찾기 · 휴지통 아이콘" loading="lazy" width="800" height="1136"></button>
+        <figcaption><strong>Tasks.</strong> 위 아이콘은 왼쪽부터 자동 업무 수행 · 추가 · 완료 기록 찾기 · 휴지통.</figcaption></figure>
+      <figure><button type="button" data-zoom><img src="img/prep.jpg" alt="미리 준비할 할 일 창: 할 일 다섯 개 선택, 주 담당 LLM 선택, 실행 버튼" loading="lazy" width="1192" height="1138"></button>
+        <figcaption><strong>미리 준비할 할 일.</strong> 5개를 고르고 주 담당 LLM을 정한 상태. 준비된 결과는 할 일 대화에서 검토합니다.</figcaption></figure>
+    </div>
+
+    <h3 id="f-log">기록과 리포트 · 무엇이 언제 바뀌었나</h3>
+    <p class="meta"><code>R8 기록과 리포트</code><span class="label part">3/8 통과</span></p>
+    <p>진행 보고 · 대화 · 할 일 · 커밋을 날짜별로 모아 하루 기록과 색인을 만듭니다.</p>
+    <ol>
+      <li>날짜를 고르면 그날의 진행(요청과 반영), 대화, 할 일 변동이 한 문서로 보입니다. 캘린더의 색은 그날 사건 수입니다.</li>
+      <li>태그(UI · Agent · 데이터 · 서버 · 문서)로 색인하고, 아래 색인 표에서 종류별로 거릅니다.</li>
+      <li><strong>이 날 확정</strong>으로 그날 기록을 굳히고, 고른 로컬 모델로 요약합니다. 일 · 주 · 월 보고서 바탕도 만듭니다.</li>
+      <li>할 일이나 흐름도 항목을 지우거나 고치면 저장할 때 앞뒤를 비교해 한 줄씩 기록에 덧붙입니다.</li>
+    </ol>
+    <figure><button type="button" data-zoom><img src="img/log.jpg" alt="Log 화면: 왼쪽 캘린더와 태그 막대, 가운데 2026-10-23 기록의 진행과 대화, 아래 색인 표" loading="lazy" width="2300" height="1890"></button>
+      <figcaption><strong>Log.</strong> 2026-10-23의 기록. 진행 2건과 대화가 시간순으로 모였습니다.</figcaption></figure>
+    <div class="markdown-alert markdown-alert-note">
+      <p class="markdown-alert-title"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>남은 것</p>
+      <p>구조 변경 감지(R8.3 묶음 5개)가 아직 없습니다. <a href="#next">추후 진행</a>에 적었습니다.</p>
+    </div>
+
+    <h3 id="f-knowledge">지식 그래프 · RAG · 근거가 있는 관계와 답</h3>
+    <p class="meta"><code>R5 지식 그래프와 질의</code><span class="label ok">4/4 통과</span></p>
+    <p>고른 문서에서 관계를 뽑되, 원문 인용으로 확인한 것만 그래프와 답변에 씁니다.</p>
+    <ol>
+      <li><strong>A · 근거 검토</strong>: 마크다운 · 텍스트 문서(최대 10개)를 불러와 관계 후보(주어 · 관계 · 대상)를 직접 적거나, 고른 LLM(Claude · Codex · LM Studio)으로 뽑습니다. 정확한 원문 인용이 있어야 후보로 저장됩니다.</li>
+      <li>근거마다 승인 · 기각 · 철회를 기록합니다. 원문이 바뀌면 근거가 아직 맞는지 다시 확인합니다.</li>
+      <li><strong>B · 관계 탐색</strong>: 승인된 관계만 Neo4j(그래프 데이터베이스)에 반영합니다. 개체를 누르면 직접 이웃과 원문 근거가 보입니다.</li>
+      <li><strong>RAG</strong>(문서에서 근거를 찾아 답하는 기능): 검색에 쓸 자료를 고르고 질문하면 먼저 모델 없이 본문을 찾습니다. 답변 모델을 직접 고르면 문장마다 인용 번호가 달린 답을 만들고, 번호를 누르면 같은 원문 버전이 열립니다.</li>
+      <li>모델은 자동으로 고르지 않습니다. 외부 모델에는 자료마다 발췌 전달을 허용한 것만 보냅니다.</li>
+    </ol>
+    <div class="markdown-alert markdown-alert-important">
+      <p class="markdown-alert-title"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>그림 출처</p>
+      <p>아래 두 그림은 2026-10-17 기능 검증 때 임시 프로젝트에서 가상 문서(guide.md)로 찍은 화면입니다. RAG 그림의 답변은 검증용 모의 모델이 낸 예시입니다. Patchbay 프로젝트에는 아직 넣은 자료가 없습니다.</p>
+    </div>
+    <div class="pair">
+      <figure><button type="button" data-zoom><img src="img/kg-explore.jpg" alt="지식 그래프 B 관계 탐색: Patchbay 사용한다 Neo4j 관계 그래프와 오른쪽 연결의 원문 근거" loading="lazy" width="2048" height="2190"></button>
+        <figcaption><strong>B · 관계 탐색.</strong> 승인한 관계 하나와 그 원문 인용.</figcaption></figure>
+      <figure><button type="button" data-zoom><img src="img/rag-answer.jpg" alt="RAG 질문 화면: 질문, 원문 근거 1개, 답변 모델 선택, 인용 번호가 달린 답변, 오른쪽 원문 확인" loading="lazy" width="2240" height="2000"></button>
+        <figcaption><strong>RAG.</strong> 「왜 Neo4j를 사용하나요?」에 대한 원문 근거와, 검증용 모의 모델이 인용 [1]을 달아 낸 답.</figcaption></figure>
+    </div>
+
+    <h3 id="f-safety">연결과 안전장치 · 밖에서 쓰고, 안에서 지킨다</h3>
+    <p class="meta"><code>R9 원격 연결과 보안</code><span class="label part">9/10 통과</span></p>
+    <p>Claude Code 같은 호스트가 Patchbay를 도구로 쓰고, 그동안 지켜야 할 경계는 규칙이 막습니다.</p>
+    <ul>
+      <li><strong>MCP 서버 · CLI</strong>: MCP는 AI 도구가 바깥 프로그램을 부르는 연결 규약입니다. Claude Code 같은 호스트가 23개 도구(<code>list_projects</code> · <code>get_prd</code> · <code>room_bind</code> · <code>progress_write</code> 등)로 프로젝트를 읽고 기록하고, 터미널에서는 <code>patchbay</code> 명령으로 같은 일을 합니다.</li>
+      <li><strong>폴더 · 문서</strong>: 프로젝트 기록을 트리로 보고, 편집 가능한 파일만 고칩니다. 저장할 때 형식을 검사하고 내용 해시로 충돌을 막습니다.</li>
+      <li><strong>민감도 L4(비밀)</strong>: 원문 조회 · 발췌 · 그래프 조회 · 편집기 저장을 막습니다.</li>
+      <li><strong>프로젝트 밖 쓰기 차단</strong>: 대화방에 묶이고 훅이 설정된 Claude Code 세션은 파일 쓰기 도구와, 알아볼 수 있는 셸 쓰기 명령의 경로를 검사받습니다. 그 프로젝트 폴더 · 작업 공간의 프로젝트 기록 폴더 · 임시 폴더 · Claude 기억 폴더 밖이면 막습니다.</li>
+      <li><strong>지우기</strong>: 대화방 · 할 일 같은 기록은 휴지통에 4일 두고 되살릴 수 있습니다. 묶인 세션이 알아볼 수 있는 삭제 명령을 쓰면, 범위 안이어도 사람의 승인을 묻습니다.</li>
+      <li><strong>백업과 공개</strong>: 작업 공간을 비공개 저장소에 백업하고, 공개 저장소로 push할 때 다른 프로젝트 이름이 나가지 않는지 검사합니다.</li>
+      <li><strong>LLM 구독 체력</strong>: 왼쪽 아래에 Claude · Codex 사용량을 띄웁니다. Claude는 서버가 주는 5시간 · 7일 사용률을 씁니다.</li>
+    </ul>
+    <div class="pair">
+      <figure><button type="button" data-zoom><img src="img/files.jpg" alt="폴더 · 문서 화면: 프로젝트 기록 폴더 트리, 폴더 요약 숫자, 파일 목록과 자동 생성 표시" loading="lazy" width="2300" height="1890"></button>
+        <figcaption><strong>폴더 · 문서.</strong> 「자동」 표시 파일은 읽기 전용, 표시 없는 파일은 편집할 수 있습니다.</figcaption></figure>
+      <figure><button type="button" data-zoom><img src="img/hp.jpg" alt="LLM 구독 체력 창: Claude Code 5시간 세션과 7일 주간 사용률, Codex CLI 사용률" loading="lazy" width="828" height="890"></button>
+        <figcaption><strong>LLM 구독 체력.</strong> 5시간 세션과 7일 주간 잔여량.</figcaption></figure>
+    </div>
+
+    <!-- ───────── 추후 진행 ───────── -->
+    <h2 id="next">추후 진행</h2>
+    <ul class="contains-task-list">
+      <li class="task-list-item"><input type="checkbox" disabled aria-label="아직 안 함"> <strong>남은 요구사항 7개 (다음 판)</strong>: 검토 화면에서 승인 · 반려를 기록하기(R4.1a) · 구조 변경 감지: 설계 초안과 지난 코드에 비춰 구조가 틀어질 것 같으면 다른 LLM이 확인한 뒤 알리고 기록하기(R8.3 · R8.3a~d) · 에이전트 세션의 L4 파일 수정 · 내보내기 차단(R9.4a)</li>
+      <li class="task-list-item"><input type="checkbox" disabled aria-label="아직 안 함"> <strong>설계 v3 채택</strong>: PRD 10 · 11절을 다시 확인하고 「맞아요」를 누르면 채택할 수 있습니다. 11절의 항목 19개에는 답하지 않은 질문과 이미 처리한 것이 섞여 있어, 지금 할 일과 대조해 정리해야 합니다.</li>
+      <li class="task-list-item"><input type="checkbox" disabled aria-label="아직 안 함"> <strong>폰 알림 채널</strong>: 완료 · 검토요청 · 중지를 알릴 채널(Discord 또는 Telegram) 값을 정해 넣습니다.</li>
+      <li class="task-list-item"><input type="checkbox" disabled aria-label="아직 안 함"> <strong>RAG 다음 단계</strong>: 의미 검색, 답변 보관, 대화에 첨부, 승인 관계로 보강하기.</li>
+    </ul>
+
+    <h2 id="sources">숫자의 출처</h2>
+    <table>
+      <thead><tr><th>숫자</th><th>무엇</th><th>어디서</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">63</td><td>요구사항 수</td><td>승인된 설계 v2 <code>overlay.yaml</code> <code>ir.requirements</code></td></tr>
+        <tr><td class="nowrap">56/63 · 76</td><td>테스트를 이은 요구사항 · 확정 연결 수, 모두 통과</td><td><code>existing-build.json</code>, 마지막 실행 2026-10-23 18:02</td></tr>
+        <tr><td class="nowrap">R1~R9 n/m</td><td>묶음별 통과 수</td><td>콘솔 구현 화면(2026-10-24 캡처)</td></tr>
+        <tr><td class="nowrap">1,332</td><td>전체 시험 통과</td><td>일지 2026-10-21 「연결 없는 요구사항 22건」</td></tr>
+        <tr><td class="nowrap">19</td><td>PRD 11절 항목</td><td>변경 초안 v3 <code>ir.proposed.yaml</code> <code>openQuestions</code></td></tr>
+        <tr><td class="nowrap">23</td><td>MCP 도구</td><td><code>app/packages/mcp/src/tools</code> 등록 이름</td></tr>
+        <tr><td class="nowrap">목표 문장</td><td>설계 v2의 goal, PRD 1절</td><td><code>overlay.yaml</code> <code>ir.goal</code></td></tr>
+      </tbody>
+    </table>
+  </article>
+</div>
+
+<dialog class="zoom" id="zoom" aria-label="그림 크게 보기">
+  <form method="dialog"><button type="submit">닫기</button></form>
+  <img id="zoom-img" alt="">
+  <p id="zoom-cap"></p>
+</dialog>
+
+<script>
+document.documentElement.lang = 'ko';
+(function () {
+  var doc = document.getElementById('doc');
+  var linkIcon = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"/></svg>';
+  var list = document.getElementById('outline-list');
+  doc.querySelectorAll('h1[id], h2[id], h3[id]').forEach(function (h) {
+    var a = document.createElement('a');
+    a.className = 'anchor'; a.href = '#' + h.id; a.innerHTML = linkIcon;
+    a.setAttribute('aria-label', h.textContent + ' 링크');
+    h.prepend(a);
+    if (h.tagName === 'H1') return;
+    var li = document.createElement('li');
+    li.className = h.tagName === 'H3' ? 'lv3' : 'lv2';
+    var l = document.createElement('a');
+    l.href = '#' + h.id; l.textContent = h.textContent;
+    li.appendChild(l); list.appendChild(li);
+  });
+
+  var btn = document.getElementById('outline-btn');
+  var panel = document.getElementById('outline');
+  function setOpen(open) { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); }
+  btn.addEventListener('click', function (e) { e.stopPropagation(); setOpen(panel.hidden); });
+  panel.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('click', function (e) { if (!panel.hidden && !panel.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); btn.focus(); } });
+
+  var dlg = document.getElementById('zoom');
+  var img = document.getElementById('zoom-img');
+  var cap = document.getElementById('zoom-cap');
+  document.querySelectorAll('[data-zoom]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var src = b.querySelector('img');
+      var fc = b.parentElement.querySelector('figcaption');
+      img.src = src.src; img.alt = src.alt;
+      cap.textContent = fc ? fc.textContent : '';
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+    });
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>
