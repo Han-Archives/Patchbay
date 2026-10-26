@@ -22,6 +22,7 @@ import { RequirementsPane } from "./RequirementsPane.js";
 import { PrdPane } from "./PrdPane.js";
 import { RoomPanel } from "./RoomPanel.js";
 import { LlmHealthRail } from "./LlmHealthRail.js";
+import { ServerRestartRail } from "./ServerRestartRail.js";
 import {
   adapterLabel,
   type AdapterStatus,
@@ -327,6 +328,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
             onClick={() => navigate("build")}
           />
           <SidecarDot name="Neo4j" status={shell?.adapters.neo4j ?? "disconnected"} onClick={() => navigate("graph")} />
+          <ServerRestartRail readOnly={readOnly} />
         </div>
       </nav>
 

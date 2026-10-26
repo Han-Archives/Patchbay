@@ -227,6 +227,15 @@ export interface FlowAppOptions {
   roomCommandRunner?: CommandRunner;
   access?: FlowAccess;
   roomNotifications?: RoomNotificationOptions;
+  /** 화면의 「서버 다시 켜기」. serve.ts만 연결한다 — 없으면 이 실행 방식에서는 다시 켤 수 없다. */
+  serverRestart?: ServerRestart;
+}
+
+export interface ServerRestart {
+  /** 앱 전체 빌드. 실패하면 서버를 끄지 않는다. */
+  build(): Promise<{ ok: boolean; output: string }>;
+  /** 같은 설정으로 새 서버를 띄우고 이 서버를 끈다. */
+  restart(): void;
 }
 
 export interface FlowApp extends Hono {
@@ -359,6 +368,40 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   app.get("/api/running", (c) => {
     c.header("Cache-Control", "no-store");
     return c.json({ aliases: [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases(), ...semanticHost.busyAliases(), ...ragHost.busyAliases()])] });
+  });
+
+  // 서버 다시 켜기 (사용자 결정 2026-10-26, A안 — 서버가 교대). LLM이 일하는 중이면 거절하고, 빌드가 실패하면 끄지 않는다.
+  const startedAt = new Date().toISOString();
+  let restarting = false;
+  const busyAliases = async () => {
+    const projects = (await readStudio(options.studioHome)).projects.map(p => p.alias);
+    return [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases(), ...semanticHost.busyAliases(), ...ragHost.busyAliases(), ...projects.filter(alias => todoPreparation.isBusy(alias))])];
+  };
+  app.get("/api/server", (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json({ pid: process.pid, startedAt, canRestart: !!options.serverRestart });
+  });
+  app.post("/api/server/restart", async (c) => {
+    if (!options.serverRestart) return c.json({ error: "이 실행 방식에서는 화면에서 다시 켤 수 없습니다. 터미널에서 다시 켜 주세요." }, 501);
+    if (restarting) return c.json({ error: "이미 다시 켜는 중입니다." }, 409);
+    const rec = await jsonRecord(c);
+    const busyError = (aliases: string[]) => c.json({ error: `LLM이 일하는 중입니다(${aliases.join(", ")}). 끝난 뒤 다시 켜 주세요.`, aliases }, 409);
+    const busy = await busyAliases();
+    if (busy.length) return busyError(busy);
+    restarting = true;
+    try {
+      if (rec?.build === true) {
+        const built = await options.serverRestart.build();
+        if (!built.ok) { restarting = false; return c.json({ error: "빌드가 실패해서 서버를 끄지 않았습니다.", output: built.output.slice(-2000) }, 500); }
+        const after = await busyAliases();
+        if (after.length) { restarting = false; return busyError(after); }
+      }
+    } catch (error) {
+      restarting = false;
+      throw error;
+    }
+    setTimeout(() => options.serverRestart!.restart(), 100);
+    return c.json({ ok: true, pid: process.pid }, 202);
   });
 
   app.post("/api/project/name", async (c) => {

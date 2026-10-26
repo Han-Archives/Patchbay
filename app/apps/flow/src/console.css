@@ -184,6 +184,13 @@ body {
 .rail-side i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px dashed var(--muted); }
 .rail-side.is-on { color: var(--text); }
 .rail-side.is-on i { border: 0; background: var(--ok); }
+/* 서버 다시 켜기 (2026-10-26). 팝오버는 체력바와 같은 hp-popover. */
+.rail-restart span { font-size: 12px; line-height: 1; }
+.server-restart-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; font-size: 12.5px; line-height: 1.5; }
+.server-restart-body p { margin: 0; color: var(--muted); }
+.server-restart-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.server-restart-error { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--bad); border-radius: 6px; background: var(--bad-fill); }
+.server-restart-error pre { margin: 0; max-height: 180px; overflow: auto; font-size: 10.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .main-col {
   display: grid;
