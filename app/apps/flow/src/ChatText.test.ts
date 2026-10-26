@@ -31,4 +31,16 @@ describe("대화 글의 마크다운 표", () => {
     expect(chatBlocks("| a | b |\n| c | d |")).toEqual(["| a | b |\n| c | d |"]);
     expect(chatBlocks("| 명령 | 뜻 |\n| :-- | --: |\n| a \\| b | 또는 |")).toEqual([{ head: ["명령", "뜻"], rows: [["a | b", "또는"]] }]);
   });
+
+  it("강조를 켠 글은 # 제목 줄을 따로 나누고, 끄면 · ``` 울타리 안이면 글자로 둔다", () => {
+    const text = "# 10/26 브리핑\n\n**순서는** 그대로.\n\n## 제안 순서\n- 첫째\n```\n# 주석\n```";
+    expect(chatBlocks(text, true)).toEqual([
+      { heading: "10/26 브리핑", level: 1 },
+      "**순서는** 그대로.",
+      { heading: "제안 순서", level: 2 },
+      "- 첫째\n```\n# 주석\n```",
+    ]);
+    expect(chatBlocks(text)).toEqual([text]);
+    expect(chatBlocks("#### 깊은 제목", true)).toEqual([{ heading: "깊은 제목", level: 3 }]);
+  });
 });

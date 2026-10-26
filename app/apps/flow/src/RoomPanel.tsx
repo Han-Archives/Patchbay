@@ -1205,7 +1205,7 @@ function RoomLine({ message: m, project }: { message: RoomMessage; project: stri
         {name}
         {m.speaker !== "local" && m.model ? ` · ${m.model}` : ""}{m.effort ? ` · ${m.effort}` : ""}{m.via === "claude-session" ? " · Claude Code 세션" : ""} · {(m.ms / 1000).toFixed(1)}초
       </span>
-      <ChatText text={m.text} project={project} />
+      <ChatText text={m.text} project={project} bold />
     </div>
   );
 }
