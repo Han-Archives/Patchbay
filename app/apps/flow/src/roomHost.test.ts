@@ -325,9 +325,9 @@ describe("대화방", () => {
     const { studioHome, projectPath } = await setup();
     const { execFileSync } = await import("node:child_process");
     execFileSync("git", ["init", "-q"], { cwd: projectPath });
-    const seen: { speaker: string; execution?: string; prompt: string; timeoutMs: number; writeDirs?: string[] }[] = [];
+    const seen: { speaker: string; execution?: string; prompt: string; timeoutMs: number; writeDirs?: string[]; env?: Record<string, string> }[] = [];
     const runner: RoomRunner = async (req) => {
-      seen.push({ speaker: req.speaker, execution: req.execution, prompt: req.prompt, timeoutMs: req.timeoutMs, writeDirs: req.writeDirs });
+      seen.push({ speaker: req.speaker, execution: req.execution, prompt: req.prompt, timeoutMs: req.timeoutMs, writeDirs: req.writeDirs, env: req.env });
       if (req.speaker === "codex") fs.writeFileSync(path.join(projectPath, "todo.md"), "- 할 일");
       return { ok: true, text: req.speaker === "codex" ? "할 일 칸을 고쳤다." : "확인했다.", ms: 3 };
     };
@@ -350,6 +350,11 @@ describe("대화방", () => {
     expect(seen[0]?.prompt).toContain("이 파일을 직접 쓰거나 덮어쓰지 않는다");
     expect(seen[0]?.prompt).toContain("todo add --project 'demo'");
     expect(seen[0]?.prompt).toContain("todo update --project 'demo'");
+    expect(seen[0]?.prompt).toContain("todo order --project 'demo'");
+    expect(seen[0]?.prompt).not.toContain("env PATCHBAY_HOME");
+    expect(seen[0]?.prompt).toMatch(/목록 확인: node '[^']+' todo list/);
+    expect(seen[0]?.env?.PATCHBAY_HOME).toBe(studioHome);
+    expect(seen[1]?.env).toBeUndefined();
     expect(seen[0]?.prompt).toContain("방금 끝낸 항목은 done=true");
     expect(seen[0]?.writeDirs).toEqual([path.join(studioHome, "projects", "demo")]);
     expect(seen[1]?.prompt).not.toContain("직접 반영한다");
@@ -493,5 +498,33 @@ describe("토의 역할 — 주장 · 반론 · 빠진 점 · 정리", () => {
     if (!talk.ok) throw new Error(talk.error);
     await talk.done;
     expect(order).toEqual(["local", "grok", "codex", "claude-code"]);
+  });
+});
+
+describe("브리핑", () => {
+  it("「브리핑」 한 마디면 미완료 Tasks를 순서대로, 최근 완료와 함께 넣고 목록을 바꾸지 말라고 한다", async () => {
+    const { studioHome } = await setup();
+    const { writeTodos, readTodos } = await import("@patchbay/core");
+    await writeTodos(studioHome, "demo", [
+      { id: "n1", title: "알림 채널 설정", detail: "값만 넣으면 된다", done: false, at: "2026-10-21T00:00:00.000Z" },
+      { id: "d1", title: "끝낸 일", done: true, at: "2026-10-20T00:00:00.000Z", completedAt: "2026-10-25T12:00:00.000Z" },
+      { id: "n2", title: "push 규칙", done: false, at: "2026-10-21T00:00:00.000Z" },
+    ]);
+    const before = await readTodos(studioHome, "demo");
+    const prompts: string[] = [];
+    const runner: RoomRunner = async req => { prompts.push(req.prompt); return { ok: true, text: "브리핑", ms: 1 }; };
+    const cast = await saveRoomCast(studioHome, { alias: "demo", members: [{ speaker: "claude-code", model: "", role: "이끈다." }] });
+    if (!cast.ok) throw new Error(cast.error);
+    for (const text of ["브리핑", "브리핑 말고 다른 얘기"]) {
+      const sent = await sendRoomTurn(studioHome, { alias: "demo", roomId: cast.roomId, text, round: "talk" }, { runner, bin: "mock", now: () => new Date("2026-10-26T01:00:00.000Z") });
+      if (!sent.ok) throw new Error(sent.error);
+      await sent.done;
+    }
+    expect(prompts[0]).toContain("오늘(");
+    expect(prompts[0]).toMatch(/1\. \[n1\] 알림 채널 설정 — 값만 넣으면 된다\n2\. \[n2\] push 규칙/);
+    expect(prompts[0]).toContain("2026-10-25 끝낸 일");
+    expect(prompts[0]).toContain("할일 목록을 바꾸지 않는다");
+    expect(prompts[1]).not.toContain("오늘(");
+    expect(await readTodos(studioHome, "demo")).toEqual(before);
   });
 });

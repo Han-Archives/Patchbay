@@ -31,6 +31,15 @@ describe("검증된 할일 CLI", () => {
     expect((await readTodos(home, "demo"))[0]!.completedAt).toBe(completed.completedAt);
     expect(await runTodo("list", { project: "demo", json: true }, home)).toBe(0);
   });
+  it("order는 고른 미완료 할일을 그 순서로 앞에 두고 완료 항목 자리는 지킨다", async () => {
+    const home = await setup();
+    await writeTodos(home, "demo", ["a", "b", "c", "d"].map(id => ({ id, title: id, done: id === "b", at: "t" })));
+    expect(await runTodo("order", { project: "demo", ids: "d, c", json: true }, home)).toBe(0);
+    expect((await readTodos(home, "demo")).map(row => row.id)).toEqual(["d", "b", "c", "a"]);
+    const before = await readTodos(home, "demo");
+    for (const ids of ["b", "x", "a,a", ""]) expect(await runTodo("order", { project: "demo", ids }, home)).toBe(1);
+    expect(await readTodos(home, "demo")).toEqual(before);
+  });
   it("유효하지 않은 변경이나 다른 프로젝트는 원문을 변경하지 않는다", async () => {
     const home = await setup();
     const before = await readTodos(home, "demo");

@@ -21,6 +21,8 @@ import {
   roundKind,
   roundPrompt,
   todosPath,
+  readTodos,
+  readTodoHistory,
   readTodoPreparations,
   latestPreparations,
   cycleItemsPath,
@@ -83,6 +85,8 @@ export interface RoomTurnRequest {
   signal?: AbortSignal;
   /** 작업 폴더 밖에서 이번 차례에 고칠 수 있는 디렉터리. */
   writeDirs?: string[];
+  /** 호스트 프로세스에 더할 환경 변수. 할일 CLI가 같은 작업 공간을 보게 한다. */
+  env?: Record<string, string>;
 }
 
 export type RoomTurnResult =
@@ -183,12 +187,13 @@ function runProcess(
   timeoutMs: number,
   stdin?: string,
   signal?: AbortSignal,
+  env?: Record<string, string>,
 ): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((resolve) => {
     const child = spawn(bin, args, {
       cwd,
       stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
-      env: process.env,
+      env: env ? { ...process.env, ...env } : process.env,
       detached: true,
     });
     let stdout = "";
@@ -277,7 +282,7 @@ export const defaultRoomRunner: RoomRunner = async (req) => {
     args.push("--tools", tools, "--allowedTools", tools, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
   }
   if (req.execution && req.speaker === "grok") return { ok: false, kind: "error", text: "Grok의 테스트 도구 권한 제한은 아직 확인되지 않았다. 읽기·편집 권한을 제한할 수 있는 담당을 선택한다.", ms: 0 };
-  const run = await runProcess(req.bin, args, req.cwd, req.timeoutMs, undefined, req.signal);
+  const run = await runProcess(req.bin, args, req.cwd, req.timeoutMs, undefined, req.signal, req.env);
   const ms = Date.now() - started;
   if (req.signal?.aborted) return { ok: false, kind: "stopped", text: "사람이 중단했다.", ms };
   if (run.timedOut) return { ok: false, kind: "timeout", text: "답을 기다리는 시간을 넘겼다.", ms };
@@ -601,6 +606,26 @@ export async function saveRoomKept(
   return { ok: true };
 }
 
+/**
+ * 「브리핑」 한 마디면 오늘 할 일을 짧게 알린다 (사용자 요청 2026-10-26).
+ * 미완료 할일(Tasks 순서)과 최근 완료를 그대로 넣어, 도구 없이도 같은 자료로 답하게 한다.
+ */
+export async function briefingPrompt(studioHome: string, alias: string, now: Date): Promise<string> {
+  const open = (await readTodos(studioHome, alias)).filter(row => !row.done && !row.inactive && !row.deletedAt);
+  const recent = (await readTodoHistory(studioHome, alias)).slice(0, 5);
+  const line = (text?: string) => (text ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
+  const date = now.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
+  return [
+    `사람이 「브리핑」이라고 했다. 오늘(${date}) 할 일을 간결하게 브리핑한다.`,
+    "형식: 첫 줄에 오늘 한 줄 요약. 「최근 끝낸 일」 3줄 이내. 「오늘 할 일」은 아래 Tasks 순서대로 위 3~5건, 건마다 한 줄로 무엇과 왜 지금인지. 사람이 정해야 할 것이 있으면 「정할 것」에 따로. 전체 15줄 이내, 목록이 길면 표 대신 짧은 줄로.",
+    "파일을 고치거나 할일 목록을 바꾸지 않는다. 순서가 시급성 · 중요도와 맞지 않아 보이면 바꾸자고 제안만 하고, 사람이 맡기면 그때 order 명령으로 바꾼다.",
+    `미완료 Tasks (${open.length}건, 위가 먼저):`,
+    ...(open.length ? open.map((row, i) => `${i + 1}. [${row.id}] ${row.title}${row.detail ? ` — ${line(row.detail)}` : ""}`) : ["(없음)"]),
+    "최근 완료:",
+    ...(recent.length ? recent.map(row => `- ${new Date(row.completedAt).toLocaleDateString("sv-SE")} ${row.title}`) : ["(없음)"]),
+  ].join("\n");
+}
+
 export type SendRoomResult =
   | { ok: true; roomId: string; done: Promise<void> }
   | { ok: false; status: 400 | 404 | 409 | 503; error: string };
@@ -681,8 +706,11 @@ export async function sendRoomTurn(
       const todoFile = todosPath(studioHome, input.alias);
       const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
       const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../packages/cli/dist/index.js");
-      const todoCommand = `env PATCHBAY_HOME=${quote(studioHome)} ${quote(process.execPath)} ${quote(cli)} todo`;
+      // `env …` 로 시작하면 허용 목록(Bash(node:*))에 걸리지 않아 승인 요청으로 막힌다(2026-10-26). 작업 공간 · node 경로는 환경 변수로 넘긴다.
+      const todoCommand = `node ${quote(cli)} todo`;
+      const todoEnv = { PATCHBAY_HOME: studioHome, PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ""}` };
       const projectFlag = `--project ${quote(input.alias)}`;
+      const briefing = text === "브리핑" ? `\n${await briefingPrompt(studioHome, input.alias, now())}` : "";
       const todoInstruction = [
         "실제로 작업을 수행한 차례라면 끝나기 전에 이 프로젝트의 이후 할 일 목록도 현재 상태에 맞춘다.",
         `읽기용 목록 파일: ${todoFile}. 이 파일을 직접 쓰거나 덮어쓰지 않는다. 다음 CLI가 검증·잠금·원자 저장을 수행한다.`,
@@ -690,7 +718,8 @@ export async function sendRoomTurn(
         `후속 할일 추가: ${todoCommand} add ${projectFlag} --title '할일 제목' --detail '구체적인 요구사항' --room ${quote(roomId)} --json`,
         `완료 처리: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --done --json`,
         `내용 수정: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --title '제목' --detail '요구사항' --json`,
-        "기존 배열 순서와 id·at·roomId·source·inactive를 보존한다. 새 일반 할일에는 source를 넣지 않는다. source의 stage·attention은 자동 추천 전용이며 llm은 할일의 유효한 값이 아니다. completedAt은 CLI가 완료 시각으로 기록한다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
+        `우선순위 변경: ${todoCommand} order ${projectFlag} --ids '먼저 할 ID,그다음 ID' --json — 적은 미완료 할일이 그 순서로 맨 앞에 오고 나머지는 원래 순서대로 뒤에 선다. 사용자가 순서 · 우선순위 조정을 맡기면 시급성과 중요도로 정하고 이 명령으로 반영한다.`,
+        "사용자가 순서 변경을 맡기지 않았으면 기존 배열 순서를 보존하고, id·at·roomId·source·inactive는 늘 보존한다. 새 일반 할일에는 source를 넣지 않는다. source의 stage·attention은 자동 추천 전용이며 llm은 할일의 유효한 값이 아니다. completedAt은 CLI가 완료 시각으로 기록한다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
         ...(linked ? [] : [`이 대화(roomId: ${roomId})에 연결된 할일이 없다. 사용자가 이번 차례에 작업을 맡겼으면 add 명령에 --first를 붙여 첫 미완료 할일 앞에 추가하고 --room ${quote(roomId)}으로 연결한다 — 채팅으로 맡긴 일이 최우선이다.`]),
         "실행 중 발생한 미해결 오류·후속 작업은 구체적인 할일로 목록 맨 아래에 추가한다. 같은 미완료 항목이 이미 있으면 중복 추가하지 않는다. 6건은 화면 표시 기준일 뿐 저장 개수 제한이 아니다. 기존 할일을 새 목록으로 교체하거나 6건으로 잘라내지 않는다.",
         "방금 끝낸 항목은 done=true로 보존하고(CLI update --done), 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다.",
@@ -728,11 +757,11 @@ export async function sendRoomTurn(
           role: member.role,
           ...(member.effort ? { effort: member.effort } : {}),
           bin,
-          prompt: `${roundPrompt(after?.messages ?? [], member, kind, activeMode)}${memberExecution === "apply" ? `\n${todoInstruction}` : ""}`,
+          prompt: `${roundPrompt(after?.messages ?? [], member, kind, activeMode)}${briefing}${memberExecution === "apply" ? `\n${todoInstruction}` : ""}`,
           cwd: project.path,
           timeoutMs: deps.timeoutMs ?? (act ? ROOM_ACT_TIMEOUT_MS : ROOM_TURN_TIMEOUT_MS),
           ...(memberExecution ? { execution: memberExecution } : {}),
-          ...(memberExecution === "apply" ? { writeDirs: [path.dirname(todoFile)] } : {}),
+          ...(memberExecution === "apply" ? { writeDirs: [path.dirname(todoFile)], env: todoEnv } : {}),
           signal: stop.signal,
         });
         const later = before ? await snapshot(project.path) : null;

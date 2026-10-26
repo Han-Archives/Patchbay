@@ -446,11 +446,12 @@ progress
   });
 
 const todo = program.command("todo").description("Read and change tasks through validated storage");
-for (const action of ["list", "add", "update"] as const) {
+for (const action of ["list", "add", "update", "order"] as const) {
   const command = todo.command(action)
     .requiredOption("--project <alias>", "registered project")
     .option("--json", "machine-readable output");
-  if (action !== "list") command.option("--id <id>", "task ID").option("--title <text>", "task title")
+  if (action === "order") command.requiredOption("--ids <ids>", "unfinished task IDs to put first, comma-separated, in priority order");
+  if (action === "add" || action === "update") command.option("--id <id>", "task ID").option("--title <text>", "task title")
     .option("--detail <text>", "task requirements").option("--room <id>", "linked conversation");
   if (action === "add") command.option("--first", "insert before the first active task");
   if (action === "update") command.option("--done", "mark completed").option("--pending", "mark unfinished");

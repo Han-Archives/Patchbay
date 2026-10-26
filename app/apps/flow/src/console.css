@@ -5686,6 +5686,11 @@ textarea.cell-input {
 .chat-file { display: inline; }
 .chat-file-get, .chat-file a.chat-file-get { margin-left: 4px; padding: 0 6px; border: 1px solid var(--stroke); border-radius: 99px; font-size: 11px; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .chat-file-get:hover { color: var(--text); border-color: var(--muted); }
+/* 대화 속 마크다운 표 — 좁은 칸에서는 가로로 밀어 본다 (2026-10-26). */
+.chat-table-wrap { display: block; max-width: 100%; overflow-x: auto; margin: 4px 0; }
+.chat-table { border-collapse: collapse; font-size: 12.5px; line-height: 1.45; white-space: normal; }
+.chat-table th, .chat-table td { padding: 4px 8px; border: 1px solid var(--stroke); text-align: left; vertical-align: top; min-width: 2.5em; }
+.chat-table th { background: var(--chrome); font-weight: 700; }
 .chat-system { align-self: stretch; display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; background: var(--bad-fill); color: var(--text); border: 1px solid var(--bad); }
 .chat-system b { color: var(--bad); font-size: 12px; }
 .chat-system.is-host-switch { background: none; border: 1px dashed var(--stroke); color: var(--muted); }
