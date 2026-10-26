@@ -361,6 +361,9 @@ export function RoomPanel({
     setQuickOpen(false);
     setMenuFor(null);
     setDraft("");
+    // 위에서 비운 방 · 목록을 다시 읽는다. 열려던 방이 이미 보던 방이면 roomId가 그대로라 읽기가 다시 돌지 않아 빈 칸으로 남았다
+    // (Tasks 「대화창 열기」, 2026-10-26).
+    setTick((n) => n + 1);
     if (openRoom) {
       setRoomId(openRoom);
       rememberRoom(project, openRoom);
