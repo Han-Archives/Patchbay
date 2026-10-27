@@ -5617,6 +5617,10 @@ textarea.cell-input {
 .consult-example { border-left: 3px solid var(--warn); padding-left: 10px; }
 .consult-thinking { font-size: 12.5px; }
 .msg.is-system.is-switch { color: var(--muted); }
+.msg.is-system.is-done { color: var(--ok); text-align: center; display: grid; gap: 4px; justify-items: center; }
+.msg.is-system.is-done .msg-next { color: var(--accent); font-weight: 600; }
+.room-todo { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.room-todo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .consult-send { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--stroke); align-items: flex-end; }
 .consult-send textarea { flex: 1; resize: vertical; min-height: 54px; }
 .consult-panel { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--stroke); border-radius: 8px; padding: 14px; background: var(--chrome); min-width: 0; align-self: start; position: sticky; top: 0; }
@@ -5699,7 +5703,9 @@ textarea.cell-input {
 /* 대화 속 # 제목 줄과 `코드` — 기호 대신 모양으로 (2026-10-26). */
 .chat-heading { font-weight: 700; color: var(--text); line-height: 1.4; margin: 6px 0 0; white-space: normal; }
 .chat-heading.is-h1 { font-size: 15px; padding-bottom: 4px; border-bottom: 1px solid var(--stroke); }
-.chat-heading.is-h2 { font-size: 14px; }
+/* ## 칸 제목은 칸마다 선을 그어 요점 · 할 일 · 정할 것이 갈라져 보이게 (2026-10-26). */
+.chat-heading.is-h2 { font-size: 14px; margin-top: 10px; padding: 6px 0 0 8px; border-top: 1px solid var(--stroke); border-left: 3px solid var(--accent); }
+.chat-heading.is-h2:first-child { margin-top: 0; border-top: none; }
 .chat-heading.is-h3 { font-size: 13.5px; color: var(--muted); }
 .chat-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: var(--chrome); border: 1px solid var(--stroke); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }
 /* 대화 속 마크다운 표 — 좁은 칸에서는 가로로 밀어 본다 (2026-10-26). */

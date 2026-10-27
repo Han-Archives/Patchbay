@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendRoomMessage, newRoomId, readRoom, todoItemSchema, trashRecord, updateTodos, writeRoomMeta, type TodoItem } from "@patchbay/core";
+import { appendRoomMessage, newRoomId, readRoom, readRoomMeta, todoItemSchema, trashRecord, updateTodos, writeRoomMeta, type TodoItem } from "@patchbay/core";
 
 type TodoAction = { action: "add"; title: string; detail?: string } | { action: "sync"; suggestions: TodoItem[] } | { action: "complete" | "delete" | "room"; id: string } | { action: "move"; id: string; beforeId: string | null };
 
@@ -68,10 +68,12 @@ export async function applyTodoAction(home: string, alias: string, input: unknow
       let i = 0;
       return fresh.map(row => movable.includes(row) ? rest[i++]! : row);
     }
-    if (todo.roomId && await readRoom(home, alias, todo.roomId)) { roomId = todo.roomId; return fresh; }
+    // 할일 자신의 방이면 그 방을 연다. 할일이 나온 방(브리핑 등)이면 새 방을 만들고 그 방의 참여자를 잇는다 (사용자 요청 2026-10-27).
+    const origin = todo.roomId && await readRoom(home, alias, todo.roomId) ? await readRoomMeta(home, alias, todo.roomId) : null;
+    if (origin?.todoId === todo.id) { roomId = todo.roomId; return fresh; }
     roomId = newRoomId(now);
-    // 등록된 LLM은 선택 후보일 뿐이다. 새 대화의 참여자는 사람이 직접 고른다.
-    await writeRoomMeta(home, alias, roomId, { title: todo.title, kept: false, members: [] });
+    // 등록된 LLM은 선택 후보일 뿐이다. 새 대화의 참여자는 사람이 직접 고른다. 방만 만들고 LLM은 부르지 않는다.
+    await writeRoomMeta(home, alias, roomId, { title: todo.title, kept: false, members: origin?.members ?? [], todoId: todo.id });
     await appendRoomMessage(home, alias, roomId, { role: "user", text: `${todo.title}${todo.detail ? `\n\n${todo.detail}` : ""}` }, now);
     // API에서 생성한 대화는 기존 대화 UI로 연다. 예시·안내 문구를 추가하지 않는다.
     return fresh.map(row => row.id === todo.id ? { ...row, roomId } : row);

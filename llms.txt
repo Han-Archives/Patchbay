@@ -11,7 +11,7 @@
 
 ## 에이전트 규칙
 
-- [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md): 규칙 원본은 knowledge/patchbay/규칙/
+- [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md): 규칙 · 스킬 원본은 Patchbay 작업 공간 workspace/projects/patchbay/rules/ · skills/ (MCP get_rules · CLI patchbay rule)
 
 ## 쓰는 법
 

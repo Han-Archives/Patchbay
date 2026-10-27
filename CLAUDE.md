@@ -1,20 +1,14 @@
 # Patchbay
 
-에이전트 규칙은 `knowledge/patchbay/규칙/`에 모은다. 그 폴더의 `.mdc`를 읽고 따른다. Cursor는 `.cursor/rules/`에서 같은 파일을 가리킨다.
-
-@knowledge/patchbay/규칙/doc-versions.mdc
-@knowledge/patchbay/규칙/terms.mdc
-@knowledge/patchbay/규칙/architecture-map.mdc
-@knowledge/patchbay/규칙/reflect-to-patchbay.mdc
-@knowledge/patchbay/규칙/visual-first.mdc
-@workspace/records/patchbay/규칙/portfolio-deck.mdc
-@knowledge/patchbay/규칙/storage-layout.mdc
+에이전트 규칙 · 스킬의 원본은 Patchbay 작업 공간 `workspace/projects/patchbay/rules/` · `skills/`다. 특정 도구(Cursor · Claude Code)의 파일에 묶지 않는다 (사용자 결정 2026-10-27).
+다른 세션은 MCP `get_rules`(alias `patchbay`)나 `patchbay rule list|show --project patchbay`로 읽고, 고칠 때도 `save_rule` · `patchbay rule save`로 고친다.
+맨 아래 칸은 `patchbay rule export --project patchbay --target claude`가 만든다 — 직접 고치지 않는다.
 
 ## Coding Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes.
 
-**우선순위:** 모든 작업에 적용하는 기본 원칙이다. 위 `knowledge/patchbay/규칙/` 파일과 충돌하면 그 파일을 따른다. 그 규칙들이 요구하는 수정도 3절(Surgical Changes)의 "요청에서 직접 이어지는 변경"으로 본다.
+**우선순위:** 모든 작업에 적용하는 기본 원칙이다. 위 Patchbay 규칙과 충돌하면 그 파일을 따른다. 그 규칙들이 요구하는 수정도 3절(Surgical Changes)의 "요청에서 직접 이어지는 변경"으로 본다.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -77,3 +71,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+<!-- patchbay:rules — `patchbay rule export --target claude`가 고친다. 원본은 Patchbay 작업 공간 -->
+@workspace/projects/patchbay/rules/architecture-map.md
+@workspace/projects/patchbay/rules/briefing.md
+@workspace/projects/patchbay/rules/doc-versions.md
+@workspace/projects/patchbay/rules/portfolio-deck.md
+@workspace/projects/patchbay/rules/reflect-to-patchbay.md
+@workspace/projects/patchbay/rules/storage-layout.md
+@workspace/projects/patchbay/rules/terms.md
+@workspace/projects/patchbay/rules/visual-first.md
+<!-- /patchbay:rules -->

@@ -1,15 +1,18 @@
-# 에이전트 규칙
+# 에이전트 규칙 · 스킬
 
-이 폴더가 Cursor와 Claude Code가 같이 보는 **규칙 원본**이다. `.mdc`만 규칙이다.
+**원본은 여기가 아니다.** 2026-10-27부터 Patchbay를 쓰는 프로젝트의 규칙 · 스킬은 Patchbay 작업 공간에 프로젝트마다 둔다. 특정 도구(Cursor · Claude Code)의 파일에 묶지 않는다 (사용자 결정).
 
-| 파일 | 언제 |
+| 무엇 | 어디 |
 | --- | --- |
-| `terms.mdc` | 조어를 정의 없이 쓰지 않는다. 원본은 `workspace/records/patchbay/용어.md`(비공개 기록층) |
-| `architecture-map.mdc` | 패키지·API·탭·스튜디오 파일이 바뀔 때 아키텍처 맵을 맞춘다 |
-| `reflect-to-patchbay.mdc` | 어떤 프로젝트든 프로세스·단계가 끝나면 Patchbay에 반영한다 |
-| `portfolio-deck.mdc` (비공개 기록층 `workspace/records/patchbay/규칙/`) | **Patchbay 구현에만** — 덱은 프로젝트 완료 후에 만든다. 진행 중에는 재료(결정·근거·실측)만 남긴다 |
-| `visual-first.mdc` | 사용자 표면은 텍스트 나열보다 보면 아는 인터페이스를 먼저 |
-| `doc-versions.mdc` | 새 판을 쓰면 옛 판을 `_archive/` 로 옮긴다. 살아 있는 폴더에는 **한 판만** |
-| `storage-layout.mdc` | 파일은 `기획/저장구조.md`가 정한 층 · 경로에만 둔다. 저장 구조가 바뀌면 같은 작업에서 그 문서를 고친다 |
+| 규칙 | `<작업 공간>/projects/<alias>/rules/<이름>.md` — 머리말 `description` · `apply`(`always` 늘 지킴 / `request` 이름을 댈 때) |
+| 스킬 | `<작업 공간>/projects/<alias>/skills/<이름>/SKILL.md`, 모든 프로젝트 공용은 `<작업 공간>/skills/` |
+| Patchbay 자신 | `workspace/projects/patchbay/rules/` — architecture-map · briefing · doc-versions · portfolio-deck · reflect-to-patchbay · storage-layout · terms · visual-first |
 
-Cursor는 `.cursor/rules/`에서 여기 파일을 가리킨다. Claude Code는 레포 루트 `CLAUDE.md`가 이 폴더를 포함한다.
+## 읽고 쓰는 법
+
+- 대화방: Patchbay가 `always` 규칙 본문과 나머지 목록을 어떤 LLM(Claude · Codex · 로컬)에든 넣는다. 말에 이름이 나오면 그 본문도 넣는다. 입력칸 「+ → 규칙 · 스킬」로 이름을 고른다.
+- 다른 세션: MCP `get_rules` · `save_rule`, CLI `patchbay rule list|show|save --project <alias>`.
+- 고치기: 콘솔 「폴더 · 문서」의 `rules/` · `skills/`, 또는 위 저장 명령.
+- 도구 파일이 필요하면: `patchbay rule export --project <alias> --target cursor|claude` — `.cursor/rules/*.mdc`나 `CLAUDE.md` 맨 아래 칸을 만든다. 원본은 그대로다.
+
+옛 `.mdc` 원본은 `archive/docs/규칙/`(portfolio-deck은 비공개 `workspace/records/archive/docs/규칙/`)에 보관했다.

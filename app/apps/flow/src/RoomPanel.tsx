@@ -288,6 +288,8 @@ interface RoomBody {
   preparationStatus?: string;
   preparationWarning?: string;
   execution?: RoomExecution | null;
+  /** 이 방이 맡은 미완료 할일. 있으면 「완료」로 끝낸다. */
+  todo?: { id: string; title: string } | null;
   error?: string;
 }
 
@@ -346,6 +348,7 @@ export function RoomPanel({
   const [plusOpen, setPlusOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
   const [projectFiles, setProjectFiles] = useState<string[] | null>(null);
+  const [ruleList, setRuleList] = useState<{ kind: "규칙" | "스킬"; name: string; description: string }[] | null>(null);
   const [fileQuery, setFileQuery] = useState("");
   const docRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -596,6 +599,23 @@ export function RoomPanel({
         setDraft("");
         if (body.roomId) show(body.roomId);
       }
+    } catch (err) {
+      setError(roomRequestError(err));
+    } finally {
+      setBusy(false);
+      setTick((n) => n + 1);
+    }
+  }
+
+  // 할일 「완료」 — 서버가 완료 안내 · 다음 할일 링크를 남긴 뒤 할일을 완료로 옮긴다.
+  async function completeTodo() {
+    if (!roomId) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/room/complete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: project, roomId }) });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok || body.error) setError(body.error ?? `HTTP ${res.status}`);
     } catch (err) {
       setError(roomRequestError(err));
     } finally {
@@ -908,6 +928,12 @@ export function RoomPanel({
                 <div className="room-compose"><p className="thread-note">테스트 실행은 위의 단계 버튼으로 이어간다. 요구사항 변경은 상담으로 보낸다.</p>{error ? <p className="thread-err">{error}</p> : null}</div>
               ) : (
                 <div className="room-compose">
+                  {room?.todo ? (
+                    <div className="room-todo">
+                      <span title={room.todo.title}>할일 · {room.todo.title}</span>
+                      <button type="button" className="flow-btn" disabled={busy || !!waiting} onClick={() => void completeTodo()}>완료</button>
+                    </div>
+                  ) : null}
                   {error ? <p className="thread-err">{error}</p> : null}
                   <textarea
                     aria-label="보낼 말"
@@ -930,6 +956,7 @@ export function RoomPanel({
                       onClick={() => {
                         setPlusOpen((open) => !open);
                         setProjectFiles(null);
+                        setRuleList(null);
                       }}
                     >
                       <PlusIcon />
@@ -963,6 +990,30 @@ export function RoomPanel({
                         >
                           프로젝트 파일
                         </button>
+                        {/* 이름만 넣는다 — 보내면 서버가 이름이 나온 규칙 · 스킬 본문을 LLM에 넘긴다. */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void fetch(`/api/rules?alias=${encodeURIComponent(project)}`)
+                              .then((res) => res.json() as Promise<{ rules?: { name: string; description: string }[]; skills?: { name: string; description: string }[] }>)
+                              .then((body) => setRuleList([...(body.rules ?? []).map((row) => ({ kind: "규칙" as const, ...row })), ...(body.skills ?? []).map((row) => ({ kind: "스킬" as const, ...row }))]));
+                          }}
+                        >
+                          규칙 · 스킬
+                        </button>
+                        {ruleList ? (
+                          <ul>
+                            {ruleList.length ? ruleList.map((row) => (
+                              <li key={`${row.kind}:${row.name}`}>
+                                <button type="button" title={row.description} onClick={() => {
+                                  setDraft((cur) => `${cur.trim() ? `${cur.trimEnd()} ` : ""}${row.kind} 「${row.name}」대로 `);
+                                  setPlusOpen(false);
+                                  setRuleList(null);
+                                }}>{row.kind} · {row.name}</button>
+                              </li>
+                            )) : <li>저장된 규칙 · 스킬이 없다.</li>}
+                          </ul>
+                        ) : null}
                         {projectFiles ? (
                           <>
                             <input aria-label="파일 경로" value={fileQuery} placeholder="경로" onChange={(e) => setFileQuery(e.target.value)} />
@@ -1199,7 +1250,12 @@ function RoomLine({ message: m, project }: { message: RoomMessage; project: stri
     );
   }
   if (m.role === "system") {
-    return <div className="msg is-system"><ChatText text={m.text} project={project} /></div>;
+    return (
+      <div className={`msg is-system${m.kind === "done" ? " is-done" : ""}`}>
+        <ChatText text={m.text} project={project} />
+        {m.kind === "done" && m.next ? <a className="msg-next" href={`#room/${encodeURIComponent(project)}/${encodeURIComponent(m.next.roomId)}`}>다음 할일 대화 열기 →</a> : null}
+      </div>
+    );
   }
   const name = m.speaker === "local" && m.model ? m.model : ROOM_SPEAKER_LABEL[m.speaker];
   return (

@@ -59,6 +59,7 @@ describe("tool inventory", () => {
         "get_progress",
         "get_project_bundle",
         "get_room",
+        "get_rules",
         "get_runs",
         "get_thread",
         "list_pending_requests",
@@ -70,6 +71,7 @@ describe("tool inventory", () => {
         "place_on_board",
         "progress_write",
         "room_bind",
+        "save_rule",
       ]);
     } finally {
       await close();

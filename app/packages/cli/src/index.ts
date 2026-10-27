@@ -23,6 +23,7 @@ import { runPatch } from "./commands/patch.js";
 import { runProgress } from "./commands/progress.js";
 import { runProgressWrite } from "./commands/progressWrite.js";
 import { runTodo } from "./commands/todo.js";
+import { runRule } from "./commands/rule.js";
 import { runProjectAdd } from "./commands/projectAdd.js";
 import { runProjectNew } from "./commands/projectNew.js";
 import { runProjectTriage } from "./commands/projectTriage.js";
@@ -456,6 +457,18 @@ for (const action of ["list", "add", "update", "order"] as const) {
   if (action === "add") command.option("--first", "insert before the first active task");
   if (action === "update") command.option("--done", "mark completed").option("--pending", "mark unfinished");
   command.action(async opts => { process.exitCode = await runAction(() => runTodo(action, opts)); });
+}
+
+const rule = program.command("rule").description("Project rules and skills kept in the Patchbay workspace (not tied to any one tool)");
+for (const action of ["list", "show", "save", "export"] as const) {
+  const command = rule.command(action)
+    .requiredOption("--project <alias>", "registered project")
+    .option("--json", "machine-readable output");
+  if (action !== "list" && action !== "export") command.requiredOption("--name <name>", "rule or skill name").option("--skill", "a skill, not a rule");
+  if (action === "save") command.option("--description <text>", "one-line description").option("--body <text>", "Markdown body")
+    .option("--file <path>", "read the body from this file").option("--always", "rule: always apply (default: only when asked)");
+  if (action === "export") command.requiredOption("--target <tool>", "cursor (.cursor/rules/*.mdc) or claude (a block in CLAUDE.md)");
+  command.action(async opts => { process.exitCode = await runAction(() => runRule(action, opts)); });
 }
 
 const room = program.command("room").description("Conversation rooms (the console's right-hand chat)");

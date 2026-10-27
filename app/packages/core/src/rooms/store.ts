@@ -311,6 +311,8 @@ export interface RoomMeta {
   /** 현재 이 대화방에 지정된 모드 id. 비어 있거나 null 이면 일반 대화. */
   modeId?: string | null;
   execution?: RoomExecution;
+  /** 할일 「대화창 열기」로 만든 방이면 그 할일 id. 할일이 나온 방과 할일 자신의 방을 가른다. */
+  todoId?: string;
 }
 
 const EMPTY_META: RoomMeta = { title: null, kept: false, members: [], modeId: null };
@@ -334,6 +336,7 @@ export async function readRoomMeta(studioHome: string, alias: string, id: string
       members: Array.isArray(raw.members) ? raw.members.flatMap((row, index) => { const member = normalizeMember(row); return member ? [{ ...member, id: member.id ?? `legacy-${index}` }] : []; }) : [],
       modeId: typeof raw.modeId === "string" && raw.modeId.trim() ? raw.modeId.trim() : null,
       ...(raw.execution ? { execution: roomExecutionSchema.parse(raw.execution) } : {}),
+      ...(typeof raw.todoId === "string" && raw.todoId ? { todoId: raw.todoId } : {}),
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ...EMPTY_META, members: [] };

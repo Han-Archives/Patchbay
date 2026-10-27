@@ -120,8 +120,9 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
     } catch (reason) { if (generation.current === token) setError(todoError(reason)); }
     finally { pending.current = false; setBusy(false); }
   }
-  const active = todos.filter(todo => !todo.done && !todo.inactive);
-  const completed = todos.filter(todo => todo.done && todo.completedAt && clock - Date.parse(todo.completedAt) < TODO_VISIBLE_MS).sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+  // 대화에서 끝낸 할일은 그 바퀴가 끝나 완료 안내가 붙은 뒤에 완료로 옮긴다.
+  const active = todos.filter(todo => (!todo.done || todo.running) && !todo.inactive);
+  const completed = todos.filter(todo => todo.done && !todo.running && todo.completedAt && clock - Date.parse(todo.completedAt) < TODO_VISIBLE_MS).sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
   const movable = active.filter(todo => !todo.running);
   function move(todo: TodoRow, direction: -1 | 1) {
     const index = movable.findIndex(row => row.id === todo.id);

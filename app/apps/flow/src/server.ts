@@ -64,6 +64,8 @@ import {
   providerCapSchema,
   updateLlmQuotaConfig,
   type LlmQuotaPreset,
+  listProjectRules,
+  listProjectSkills,
 } from "@patchbay/core";
 import {
   SSE_KEEPALIVE_COMMENT,
@@ -151,6 +153,7 @@ import {
   saveRoomKept,
   saveRoomTitle,
   sendRoomTurn,
+  completeRoomTodo,
   stopRoomTurn,
   type RoomRunner,
 } from "./roomHost.js";
@@ -1281,6 +1284,15 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     return c.json({ ok: true, consultId: result.consultId, status: "waiting" }, 202);
   });
 
+  // 프로젝트 규칙 · 스킬 목록 — 대화창 「+」가 고른다 (사용자 결정 2026-10-27).
+  app.get("/api/rules", async (c) => {
+    const alias = c.req.query("alias") ?? "";
+    if (!(await readStudio(options.studioHome)).projects.some((p) => p.alias === alias)) return c.json({ error: "등록된 프로젝트가 아닙니다." }, 404);
+    const rules = await listProjectRules(options.studioHome, alias);
+    const skills = await listProjectSkills(options.studioHome, alias);
+    return c.json({ rules: rules.map(({ name, description, apply }) => ({ name, description, apply })), skills: skills.map(({ name, description, scope }) => ({ name, description, scope })) });
+  });
+
   app.get("/api/room/skills", async (c) => {
     const slug = c.req.query("slug");
     if (slug) {
@@ -1389,6 +1401,14 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     if (!result.ok) return c.json({ error: result.error }, result.status);
     void result.done;
     return c.json({ ok: true, roomId: result.roomId, status: "waiting" }, 202);
+  });
+
+  app.post("/api/room/complete", async (c) => {
+    const rec = await jsonRecord(c);
+    if (!rec) return c.json({ error: "JSON body is required." }, 400);
+    const result = await completeRoomTodo(options.studioHome, { alias: typeof rec.alias === "string" ? rec.alias : "", roomId: typeof rec.roomId === "string" ? rec.roomId : "" });
+    if (!result.ok) return c.json({ error: result.error }, result.status);
+    return c.json({ ok: true });
   });
 
   app.post("/api/room/stop", async (c) => {

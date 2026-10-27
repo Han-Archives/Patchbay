@@ -14,6 +14,7 @@ import { registerThreadTools } from "./tools/threads.js";
 import { registerConsultTools } from "./tools/consult.js";
 import { registerRoomTools } from "./tools/rooms.js";
 import { registerLogTools } from "./tools/log.js";
+import { registerRuleTools } from "./tools/rules.js";
 import { registerPreparationTools, type ConsoleFetch } from "./tools/preparations.js";
 import { registerSessionTools, SESSION_INSTRUCTIONS, type LlmRun } from "./tools/session.js";
 
@@ -46,6 +47,7 @@ export function createServer(studioHome: string = resolveStudioHome(), deps: { l
   registerConsultTools(server, studioHome);
   registerRoomTools(server, studioHome);
   registerLogTools(server, studioHome);
+  registerRuleTools(server, studioHome);
   registerPreparationTools(server, deps.consoleFetch ? { consoleFetch: deps.consoleFetch } : {});
   registerSessionTools(server, studioHome, deps.llmRunner ? { runner: deps.llmRunner } : {});
 

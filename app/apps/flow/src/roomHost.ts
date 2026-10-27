@@ -33,11 +33,17 @@ import {
   type RoundKind,
   writeRoomMeta,
   type RoomMember,
+  type TodoItem,
+  listProjectRules,
+  listProjectSkills,
+  rulesPrompt,
+  pickedRules,
   type RoomMeta,
   type RoomMode,
   type RoomSpeaker,
 } from "@patchbay/core";
 import { resolveBin } from "./processHost.js";
+import { applyTodoAction } from "./todoActions.js";
 
 /**
  * 대화방 한 턴 — 오른쪽 대화 칸.
@@ -607,7 +613,7 @@ export async function saveRoomKept(
 }
 
 /**
- * 「브리핑」 한 마디면 오늘 할 일을 짧게 알린다 (사용자 요청 2026-10-26).
+ * 「브리핑」 한 마디면 오늘 할 일을 짧게 알린다 (사용자 요청 2026-10-26). 「브리핑 다시(해)」도 같은 자료로 다시 한다.
  * 미완료 할일(Tasks 순서)과 최근 완료를 그대로 넣어, 도구 없이도 같은 자료로 답하게 한다.
  */
 export async function briefingPrompt(studioHome: string, alias: string, now: Date): Promise<string> {
@@ -617,7 +623,13 @@ export async function briefingPrompt(studioHome: string, alias: string, now: Dat
   const date = now.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
   return [
     `사람이 「브리핑」이라고 했다. 오늘(${date}) 할 일을 간결하게 브리핑한다.`,
-    "형식: 첫 줄에 오늘 한 줄 요약. 「최근 끝낸 일」 3줄 이내. 「오늘 할 일」은 아래 Tasks 순서대로 위 3~5건, 건마다 한 줄로 무엇과 왜 지금인지. 사람이 정해야 할 것이 있으면 「정할 것」에 따로. 전체 15줄 이내, 목록이 길면 표 대신 짧은 줄로.",
+    // 요점 · 할 일이 한눈에 갈라져 보이게 칸을 고정한다. 대화창은 ## 제목 · 표를 모양으로 그린다 (사용자 요청 2026-10-26).
+    // 형식 원본은 Patchbay 규칙 briefing(workspace/projects/patchbay/rules/briefing.md) — 바꾸면 같이 고친다.
+    "형식: 아래 네 칸을 이 순서 · 이 제목 그대로 쓴다. ** 강조는 쓰지 않는다 — 칸 구분은 제목과 표가 한다. 전체 20줄 이내.",
+    "## 요점 — 오늘 무엇이 제일 중요한지 1~2줄.",
+    "## 지금 할 일 — 표 | 순서 | 할 일 | 왜 지금 |. 아래 Tasks 순서대로 위 3~5건, 칸마다 짧게. 순서 칸은 Tasks 번호.",
+    "## 정하실 것 — 사람이 정해야 하는 것만 번호 목록으로, 건마다 「무엇을 · 고를 것」 한 줄. 없으면 「없음」.",
+    "## 최근 끝낸 일 — 3줄 이내 목록.",
     "파일을 고치거나 할일 목록을 바꾸지 않는다. 순서가 시급성 · 중요도와 맞지 않아 보이면 바꾸자고 제안만 하고, 사람이 맡기면 그때 order 명령으로 바꾼다.",
     `미완료 Tasks (${open.length}건, 위가 먼저):`,
     ...(open.length ? open.map((row, i) => `${i + 1}. [${row.id}] ${row.title}${row.detail ? ` — ${line(row.detail)}` : ""}`) : ["(없음)"]),
@@ -694,6 +706,8 @@ export async function sendRoomTurn(
   if (text) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text, ...modeTag }, now());
   if (input.round) await appendRoomMessage(studioHome, input.alias, roomId, { role: "user", text: input.round === "talk" ? "대화 시작" : "토의 시작", ...(!text ? modeTag : {}) }, now());
   if (!kind) return { ok: true, roomId, done: Promise.resolve() };
+  // 이 바퀴에 끝나는 이 방의 할일을 가려 완료 안내를 붙인다.
+  const openHere = new Set((await readTodos(studioHome, input.alias)).filter(todo => !todo.done && todo.roomId === roomId).map(todo => todo.id));
 
   running.add(key);
   if (acts) applying.add(input.alias);
@@ -710,19 +724,23 @@ export async function sendRoomTurn(
       const todoCommand = `node ${quote(cli)} todo`;
       const todoEnv = { PATCHBAY_HOME: studioHome, PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ""}` };
       const projectFlag = `--project ${quote(input.alias)}`;
-      const briefing = text === "브리핑" ? `\n${await briefingPrompt(studioHome, input.alias, now())}` : "";
+      // 프로젝트 규칙 · 스킬 — 어떤 LLM이든 같은 칸을 받는다 (사용자 결정 2026-10-27). 못 읽으면 빼고 대화는 잇는다.
+      const rules = await Promise.all([listProjectRules(studioHome, input.alias), listProjectSkills(studioHome, input.alias)])
+        .then(async ([ruleRows, skillRows]) => rulesPrompt(ruleRows, skillRows, await pickedRules(ruleRows, skillRows, text)), () => "");
+      const briefing = /^브리핑(\s*다시\s*(해|해 ?줘)?)?$/.test(text) ?`\n${await briefingPrompt(studioHome, input.alias, now())}` : "";
       const todoInstruction = [
-        "실제로 작업을 수행한 차례라면 끝나기 전에 이 프로젝트의 이후 할 일 목록도 현재 상태에 맞춘다.",
+        "실제로 작업을 수행했거나 사용자가 이 대화의 주제를 끝냈다고 한 차례라면 끝나기 전에 이 프로젝트의 이후 할 일 목록도 현재 상태에 맞춘다.",
         `읽기용 목록 파일: ${todoFile}. 이 파일을 직접 쓰거나 덮어쓰지 않는다. 다음 CLI가 검증·잠금·원자 저장을 수행한다.`,
         `목록 확인: ${todoCommand} list ${projectFlag} --json`,
         `후속 할일 추가: ${todoCommand} add ${projectFlag} --title '할일 제목' --detail '구체적인 요구사항' --room ${quote(roomId)} --json`,
         `완료 처리: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --done --json`,
+        `규칙 · 스킬 저장(사용자가 저장하라고 할 때만): node ${quote(cli)} rule save ${projectFlag} --name '이름' --description '한 줄 설명' --body '본문' [--always 늘 지킬 규칙] [--skill 스킬] --json`,
         `내용 수정: ${todoCommand} update ${projectFlag} --id '기존 할일 ID' --title '제목' --detail '요구사항' --json`,
         `우선순위 변경: ${todoCommand} order ${projectFlag} --ids '먼저 할 ID,그다음 ID' --json — 적은 미완료 할일이 그 순서로 맨 앞에 오고 나머지는 원래 순서대로 뒤에 선다. 사용자가 순서 · 우선순위 조정을 맡기면 시급성과 중요도로 정하고 이 명령으로 반영한다.`,
-        "사용자가 순서 변경을 맡기지 않았으면 기존 배열 순서를 보존하고, id·at·roomId·source·inactive는 늘 보존한다. 새 일반 할일에는 source를 넣지 않는다. source의 stage·attention은 자동 추천 전용이며 llm은 할일의 유효한 값이 아니다. completedAt은 CLI가 완료 시각으로 기록한다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다.",
+        "사용자가 순서 변경을 맡기지 않았으면 기존 배열 순서를 보존하고, id·at·roomId·source·inactive는 늘 보존한다. 새 일반 할일에는 source를 넣지 않는다. source의 stage·attention은 자동 추천 전용이며 llm은 할일의 유효한 값이 아니다. completedAt은 CLI가 완료 시각으로 기록한다. 수행 중인 대화와 roomId가 같은 할일을 우선 확인한다. 답변이나 확인만으로 done을 true로 만들지 않는다. 단, 사용자가 이 대화의 주제가 끝났다고 말하면(예: 「끝났어」 「이건 완료」 「다음으로 넘어가자」) 작업이 없었어도 이 대화와 roomId가 같은 미완료 할일을 update --done으로 완료한다.",
         ...(linked ? [] : [`이 대화(roomId: ${roomId})에 연결된 할일이 없다. 사용자가 이번 차례에 작업을 맡겼으면 add 명령에 --first를 붙여 첫 미완료 할일 앞에 추가하고 --room ${quote(roomId)}으로 연결한다 — 채팅으로 맡긴 일이 최우선이다.`]),
         "실행 중 발생한 미해결 오류·후속 작업은 구체적인 할일로 목록 맨 아래에 추가한다. 같은 미완료 항목이 이미 있으면 중복 추가하지 않는다. 6건은 화면 표시 기준일 뿐 저장 개수 제한이 아니다. 기존 할일을 새 목록으로 교체하거나 6건으로 잘라내지 않는다.",
-        "방금 끝낸 항목은 done=true로 보존하고(CLI update --done), 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다.",
+        "방금 끝낸 항목은 done=true로 보존하고(CLI update --done), 새로 드러난 구체적인 다음 작업은 추가하며, 아직 끝나지 않은 기존 항목을 임의로 지우지 않는다. 질문에 답만 한 차례에는 목록을 바꾸지 않는다 — 사용자가 주제를 끝냈다고 한 경우만 그 할일을 완료한다.",
         "작업을 계획했다면 대시보드 흐름도의 세부 항목에도 남긴다. 사용자가 보고 무엇을 할지 알 수 있게 한다.",
         `세부 항목 파일: ${cycleItemsPath(studioHome, input.alias)}. 직접 덮어쓰지 않고 @patchbay/core의 updateCycleItems로 변경한다.`,
         '형식: {"items":[{"id":"고유한 값","step":"design|build|test|review","task":"작업 이름","name":"업무명","desc":"무엇을 하는지 짧게","tag":"UI|Agent|데이터|서버|문서","source":"llm","at":"ISO 시각"}]}',
@@ -757,7 +775,7 @@ export async function sendRoomTurn(
           role: member.role,
           ...(member.effort ? { effort: member.effort } : {}),
           bin,
-          prompt: `${roundPrompt(after?.messages ?? [], member, kind, activeMode)}${briefing}${memberExecution === "apply" ? `\n${todoInstruction}` : ""}`,
+          prompt: `${roundPrompt(after?.messages ?? [], member, kind, activeMode)}${rules}${briefing}${memberExecution === "apply" ? `\n${todoInstruction}` : ""}`,
           cwd: project.path,
           timeoutMs: deps.timeoutMs ?? (act ? ROOM_ACT_TIMEOUT_MS : ROOM_TURN_TIMEOUT_MS),
           ...(memberExecution ? { execution: memberExecution } : {}),
@@ -799,7 +817,8 @@ export async function sendRoomTurn(
     } finally {
       try {
         // 화면을 닫아도 Agent가 완료한 할일과 마지막 응답을 즉시 보관한다.
-        await updateTodos(studioHome, input.alias, rows => rows, now());
+        const todos = await updateTodos(studioHome, input.alias, rows => rows, now());
+        await announceDone(studioHome, input.alias, roomId, todos.filter(todo => todo.done && openHere.has(todo.id)), live, now());
       } catch (error) {
         await appendRoomMessage(studioHome, input.alias, roomId, { role: "system", kind: "error", text: `할일 기록 보관 실패: ${(error as Error).message}` }, now()).catch(() => undefined);
       }
@@ -809,6 +828,48 @@ export async function sendRoomTurn(
     }
   })();
   return { ok: true, roomId, done };
+}
+
+/**
+ * 대화의 할일이 끝나면 완료 안내와 다음 할일의 대화방을 남긴다 (사용자 요청 2026-10-27).
+ * Tasks는 이 안내가 붙고 바퀴가 끝난 뒤에 그 할일을 완료로 옮긴다 — 바퀴 동안은 running으로 남는다.
+ */
+async function announceDone(studioHome: string, alias: string, roomId: string, finished: TodoItem[], members: RoomMember[], at: Date): Promise<void> {
+  for (const todo of finished) {
+    const next = (await readTodos(studioHome, alias)).find(row => !row.done && !row.inactive && !row.deletedAt && !finished.some(done => done.id === row.id));
+    if (!next) {
+      await appendRoomMessage(studioHome, alias, roomId, { role: "system", kind: "done", text: `완료 — ${todo.title}\n남은 할일이 없습니다.` }, at);
+      continue;
+    }
+    const opened = await applyTodoAction(studioHome, alias, { action: "room", id: next.id }, id => isRoomRunning(alias, id), at);
+    const meta = await readRoomMeta(studioHome, alias, opened.roomId!);
+    // 다음 할일에 이을 참여자가 없으면 이 방의 참여자로 이어 간다.
+    if (!meta.members.length && members.length) await writeRoomMeta(studioHome, alias, opened.roomId!, { ...meta, members });
+    await appendRoomMessage(studioHome, alias, roomId, { role: "system", kind: "done", text: `완료 — ${todo.title}\n다음 할일: ${next.title}`, next: { roomId: opened.roomId!, title: next.title } }, at);
+  }
+}
+
+/** 이 방이 맡은 미완료 할일 — 「대화창 열기」로 만든 방이면 그 할일, 아니면 이 방에 연결된 할일이 하나일 때 그것. */
+async function roomTodo(studioHome: string, alias: string, roomId: string, meta: RoomMeta): Promise<TodoItem | null> {
+  const open = (await readTodos(studioHome, alias)).filter(row => !row.done && !row.inactive && !row.deletedAt && row.roomId === roomId);
+  if (meta.todoId) return open.find(row => row.id === meta.todoId) ?? null;
+  return open.length === 1 ? open[0]! : null;
+}
+
+/** 대화창 「완료」 — 이 방의 할일에 완료 안내 · 다음 할일 링크를 남긴 뒤 완료로 옮긴다 (사용자 요청 2026-10-27). */
+export async function completeRoomTodo(
+  studioHome: string,
+  input: { alias: string; roomId: string },
+  at = new Date(),
+): Promise<{ ok: true } | { ok: false; status: 404 | 409; error: string }> {
+  if (running.has(`${input.alias}/${input.roomId}`)) return { ok: false, status: 409, error: "LLM이 답하는 중이다. 끝난 뒤 완료한다." };
+  if (!(await readRoom(studioHome, input.alias, input.roomId))) return { ok: false, status: 404, error: `대화방 ${input.roomId} 가 없다.` };
+  const meta = await readRoomMeta(studioHome, input.alias, input.roomId);
+  const todo = await roomTodo(studioHome, input.alias, input.roomId, meta);
+  if (!todo) return { ok: false, status: 404, error: "이 대화에 연결된 미완료 할일이 없다." };
+  await announceDone(studioHome, input.alias, input.roomId, [todo], meta.members.filter(member => member.enabled !== false), at);
+  await updateTodos(studioHome, input.alias, rows => rows.map(row => row.id === todo.id ? { ...row, done: true } : row), at);
+  return { ok: true };
 }
 
 /** 「중단하기」 — 지금 답하는 LLM을 끊고 이 바퀴의 남은 사람은 부르지 않는다. 이미 고친 파일은 되돌리지 않는다. */
@@ -838,6 +899,8 @@ export async function roomReadView(studioHome: string, alias: string, id: string
     execution: meta.execution ?? null,
     status: roomStatus(read.messages),
     running: isRoomRunning(alias, id),
+    // 할일 파일이 깨져도 대화는 열린다 — 그때는 「완료」만 숨긴다.
+    todo: await roomTodo(studioHome, alias, id, meta).then(todo => todo ? { id: todo.id, title: todo.title } : null, () => null),
   };
 }
 

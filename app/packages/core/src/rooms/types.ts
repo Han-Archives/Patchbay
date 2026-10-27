@@ -105,8 +105,10 @@ export const roomSpeakerSchema = z.object({
 export const roomSystemSchema = z.object({
   ...base,
   role: z.literal("system"),
-  kind: z.enum(["error", "timeout", "stopped"]),
+  kind: z.enum(["error", "timeout", "stopped", "done"]),
   text: z.string(),
+  /** kind "done" — 이 방의 할일이 끝났을 때 이어서 할 다음 할일과 그 대화방. */
+  next: z.object({ roomId: z.string().min(1), title: z.string() }).optional(),
 });
 
 /** 다른 대화에서 옮겨 붙인 맥락. 다음 모델은 이 요약을 읽고 요구를 잇는다. */

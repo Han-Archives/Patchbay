@@ -515,7 +515,7 @@ describe("브리핑", () => {
     const runner: RoomRunner = async req => { prompts.push(req.prompt); return { ok: true, text: "브리핑", ms: 1 }; };
     const cast = await saveRoomCast(studioHome, { alias: "demo", members: [{ speaker: "claude-code", model: "", role: "이끈다." }] });
     if (!cast.ok) throw new Error(cast.error);
-    for (const text of ["브리핑", "브리핑 말고 다른 얘기"]) {
+    for (const text of ["브리핑", "브리핑 말고 다른 얘기", "브리핑 다시해"]) {
       const sent = await sendRoomTurn(studioHome, { alias: "demo", roomId: cast.roomId, text, round: "talk" }, { runner, bin: "mock", now: () => new Date("2026-10-26T01:00:00.000Z") });
       if (!sent.ok) throw new Error(sent.error);
       await sent.done;
@@ -524,7 +524,9 @@ describe("브리핑", () => {
     expect(prompts[0]).toMatch(/1\. \[n1\] 알림 채널 설정 — 값만 넣으면 된다\n2\. \[n2\] push 규칙/);
     expect(prompts[0]).toContain("2026-10-25 끝낸 일");
     expect(prompts[0]).toContain("할일 목록을 바꾸지 않는다");
+    expect(prompts[0]).toMatch(/## 요점[\s\S]*## 지금 할 일[\s\S]*## 정하실 것[\s\S]*## 최근 끝낸 일/);
     expect(prompts[1]).not.toContain("오늘(");
+    expect(prompts[2]).toContain("오늘(");
     expect(await readTodos(studioHome, "demo")).toEqual(before);
   });
 });

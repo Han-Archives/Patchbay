@@ -19,3 +19,4 @@ export * from "./dashboardHistoryStore.js";
 export * from "./workspaceFiles.js";
 export * from "./existingBuildStore.js";
 export * from "./trashStore.js";
+export * from "./projectRules.js";

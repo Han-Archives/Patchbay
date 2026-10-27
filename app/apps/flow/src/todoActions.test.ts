@@ -2,10 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readAgents, readRoom, readRoomMeta, readTodos, readTodoHistory, readTrash, todosPath, registerProject, writeAgents, writeTodos } from "@patchbay/core";
+import { readAgents, readRoom, readRoomMeta, readTodos, readTodoHistory, readTrash, todosPath, registerProject, writeAgents, writeProjectRule, writeTodos } from "@patchbay/core";
 import { applyTodoAction } from "./todoActions.js";
 import { createFlowApp } from "./server.js";
-import { saveRoomCast, sendRoomTurn } from "./roomHost.js";
+import { completeRoomTodo, roomReadView, saveRoomCast, sendRoomTurn } from "./roomHost.js";
 
 async function setup() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "pb-todo-actions-"));
@@ -91,6 +91,58 @@ describe("할일 변경", () => {
     await sent.done;
     expect((await readTodoHistory(home, "demo"))[0]).toMatchObject({ id: "background", completedAt: now.toISOString(), roomId: room.roomId });
   });
+  it("대화에서 할일을 끝내면 완료 안내와 다음 할일의 대화방을 남긴다", async () => {
+    const home = await setup();
+    const room = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "codex", model: "", role: "작업한다" }] });
+    if (!room.ok) throw new Error(room.error);
+    await writeTodos(home, "demo", [{ id: "a", title: "지금 할일", done: false, at: now.toISOString(), roomId: room.roomId }, { id: "b", title: "다음 할일", done: false, at: now.toISOString() }]);
+    const sent = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "작업", round: "talk" }, { bin: "mock", now: () => now, snapshot: async () => null, runner: async () => {
+      const file = todosPath(home, "demo");
+      const raw = JSON.parse(fs.readFileSync(file, "utf8")); raw.todos[0].done = true;
+      fs.writeFileSync(file, JSON.stringify(raw));
+      return { ok: true, text: "끝냈습니다", ms: 1 };
+    } });
+    if (!sent.ok) throw new Error(sent.error);
+    await sent.done;
+    const next = (await readTodos(home, "demo")).find(row => row.id === "b")!;
+    expect(next.roomId).toBeTruthy();
+    expect((await readRoom(home, "demo", room.roomId))?.messages.at(-1)).toMatchObject({ role: "system", kind: "done", next: { roomId: next.roomId, title: "다음 할일" } });
+    expect((await readRoomMeta(home, "demo", next.roomId!)).members).toMatchObject([{ speaker: "codex" }]);
+  });
+
+  it("대화창 「완료」는 완료 안내와 다음 할일 링크를 남긴 뒤 할일을 완료로 옮긴다", async () => {
+    const home = await setup();
+    await writeTodos(home, "demo", [{ id: "a", title: "이야기한 주제", done: false, at: now.toISOString() }, { id: "b", title: "다음 주제", done: false, at: now.toISOString() }]);
+    const own = await applyTodoAction(home, "demo", { action: "room", id: "a" }, () => false, now);
+    expect((await roomReadView(home, "demo", own.roomId!))?.todo).toEqual({ id: "a", title: "이야기한 주제" });
+    expect(await completeRoomTodo(home, { alias: "demo", roomId: own.roomId! }, now)).toEqual({ ok: true });
+    const todos = await readTodos(home, "demo");
+    expect(todos.find(row => row.id === "a")).toMatchObject({ done: true });
+    expect((await readRoom(home, "demo", own.roomId!))?.messages.at(-1)).toMatchObject({ role: "system", kind: "done", next: { roomId: todos.find(row => row.id === "b")!.roomId, title: "다음 주제" } });
+    expect((await roomReadView(home, "demo", own.roomId!))?.todo).toBeNull();
+    expect(await completeRoomTodo(home, { alias: "demo", roomId: own.roomId! }, now)).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("대화방은 어떤 LLM이든 프로젝트 규칙을 프롬프트로 받고, 이름을 댄 요청 규칙은 본문까지 받는다", async () => {
+    const home = await setup();
+    await writeProjectRule(home, "demo", { name: "tone", description: "짧게", apply: "always", body: "늘 세 문장 이내로 답한다." });
+    await writeProjectRule(home, "demo", { name: "deck", description: "덱 만들 때", apply: "request", body: "덱은 끝난 뒤에 만든다." });
+    const room = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "local", model: "qwen", role: "답한다" }] });
+    if (!room.ok) throw new Error(room.error);
+    const calls: { prompt: string }[] = [];
+    const deps = { bin: "mock", snapshot: async () => null, runner: async (req: { prompt: string }) => { calls.push(req); return { ok: true as const, text: "답", ms: 1 }; } };
+    const first = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "안녕", round: "talk" }, deps);
+    if (!first.ok) throw new Error(first.error);
+    await first.done;
+    expect(calls[0]?.prompt).toContain("늘 세 문장 이내로 답한다.");
+    expect(calls[0]?.prompt).toContain("규칙 deck: 덱 만들 때");
+    expect(calls[0]?.prompt).not.toContain("덱은 끝난 뒤에 만든다.");
+    const second = await sendRoomTurn(home, { alias: "demo", roomId: room.roomId, text: "deck 규칙대로 해줘", round: "talk" }, deps);
+    if (!second.ok) throw new Error(second.error);
+    await second.done;
+    expect(calls[1]?.prompt).toContain("덱은 끝난 뒤에 만든다.");
+  });
+
   it("새 대화는 등록된 LLM 없이 시작하고 선택한 참여자는 다시 열어도 유지한다", async () => {
     const home = await setup();
     const agents = [
@@ -126,6 +178,20 @@ describe("할일 변경", () => {
     expect(detail.conversation).toContain("실제 요구사항");
     expect((await app.request("/api/todos/history?alias=unknown")).status).toBe(404);
     await app.close();
+  });
+
+  it("다른 대화에서 나온 할일은 자기 대화를 새로 만들고 나온 방의 참여자를 잇는다", async () => {
+    const home = await setup();
+    const origin = await saveRoomCast(home, { alias: "demo", members: [{ speaker: "claude-code", model: "", role: "브리핑" }] });
+    if (!origin.ok) throw new Error(origin.error);
+    await writeTodos(home, "demo", ["a", "b"].map(id => ({ id, title: `할일 ${id}`, done: false, at: now.toISOString(), roomId: origin.roomId })));
+    const a = await applyTodoAction(home, "demo", { action: "room", id: "a" }, () => false, now);
+    const b = await applyTodoAction(home, "demo", { action: "room", id: "b" }, () => false, now);
+    expect(new Set([origin.roomId, a.roomId, b.roomId]).size).toBe(3);
+    expect(await readRoomMeta(home, "demo", a.roomId!)).toMatchObject({ title: "할일 a", todoId: "a", members: [{ speaker: "claude-code", role: "브리핑" }] });
+    expect((await readRoom(home, "demo", a.roomId!))?.messages.map(row => row.text)).toEqual(["할일 a"]);
+    expect((await readTodos(home, "demo")).map(row => row.roomId)).toEqual([a.roomId, b.roomId]);
+    expect((await applyTodoAction(home, "demo", { action: "room", id: "a" }, () => false)).roomId).toBe(a.roomId);
   });
 
   it("동시 추가를 보존하며 실행 중인 항목을 고정하고 대기 순서를 저장한다", async () => {

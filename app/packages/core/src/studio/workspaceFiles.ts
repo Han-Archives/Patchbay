@@ -46,6 +46,8 @@ const NOTES: Record<string, string> = {
   knowledge: "선택한 지식 자료의 원문 버전과 근거 검토 기록. 근거 검토 화면에서 고친다.",
   "knowledge/semantic.json": "A+B·RAG 공유 원문 버전 · 개체 · 인용 · 검토 · 검색/그래프 사용과 외부 전달 설정. 커널만 저장한다.",
   "knowledge/rag-deliveries.jsonl": "RAG 모델 실행 요청·결과의 자료/버전 식별자 기록. 질문·발췌·답변 본문은 기록하지 않는다.",
+  rules: "사용자가 정한 이 프로젝트의 규칙. 파일 하나가 규칙 하나 — apply: always 는 늘, request 는 이름을 댈 때 쓴다.",
+  skills: "사용자가 정한 이 프로젝트의 스킬. 폴더 하나에 SKILL.md 하나.",
   "agents.json": "에이전트 배치 — 역할과 모델",
   "ATLAS.md": "스캔 결과 — 스킬 · 규칙 · 설정 목록. 스캔할 때마다 다시 만든다",
   "ATLAS.digest.md": "스캔 요약 한 단락 — 스캔할 때마다 다시 만든다",
