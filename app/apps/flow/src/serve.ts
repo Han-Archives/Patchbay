@@ -15,6 +15,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLED_SKILLS = path.resolve(__dirname, "../../../packages/skills");
 const APP_ROOT = path.resolve(__dirname, "../../..");
 const FLOW_ROOT = path.resolve(__dirname, "..");
+// 레포 루트 `.env`(gitignore)의 비밀값 — 텔레그램 등. 셸에 이미 있는 값은 덮지 않는다. 파일이 없으면 넘어간다.
+try { process.loadEnvFile(path.resolve(APP_ROOT, "../.env")); } catch {}
 
 /**
  * Real entrypoint (spec Phase 10): a short-lived local server, never a

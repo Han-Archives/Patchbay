@@ -4,6 +4,7 @@ import { registerRagRoutes } from "./ragHost.js";
 import { registerRequirementRoutes } from "./requirementView.js";
 import { HISTORY_DOMAINS, historyDomainTags } from "./historyContract.js";
 import { createTodoPreparationHost, PreparationError } from "./todoPreparation.js";
+import { todoTurn } from "./todoTurn.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -66,6 +67,8 @@ import {
   type LlmQuotaPreset,
   listProjectRules,
   listProjectSkills,
+  readRoom,
+  type TodoPreparation,
 } from "@patchbay/core";
 import {
   SSE_KEEPALIVE_COMMENT,
@@ -1537,7 +1540,13 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
     if (!(await readStudio(options.studioHome)).projects.some((p) => p.alias === alias)) return c.json({ error: `"${alias}" 는 등록된 프로젝트가 아니다.` }, 404);
     try {
       const todos = await updateTodos(options.studioHome, alias, fresh => fresh);
-      return c.json({ todos: todos.map(row => row.roomId && (isRoomRunning(alias, row.roomId) || roomExecution.isBusy(alias, row.roomId)) ? { ...row, running: true } : row) });
+      const prepared = new Map((await todoPreparation.list(alias).catch(() => ({ items: [] as TodoPreparation[] }))).items.map(item => [item.todoId, item.status]));
+      return c.json({ todos: await Promise.all(todos.map(async row => {
+        const running = Boolean(row.roomId && (isRoomRunning(alias, row.roomId) || roomExecution.isBusy(alias, row.roomId)));
+        const last = row.roomId && !row.done ? (await readRoom(options.studioHome, alias, row.roomId).catch(() => null))?.messages.at(-1) : undefined;
+        const turn = row.done ? undefined : todoTurn(running, prepared.get(row.id), last);
+        return { ...row, ...(running ? { running } : {}), ...(turn ? { turn } : {}) };
+      })) });
     } catch (error) { return c.json({ error: `할일 기록 저장 실패: ${(error as Error).message}` }, 500); }
   });
 

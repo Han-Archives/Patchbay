@@ -17,6 +17,7 @@ import {
 import { TodoPreparationReview } from "./TodoPreparationPanel.js";
 import { RoomExecutionPanel } from "./RoomExecutionPanel.js";
 import { ChatText } from "./ChatText.js";
+import { isChatImage, refImageHref } from "./chatLinks.js";
 
 function roomRequestError(reason: unknown) {
   const message = reason instanceof Error ? reason.message : String(reason);
@@ -92,9 +93,9 @@ function ModeTriggerIcon() {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
       <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <circle cx="5.5" cy="4.5" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
-      <circle cx="10.5" cy="8" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
-      <circle cx="6.5" cy="11.5" r="1.5" fill="var(--fill, #2a2a2a)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="5.5" cy="4.5" r="1.5" fill="var(--fill)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10.5" cy="8" r="1.5" fill="var(--fill)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="6.5" cy="11.5" r="1.5" fill="var(--fill)" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   );
 }
@@ -319,6 +320,7 @@ export function RoomPanel({
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState<RoomBody | null>(null);
   const [roomLoadError, setRoomLoadError] = useState<string | null>(null);
+  const [attachingImage, setAttachingImage] = useState(false);
   const [roomsLoadError, setRoomsLoadError] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [dockOpen, setDockOpen] = useState(false);
@@ -727,8 +729,30 @@ export function RoomPanel({
   async function onPickedFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || busy || waiting || kept || readOnly || roomLoadError || attachingImage) return;
     setPlusOpen(false);
+    if (isChatImage(file.name)) {
+      if (file.size > 10 * 1024 * 1024) { setError("사진은 10MB까지 붙일 수 있습니다."); return; }
+      setAttachingImage(true);
+      setError(null);
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const response = await fetch("/api/refs/file", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ alias: project, name: file.name, dataBase64: btoa(binary) }),
+        });
+        const result = await roomJson<{ ref?: { id: string } }>(response, "사진");
+        if (!result.ref?.id) throw new Error("사진을 저장하지 못했습니다.");
+        const title = file.name.replace(/[\[\]\r\n]/g, " ");
+        const message = `![${title}](${refImageHref(project, result.ref.id)})`;
+        setDraft(message);
+        await send(message);
+      } catch (cause) { setError(roomRequestError(cause)); }
+      finally { setAttachingImage(false); }
+      return;
+    }
     const text = await file.text();
     const body = text.trim();
     await send(body ? `첨부 · 문서 「${file.name}」\n${clipAttach(body)}` : `첨부 · 문서 「${file.name}」\n글이 비어 있다.`);
@@ -737,6 +761,10 @@ export function RoomPanel({
   async function attachProjectFile(file: string) {
     setPlusOpen(false);
     setProjectFiles(null);
+    if (isChatImage(file)) {
+      await send(`첨부 · 프로젝트 이미지\n![${file.replace(/[\[\]\r\n]/g, " ")}](<${file}>)`);
+      return;
+    }
     const res = await fetch(`/api/source?alias=${encodeURIComponent(project)}&path=${encodeURIComponent(file)}`);
     const body = (await res.json()) as { content?: string; error?: string };
     if (!res.ok || typeof body.content !== "string") {
@@ -951,6 +979,7 @@ export function RoomPanel({
                       type="button"
                       className={`room-plus${plusOpen ? " is-on" : ""}`}
                       aria-label="첨부"
+                      disabled={attachingImage}
                       aria-pressed={plusOpen}
                       aria-expanded={plusOpen}
                       onClick={() => {
@@ -963,7 +992,7 @@ export function RoomPanel({
                     </button>
                     {plusOpen ? (
                       <div className="room-plus-menu" role="menu">
-                        <button type="button" onClick={() => docRef.current?.click()}>문서</button>
+                        <button type="button" disabled={busy || waiting || attachingImage} onClick={() => docRef.current?.click()}>{attachingImage ? "사진 올리는 중…" : "문서 · 사진"}</button>
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
@@ -1028,13 +1057,13 @@ export function RoomPanel({
                         ) : null}
                       </div>
                     ) : null}
-                    <input ref={docRef} type="file" accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain" hidden onChange={(e) => void onPickedFile(e)} />
+                    <input ref={docRef} type="file" accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain,.png,.jpg,.jpeg,.gif,.webp,.svg" hidden onChange={(e) => void onPickedFile(e)} />
                   </div>
                   <div className="room-call-actions">
-                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || !!roomLoadError || !draft.trim()} onClick={() => void send(draft)}>Record</button>
+                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || attachingImage || !!roomLoadError || !draft.trim()} onClick={() => void send(draft)}>Record</button>
                     <button type="button" className="flow-btn room-stop" disabled={room?.running !== true} onClick={() => void stopTurn()}>Stop</button>
                     {/* 보내기는 맨 오른쪽 (사용자 요청 2026-10-16) */}
-                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || !!roomLoadError || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
+                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || attachingImage || !!roomLoadError || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
                   </div>
                   </div>
                 </div>

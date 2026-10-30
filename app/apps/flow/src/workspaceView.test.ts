@@ -11,10 +11,11 @@ import {
   recordPassedNodes,
   writeRunRecord,
 } from "@patchbay/core";
+import type { ExistingBuild, Ir } from "@patchbay/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { startDraftView } from "./irView.js";
 import { attentionOf, currentStage, projectInitials, stagesOf, type ProjectFacts } from "./workspaceContract.js";
-import { loadWorkspace } from "./workspaceView.js";
+import { currentReleaseExistingFact, loadWorkspace } from "./workspaceView.js";
 
 /**
  * 작업 공간 레일이 프로젝트마다 「지금 어디 서 있나」를 한 줄로 말한다.
@@ -241,5 +242,37 @@ describe("loadWorkspace", () => {
     expect(project.stages[2]).toMatchObject({ tone: "done", status: "노드 4/4 채움" });
     expect(project.stages[3]).toMatchObject({ tone: "now", status: "노드 1/4 지남" }); // 설계에 없는 노드는 세지 않는다
     expect(project.stages[4]!.tone).toBe("locked");
+  });
+});
+
+describe("currentReleaseExistingFact", () => {
+  it("연결 없는 could만 다음 판으로 빼고 이미 연결한 could는 이번 판에 센다", () => {
+    const ir = {
+      requirements: [
+        { id: "R1", pattern: "ubiquitous", text: "이번 판 요구사항", priority: "must" },
+        { id: "R2", pattern: "ubiquitous", text: "이미 구현한 선택 요구사항", priority: "could" },
+        { id: "R3", pattern: "ubiquitous", text: "다음 판 후보", priority: "could" },
+      ],
+      nodes: [],
+      requirementLinks: [],
+    } as unknown as Ir;
+    const at = "2026-10-29T00:00:00.000Z";
+    const build = {
+      mode: "existing" as const,
+      chosenAt: at,
+      ranAt: at,
+      links: ["R1", "R2"].map((requirement) => ({
+        id: `${requirement}::test.ts::works`,
+        requirement,
+        file: "test.ts",
+        test: "works",
+        state: "confirmed" as const,
+        by: "person" as const,
+        at,
+        result: { state: "pass" as const, at },
+      })),
+    } satisfies ExistingBuild;
+
+    expect(currentReleaseExistingFact(ir, build)).toEqual({ total: 2, linked: 2, passed: 2 });
   });
 });

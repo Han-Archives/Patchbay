@@ -1,0 +1,183 @@
+{
+  "url": "http://127.0.0.1:4318/api/project-file/patchbay/knowledge/patchbay/%EC%A0%88%EC%B0%A8/%ED%99%94%EC%9D%B4%ED%8A%B8%ED%85%8C%EB%A7%88-%ED%99%94%EB%A9%B4%EB%B3%84%EC%8B%9C%EC%95%88_20261029_v1/index.html",
+  "screens": 14,
+  "tabs": 12,
+  "errors": [],
+  "checks": [
+    {
+      "screen": "dashboard",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "overview",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "design",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "tab": "design:requirements",
+      "visible": true
+    },
+    {
+      "tab": "design:consult",
+      "visible": true
+    },
+    {
+      "tab": "design:prd",
+      "visible": true
+    },
+    {
+      "tab": "design:ir",
+      "visible": true
+    },
+    {
+      "screen": "build",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "test",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "architecture",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "tab": "architecture:run",
+      "visible": true
+    },
+    {
+      "tab": "architecture:structure",
+      "visible": true
+    },
+    {
+      "tab": "architecture:flow",
+      "visible": true
+    },
+    {
+      "screen": "graph",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "tab": "graph:review",
+      "visible": true
+    },
+    {
+      "tab": "graph:explore",
+      "visible": true
+    },
+    {
+      "screen": "rag",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "tab": "rag:question",
+      "visible": true
+    },
+    {
+      "tab": "rag:sources",
+      "visible": true
+    },
+    {
+      "tab": "rag:diagnostics",
+      "visible": true
+    },
+    {
+      "screen": "files",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "log",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "plan",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "board",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "chat",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "screen": "style",
+      "overflow": {
+        "body": false,
+        "workspace": false
+      }
+    },
+    {
+      "chatToggle": true
+    },
+    {
+      "mobile": "dashboard",
+      "bodyOverflow": false
+    },
+    {
+      "mobile": "design",
+      "bodyOverflow": false
+    },
+    {
+      "mobile": "rag",
+      "bodyOverflow": false
+    },
+    {
+      "mobile": "chat",
+      "bodyOverflow": false
+    },
+    {
+      "fileEdit": true
+    }
+  ],
+  "whiteContrast": {
+    "text": 15.55,
+    "muted": 5.56,
+    "ok": 6.82,
+    "warn": 5.98,
+    "bad": 5.7
+  }
+}

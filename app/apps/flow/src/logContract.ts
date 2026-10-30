@@ -18,8 +18,12 @@ export interface LogMonthIndex { month: string; tags: string[]; sources: LogSour
 export interface LogMonthView { month: string; today: string; tz: string; tags: string[]; model: string; index: LogMonthIndex | null }
 export interface LogDayView { date: string; state: "잠정" | "확정" | null; record: string | null; events: LogEvent[]; summary: { state: "none" | "fresh" | "stale"; text: string | null } }
 
-const TAG_COLORS: Record<string, string> = { UI: "#a78bfa", 데이터: "#6fc3df", 서버: "#e3a35a", 문서: "#8ed8b0", Agent: "#ef7b6e" };
-const EXTRA = ["#f0a3c8", "#c9d36b", "#7fb2ff", "#d9a46b", "#9ad0c2"];
+/** History·Workflow·Log에서 같은 종류는 같은 색으로 표시한다. */
+const TAG_COLORS: Record<string, string> = {
+  UI: "#2d63a8", Agent: "#7851a9", LLM: "#7851a9", 데이터: "#19776d", 서버: "#a24c40", 문서: "#8b651d",
+  대화창: "#246f88", 할일: "#9a4f75", 대시보드: "#326897", 프로젝트: "#596774", 테스트: "#327448",
+};
+const EXTRA = ["#9a4f75", "#8b651d", "#2d63a8", "#246f88", "#327448"];
 export function tagColor(tag: string): string {
   if (TAG_COLORS[tag]) return TAG_COLORS[tag]!;
   let h = 0;

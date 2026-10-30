@@ -6,13 +6,16 @@
 export type ChatToken =
   | { kind: "text"; text: string }
   | { kind: "url"; text: string; href: string }
-  | { kind: "file"; text: string; path: string };
+  | { kind: "file"; text: string; path: string; label?: string }
+  | { kind: "image"; text: string; target: string; alt: string };
 
 const EXT = "html?|png|jpe?g|gif|webp|svg|pdf|md|txt|json|csv|ya?ml|pptx|docx|xlsx|zip|mp4|webm|mov";
 const SEG = "[\\p{L}\\p{N}_.@+~-]+";
 const PATH = `(?:\\.{0,2}\\/)?(?:${SEG}\\/)+${SEG}\\.(?:${EXT})(?![A-Za-z0-9_])`;
 const WEB = "https?:\\/\\/[^\\s<>\"'`]+";
-const TOKEN = new RegExp(`\`([^\`\\n]+)\`|(${WEB})|(${PATH})`, "giu");
+const MARKDOWN = String.raw`!?\[[^\]\n]*\]\(\s*(?:<[^>\n]+>|[^\s)\n]+)(?:\s+["'][^"'\n]*["'])?\s*\)`;
+const MARKDOWN_PARTS = /^(!?)\[([^\]\n]*)\]\(\s*(?:<([^>\n]+)>|([^\s)\n]+?))(?:\s+["'][^"'\n]*["'])?\s*\)$/u;
+const TOKEN = new RegExp(`(\`{3}[\\s\\S]*?(?:\`{3}|$))|(${MARKDOWN})|\`([^\`\\n]+)\`|(${WEB})|(${PATH})`, "giu");
 /** 백틱 안에서는 공백 든 경로(`시안/홈 화면.html`)도 경로로 본다. */
 const QUOTED_PATH = new RegExp(`^(?:\\.{0,2}\\/)?(?:[^\\/\`\\n]+\\/)+[^\\/\`\\n]+\\.(?:${EXT})$`, "iu");
 /** 문장 끝 구두점과 닫는 괄호는 주소에 넣지 않는다. */
@@ -27,10 +30,25 @@ export function chatTokens(text: string): ChatToken[] {
   };
   let at = 0;
   for (const match of text.matchAll(TOKEN)) {
-    const [whole, quoted, url, file] = match;
+    const [whole, fenced, markdown, quoted, url, file] = match;
     push({ kind: "text", text: text.slice(at, match.index) });
     at = match.index + whole.length;
-    if (quoted !== undefined && new RegExp(`^${WEB}$`, "u").test(quoted)) {
+    if (fenced !== undefined) {
+      push({ kind: "text", text: whole });
+    } else if (markdown !== undefined) {
+      const parts = MARKDOWN_PARTS.exec(markdown)!;
+      const target = (parts[3] ?? parts[4] ?? "").trim();
+      const label = parts[2] ?? "";
+      if (parts[1] && imageHref("", target)) {
+        push({ kind: "image", text: whole, target, alt: label });
+      } else if (/^https?:\/\//i.test(target)) {
+        push({ kind: "url", text: label || target, href: target });
+      } else if (!parts[1] && (QUOTED_PATH.test(target) || isChatImage(target))) {
+        push({ kind: "file", text: whole, path: target, ...(label ? { label } : {}) });
+      } else {
+        push({ kind: "text", text: whole });
+      }
+    } else if (quoted !== undefined && new RegExp(`^${WEB}$`, "u").test(quoted)) {
       push({ kind: "url", text: quoted, href: quoted });
     } else if (quoted !== undefined) {
       push(QUOTED_PATH.test(quoted.trim()) ? { kind: "file", text: whole, path: quoted.trim() } : { kind: "text", text: whole });
@@ -44,6 +62,31 @@ export function chatTokens(text: string): ChatToken[] {
   }
   push({ kind: "text", text: text.slice(at) });
   return tokens;
+}
+
+/** 사진·문서 이미지 확장자. 쿼리가 붙은 주소도 같은 기준으로 확인한다. */
+export function isChatImage(target: string): boolean {
+  return /\.(?:png|jpe?g|gif|webp|svg)$/i.test(target.split(/[?#]/, 1)[0] ?? "");
+}
+
+/** 본문 이미지는 HTTP(S), 기존 첨부 API 또는 프로젝트 안 파일로 연다. */
+export function imageHref(project: string, target: string): string | null {
+  if (/^https?:\/\//i.test(target)) {
+    try { return new URL(target).href; } catch { return null; }
+  }
+  if (!target || /[\u0000\r\n]/.test(target) || /^[a-z][a-z\d+.-]*:/i.test(target) || target.startsWith("//")) return null;
+  if (target.startsWith("/api/refs/raw?")) {
+    const url = new URL(target, "http://patchbay.local");
+    return (!project || url.searchParams.get("alias") === project) && !!url.searchParams.get("id") ? target : null;
+  }
+  if (target.startsWith("/api/project-file/")) {
+    return !project || target.startsWith(`/api/project-file/${encodeURIComponent(project)}/`) ? target : null;
+  }
+  return projectFileHref(project, target);
+}
+
+export function refImageHref(project: string, id: string): string {
+  return `/api/refs/raw?alias=${encodeURIComponent(project)}&id=${encodeURIComponent(id)}`;
 }
 
 /** 서버 `/api/project-file/:alias/*` 의 주소. 절대 경로는 한 칸으로 보내고 서버가 상대 주소로 옮긴다. */

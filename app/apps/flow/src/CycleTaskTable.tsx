@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { shortLabel } from "./shortLabel.js";
 import { CYCLE_LABEL, type CycleStep, type SubStep } from "./ProjectCycleFlow.js";
+import { tagColor } from "./logContract.js";
 
 /**
  * 흐름도 밑 트리 표 — 작업을 누르면 세부 항목이 펼쳐진다 (사용자 결정 2026-10-15, 시안 흐름도-트리표-태그색).
@@ -110,10 +111,10 @@ export function CycleTaskTable({ project, step, steps, action, onAction }: { pro
     scrolledTo.current = runningTask;
   }, [runningTask]);
 
-  return <section className="cycle-tasks" aria-label={`${CYCLE_LABEL[step]} 작업 사항`}>
+  return <section className={`cycle-tasks is-${step}`} aria-label={`${CYCLE_LABEL[step]} 작업 사항`}>
     <header className="cycle-task-header"><div><h4>{CYCLE_LABEL[step]} <span>{tasks.length}개 작업 · 행을 누르면 세부 항목이 펼쳐집니다</span></h4></div><button type="button" className="flow-btn" onClick={onAction}>{action} ↗</button></header>
     {error ? <p className="flow-error">{error}</p> : null}
-    {tasks.length ? <div className="cycle-item-scroll" ref={scrollRef}><table className="cycle-item-table">
+    {tasks.length ? <div className="cycle-item-scroll" ref={scrollRef}><table className="cycle-item-table" style={Object.fromEntries(TAGS.map(tag => [`--tag-${TAG_CLASS[tag]}`, tagColor(tag)])) as CSSProperties}>
       <colgroup><col className="c-no" /><col className="c-name" /><col className="c-status" /><col /><col className="c-tag" /><col className="c-run" /></colgroup>
       <thead><tr><th scope="col">번호</th><th scope="col">항목명</th><th scope="col">상태</th><th scope="col">설명</th><th scope="col">태그</th><th scope="col" className="is-right">실행</th></tr></thead>
       <tbody>{tasks.map((task, ti) => {

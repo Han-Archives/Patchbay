@@ -1,8 +1,9 @@
-import { Fragment } from "react";
-import { chatTokens, projectFileHref } from "./chatLinks.js";
+import { Fragment, useState } from "react";
+import { chatTokens, imageHref, isChatImage, projectFileHref } from "./chatLinks.js";
 
 /**
  * 대화방 · 상담 창의 메시지 글. 웹 주소는 새 탭으로 열고, 산출물 경로는 「열기 · 받기」 둘을 단다.
+ * 사진·문서 이미지와 마크다운 이미지는 본문에서 미리 보고 원본을 열거나 받는다 (2026-10-30).
  * `bold` 는 상담자 · 대화방 Agent 답처럼 `**강조**` 를 쓰는 글에만 켠다. 강조는 `.chat-strong` 으로 따로 보인다 (2026-10-26).
  * 마크다운 표(머리 줄 · `---` 구분 줄 · 본문 줄)는 표로 그린다 (사용자 요청 2026-10-26).
  * `bold` 인 글은 `#` 제목 줄과 `` `코드` `` 도 기호 대신 모양으로 보인다. 목록(`-`)은 그대로 둔다 (사용자 결정 2026-10-26).
@@ -115,7 +116,12 @@ function Linked({ text, project }: { text: string; project: string }) {
   return (
     <>
       {chatTokens(text).map((token, i) => {
+        if (token.kind === "image") {
+          const href = imageHref(project, token.target);
+          return href ? <ChatImage key={i} href={href} label={token.alt || "이미지"} /> : <Fragment key={i}>{token.text}</Fragment>;
+        }
         if (token.kind === "url") {
+          if (isChatImage(token.href)) return <ChatImage key={i} href={token.href} label={token.text} />;
           return (
             <a key={i} className="chat-link" href={token.href} target="_blank" rel="noreferrer">
               {token.text}
@@ -123,10 +129,11 @@ function Linked({ text, project }: { text: string; project: string }) {
           );
         }
         if (token.kind === "file") {
+          if (isChatImage(token.path)) return <ChatImage key={i} href={projectFileHref(project, token.path)} label={token.label || token.path} />;
           return (
             <span key={i} className="chat-file">
               <a href={projectFileHref(project, token.path)} target="_blank" rel="noreferrer" title="새 탭에서 열기">
-                {token.path}
+                {token.label || token.path}
               </a>
               <a className="chat-file-get" href={projectFileHref(project, token.path, true)} download aria-label={`${token.path} 받기`}>
                 받기
@@ -138,4 +145,19 @@ function Linked({ text, project }: { text: string; project: string }) {
       })}
     </>
   );
+}
+
+/** 문서 캡처·사진을 메시지 폭 안에서 보여 주고, 실패해도 원본 링크를 남긴다. */
+function ChatImage({ href, label }: { href: string; label: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const local = href.startsWith("/api/project-file/") || href.startsWith("/api/refs/raw?");
+  const download = local ? `${href}${href.includes("?") ? "&" : "?"}download=1` : null;
+  return <span className="chat-media">
+    {failed !== href ? <a className="chat-media-open" href={href} target="_blank" rel="noreferrer" aria-label={`${label} 원본 열기`}>
+      <img src={href} alt={label} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(href)} />
+    </a> : <span className="chat-media-error" role="status">이미지 미리보기를 불러오지 못했습니다.</span>}
+    <span className="chat-media-caption"><a href={href} target="_blank" rel="noreferrer">{label}</a>
+      {download ? <a className="chat-file-get" href={download} download aria-label={`${label} 받기`}>받기</a> : null}
+    </span>
+  </span>;
 }

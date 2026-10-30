@@ -65,8 +65,8 @@ export function SemanticKnowledgePane({ project, revision = 0, readOnly = false,
       nodes: graph.entities.map(e => ({ id: e.id, data: { label: e.name }, position: pos.get(e.id) ?? { x: 0, y: 0 }, sourcePosition: Position.Right, targetPosition: Position.Left,
         className: e.id === entity ? "semantic-node is-current" : "semantic-node", style: { width: 160 }, selected: e.id === entity })),
       edges: graph.claims.map(c => ({ id: c.id, source: c.from, target: c.to, label: predicates[c.predicate],
-        markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: c.id === claimId ? "#c4a0ef" : "#8a71af", strokeWidth: c.id === claimId ? 3 : 1.6 },
-        labelStyle: { fill: "#eee3ff", fontSize: 12 }, labelBgStyle: { fill: "#24202c" } })),
+        markerEnd: { type: MarkerType.ArrowClosed, color: c.id === claimId ? "var(--ok)" : "var(--graph-line)" }, style: { stroke: c.id === claimId ? "var(--ok)" : "var(--graph-line)", strokeWidth: c.id === claimId ? 3 : 1.6 },
+        labelStyle: { fill: "var(--text)", fontSize: 12 }, labelBgStyle: { fill: "var(--chrome)" } })),
     };
   }, [view?.graph, entity, claimId]);
   async function mutate(action: string, payload: object) {

@@ -8,7 +8,7 @@ import type { StageState } from "./workspaceContract.js";
  * Patchbay의 고리 — 설계 → 구현(LangGraph) → 테스트 → 검토. 검토에서 반려되면 설계로 돌아가고, 승인되면 결과로 간다
  * (사용자 결정 2026-10-15 — 셋째 단계 이름을 테스트로, 승인되면 결과). 승인 · 반려를 기록하는 검토 화면은 아직 없다.
  * 지식 그래프 · 문서 호출은 단계가 아니라 도구라 여기 넣지 않는다 (사용자 정리 2026-10-12).
- * 색은 콘솔 규칙을 따른다: 지난 단계 보라 · 지금 주황 · 남은 단계 점선.
+ * 단계마다 고유 색을 쓰고 완료는 초록 점, 현재는 강조 테두리, 대기는 점선으로 구별한다.
  */
 export type CycleStep = "design" | "build" | "test" | "review" | "result";
 export type StepState = "done" | "now" | "next";
@@ -65,11 +65,12 @@ export function markSteps(items: { label: string; title?: string; done: boolean 
 export function cycleEdges(current: CycleStep) {
   const arrow = { type: MarkerType.ArrowClosed, width: 14, height: 14 };
   const edge = (id: string, source: CycleStep, target: CycleStep, label: string, back: boolean, sourceHandle = "out") => ({
-    id, source, target, sourceHandle, targetHandle: "in", label, markerEnd: arrow,
+    id, source, target, sourceHandle, targetHandle: "in", label,
+    markerEnd: { ...arrow, color: target === current && !back ? `var(--stage-${target})` : "var(--graph-line)" },
     // 지금 단계로 들어가는 앞길만 흐르게 — 어디로 가는 중인지 눈에 띈다. 반려 선은 흐르지 않는다: 반려 기록이 없어
     // 첫 바퀴의 설계에서도 Review → 설계가 흐르는 것처럼 보였다 (사용자 요청 2026-10-18).
     animated: target === current && !back,
-    className: `cycle-edge${back ? " is-back" : ""}${target === current && !back ? " is-live" : ""}`,
+    className: `cycle-edge to-${target}${back ? " is-back" : ""}${target === current && !back ? " is-live" : ""}`,
     ...(back ? { type: "smoothstep" } : {}),
   });
   return [
@@ -114,7 +115,7 @@ export function ProjectCycleFlow({ stages, steps, selected, onSelect }: {
           </span>
         ),
       },
-      className: `cycle-node is-${state}${place.id === selected ? " is-selected" : ""}`,
+      className: `cycle-node is-${place.id} is-${state}${place.id === selected ? " is-selected" : ""}`,
     };
   });
   const edges = cycleEdges(current);
@@ -150,7 +151,7 @@ export function ProjectCycleFlow({ stages, steps, selected, onSelect }: {
 export function CycleSteps({ step, steps, action, onAction }: { step: CycleStep; steps: SubStep[]; action: string; onAction: () => void }) {
   const doneCount = steps.filter((s) => s.state === "done").length;
   return (
-    <div className="cycle-steps" key={step}>
+    <div className={`cycle-steps is-${step}`} key={step}>
       <div className="cycle-steps-head">
         <span><b>{CYCLE_LABEL[step]}</b> 세부 단계 {doneCount}/{steps.length}</span>
         <button type="button" className="flow-btn" onClick={onAction}>{action}</button>

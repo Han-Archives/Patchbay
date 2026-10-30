@@ -525,6 +525,7 @@ describe("브리핑", () => {
     expect(prompts[0]).toContain("2026-10-25 끝낸 일");
     expect(prompts[0]).toContain("할일 목록을 바꾸지 않는다");
     expect(prompts[0]).toMatch(/## 요점[\s\S]*## 지금 할 일[\s\S]*## 정하실 것[\s\S]*## 최근 끝낸 일/);
+    expect(prompts[0]).toContain("Tasks 번호는 「지금 할 일」 표에 실은 것만 쓴다. 표에 없는 할 일은 번호");
     expect(prompts[1]).not.toContain("오늘(");
     expect(prompts[2]).toContain("오늘(");
     expect(await readTodos(studioHome, "demo")).toEqual(before);

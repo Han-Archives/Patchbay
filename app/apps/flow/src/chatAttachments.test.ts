@@ -8,6 +8,29 @@ import { sendConsultTurn, type HostRunner, type HostTurnRequest } from "./consul
 import { createFlowApp } from "./server.js";
 
 describe("첨부와 산출물 링크", () => {
+  it("프로젝트 이미지와 업로드 사진을 올바른 이미지 형식으로 돌려주고 내려받을 수 있다", async () => {
+    const studioHome = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-photo-"));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-photo-repo-"));
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNuoAAAAASUVORK5CYII=", "base64");
+    fs.mkdirSync(path.join(repo, "images"));
+    fs.writeFileSync(path.join(repo, "images", "문서.png"), png);
+    await registerProject(studioHome, { alias: "demo", kind: "local_repo", path: repo });
+    const app = createFlowApp({ studioHome });
+    const local = await app.request(projectFileHref("demo", "images/문서.png"));
+    expect(local.status).toBe(200);
+    expect(local.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await local.arrayBuffer())).toEqual(png);
+    const upload = await app.request("/api/refs/file", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: "demo", name: "사진.png", dataBase64: png.toString("base64") }) });
+    expect(upload.status).toBe(200);
+    const body = await upload.json() as { ref: { id: string; kind: string } };
+    expect(body.ref.kind).toBe("image");
+    const raw = await app.request(`/api/refs/raw?alias=demo&id=${body.ref.id}`);
+    expect(raw.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await raw.arrayBuffer())).toEqual(png);
+    const download = await app.request(`/api/refs/raw?alias=demo&id=${body.ref.id}&download=1`);
+    expect(download.headers.get("content-disposition")).toContain("attachment");
+  });
+
   it("문서 · URL · 프로젝트 파일을 대화에 붙이고, 답에 나온 산출물을 미리 보고 내려받게 한다", async () => {
     const studioHome = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-attach-"));
     const repo = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-attach-repo-"));

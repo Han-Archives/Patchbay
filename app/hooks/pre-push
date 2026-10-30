@@ -6,7 +6,8 @@ public_root=${PATCHBAY_PUBLIC_ROOT:-4f41e31393302fd3feaec0b7162c552d70f8e6da}
 names_file=${PATCHBAY_PRIVATE_NAMES_FILE:-$repo/workspace/records/private-names.txt}
 zero=0000000000000000000000000000000000000000
 patterns=$(mktemp "${TMPDIR:-/tmp}/patchbay-private-names.XXXXXX")
-trap 'rm -f "$patterns"' EXIT HUP INT TERM
+secret_patterns=$(mktemp "${TMPDIR:-/tmp}/patchbay-secret-patterns.XXXXXX")
+trap 'rm -f "$patterns" "$secret_patterns"' EXIT HUP INT TERM
 
 if [ ! -f "$names_file" ]; then
   echo "pre-push: 비공개 이름 목록을 찾지 못했습니다: $names_file" >&2
@@ -14,19 +15,60 @@ if [ ! -f "$names_file" ]; then
 fi
 sed '/^[[:space:]]*$/d; /^[[:space:]]*#/d' "$names_file" > "$patterns"
 
+# Deliberately narrow, recognizable credential shapes. Keep these stricter than
+# a generic KEY=... rule so documentation and test placeholders remain usable.
+cat > "$secret_patterns" <<'EOF'
+-----BEGIN ([A-Z0-9]+ )?PRIVATE KEY-----
+(AKIA|ASIA)[0-9A-Z]{16}
+gh[pousr]_[0-9A-Za-z]{36,}
+github_pat_[0-9A-Za-z_]{50,}
+sk-(proj-|ant-)?[0-9A-Za-z_-]{20,}
+xai-[0-9A-Za-z]{20,}
+xox[baprs]-[0-9A-Za-z-]{20,}
+AIza[0-9A-Za-z_-]{35}
+sk_live_[0-9A-Za-z]{16,}
+https://hooks\.slack\.com/services/[0-9A-Za-z/_-]{20,}
+https://(discord(app)?\.com)/api/webhooks/[0-9]+/[0-9A-Za-z_-]{20,}
+bot[0-9]{8,10}:[0-9A-Za-z_-]{35}
+EOF
+
+dangerous_paths() {
+  git ls-tree -r --name-only "$1" |
+    grep -E -i '(^|/)(\.ssh|\.gnupg|\.aws|\.gcloud|secrets|\.secrets)/|(^|/)(\.env($|\.)|[^/]+\.env$|credentials($|\.json$)|application_default_credentials\.json$|service[-_]?account[^/]*\.json$|id_(dsa|ecdsa|ed25519|rsa)$|[^/]+\.(asc|gpg|jks|key|keystore|p12|pem|pfx)$)' |
+    grep -E -i -v '(^|/)(\.env\.(example|sample|template)|(example|sample|template)\.env)$' || true
+}
+
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
   if ! git merge-base --is-ancestor "$public_root" "$local_sha" 2>/dev/null; then
     echo "pre-push: $local_ref 는 공개 첫 커밋에서 시작하지 않는다 — 옛(비공개) 이력이라 올리지 않는다." >&2
     exit 1
   fi
-  [ ! -s "$patterns" ] && continue
-  if git ls-tree -r --name-only "$local_sha" | grep -F -i -f "$patterns" >/dev/null; then
-    echo "pre-push: 공개 트리 파일 경로에서 비공개 이름을 찾았습니다." >&2
-    exit 1
+  scan_base=$public_root
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    scan_base=$remote_sha
   fi
-  if git grep -I -F -i -f "$patterns" "$local_sha" -- . ':(exclude)workspace/**' >/dev/null; then
-    echo "pre-push: 공개 트리 내용에서 비공개 이름을 찾았습니다." >&2
-    exit 1
-  fi
+  scan_commits=$(git rev-list "$scan_base..$local_sha")
+  for scan_sha in $scan_commits; do
+    bad_paths=$(dangerous_paths "$scan_sha")
+    if [ -n "$bad_paths" ]; then
+      echo "pre-push: 공개 이력에서 비밀 파일 경로를 찾았습니다 (커밋 ${scan_sha})." >&2
+      printf '%s\n' "$bad_paths" | sed 's/^/  - /' >&2
+      exit 1
+    fi
+    secret_files=$(git grep -l -I -E -f "$secret_patterns" "$scan_sha" -- . 2>/dev/null || true)
+    if [ -n "$secret_files" ]; then
+      echo "pre-push: 공개 이력에서 명백한 비밀 값 형식을 찾았습니다 (커밋 ${scan_sha}). 실제 값은 표시하지 않습니다." >&2
+      printf '%s\n' "$secret_files" | sed "s/^$scan_sha:/  - /" >&2
+      exit 1
+    fi
+    if [ -s "$patterns" ] && git ls-tree -r --name-only "$scan_sha" | grep -F -i -f "$patterns" >/dev/null; then
+      echo "pre-push: 공개 이력의 파일 경로에서 비공개 이름을 찾았습니다 (커밋 ${scan_sha})." >&2
+      exit 1
+    fi
+    if [ -s "$patterns" ] && git grep -I -F -i -f "$patterns" "$scan_sha" -- . ':(exclude)workspace/**' >/dev/null; then
+      echo "pre-push: 공개 이력의 내용에서 비공개 이름을 찾았습니다 (커밋 ${scan_sha})." >&2
+      exit 1
+    fi
+  done
 done

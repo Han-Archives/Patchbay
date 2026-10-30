@@ -16,8 +16,8 @@ export const KNOWLEDGE_NODE_COLORS: Record<KnowledgeLabel, string> = {
   Requirement: "#7B4BC4",
   Eval: "#5E3AA0",
   Document: "#C08AE8",
-  // 실행 행 — 지금 할 일 색(주황) 계열: 테스트에서 들어온 사실이다.
-  Run: "#E3A35A",
+  // 실행 행 — 현재 작업과 같은 진한 회색: 테스트에서 들어온 사실이다.
+  Run: "#555555",
 };
 
 /** 화면에 내보내는 종류 이름. 그래프 라벨(영어)은 Neo4j 안의 이름이고, 사람은 이 말로 읽는다. */

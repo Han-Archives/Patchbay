@@ -227,10 +227,10 @@ function MiniFlow({ detail, other, proposed }: { detail: RequirementDetail | nul
     const positions = layout(ids.map(id => ({ id, portId: id })), detail.edges.map(e => ({ from: text(e.from), to: text(e.to), kind: "flow" })));
     const nodes: Node[] = ids.map(id => { const n = detail.nodes.find(n => n.id === id);
       const changed = proposed && !!other && !other.nodes.some(o => o.id === id && JSON.stringify(o) === JSON.stringify(n));
-      return { id, position: positions.get(id)!, data: { label: n ? text(n.label) || id : id }, style: { background: changed ? "#342c23" : "#24252a", border: "1px solid " + (changed ? "#c4965d" : "#66616f"), color: "#eeeaf3", borderRadius: 8, fontSize: 12 } };
+      return { id, position: positions.get(id)!, data: { label: n ? text(n.label) || id : id }, style: { background: changed ? "var(--warn-fill)" : "var(--chrome)", border: "1px solid " + (changed ? "var(--warn)" : "var(--stroke-strong)"), color: "var(--text)", borderRadius: 8, fontSize: 12 } };
     });
     const edges: Edge[] = detail.edges.map((e, i) => ({ id: "e" + i, source: text(e.from), target: text(e.to), label: text(e.when),
-      style: { stroke: proposed && other && !other.edges.some(o => JSON.stringify(o) === JSON.stringify(e)) ? "#e6af6e" : "#8e879b", strokeWidth: 1.5 }, labelStyle: { fill: "#ddd6e4", fontSize: 11 }, labelBgStyle: { fill: "#25232b" } }));
+      style: { stroke: proposed && other && !other.edges.some(o => JSON.stringify(o) === JSON.stringify(e)) ? "var(--warn)" : "var(--graph-line)", strokeWidth: 1.5 }, labelStyle: { fill: "var(--text)", fontSize: 11 }, labelBgStyle: { fill: "var(--chrome)" } }));
     return { nodes, edges };
   }, [detail, other, proposed]);
   if (!detail) return <p className="rq-caption">이 판에 없습니다.</p>;

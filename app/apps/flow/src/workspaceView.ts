@@ -87,8 +87,23 @@ async function filledFact(graphFile: string, total: number): Promise<{ total: nu
 
 function existingFact(ir: Ir, build: ExistingBuild | null): ProjectFacts["existing"] {
   if (!build) return null;
-  const { total, linked, passed } = summarizeExistingBuild(ir, build);
-  return { total, linked, passed };
+  return currentReleaseExistingFact(ir, build);
+}
+
+/**
+ * 단계 띠는 이번 판의 완료 여부를 말한다. `must`·`should`는 모두 이번 판 대상이고, `could`도 이미
+ * 확인 연결이 있으면 이번 판에 포함한다. 확인 연결 없는 `could`만 다음 판 후보로 남긴다. 전체 요구사항과
+ * 제안 연결은 구현 화면에 그대로 보인다. 우선순위가 비면 IR 계약대로 `must`로 읽는다.
+ */
+export function currentReleaseExistingFact(ir: Ir, build: ExistingBuild): NonNullable<ProjectFacts["existing"]> {
+  const summary = summarizeExistingBuild(ir, build);
+  const priorities = new Map(ir.requirements.map((requirement) => [requirement.id, requirement.priority ?? "must"]));
+  const requirements = summary.requirements.filter((requirement) => priorities.get(requirement.id) !== "could" || requirement.state !== "unlinked");
+  return {
+    total: requirements.length,
+    linked: requirements.filter((requirement) => requirement.state !== "unlinked").length,
+    passed: requirements.filter((requirement) => requirement.state === "pass").length,
+  };
 }
 
 async function projectFacts(studioHome: string, alias: string, repo: string): Promise<ProjectFacts> {

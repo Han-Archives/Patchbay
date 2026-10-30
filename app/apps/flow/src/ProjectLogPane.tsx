@@ -78,7 +78,7 @@ function TagMap({ dates, days, tags, filter, onCell }: { dates: string[]; days: 
         <span />{dates.map((d) => <span key={d} className="log-map-head">{fmt(d)}{days[d]?.state === "잠정" ? " ·잠정" : ""}</span>)}<span className="log-map-head">합</span>
         {names.map((t) => <div key={t} className="log-map-row">
           <span className="log-map-tag"><i style={{ background: tagColor(t) }} />{t}</span>
-          {dates.map((d) => { const n = value(t, d); return <button key={d} type="button" disabled={!n} aria-label={`${d} ${t} ${n}`} aria-pressed={filter.tag === t && filter.date === d} onClick={() => onCell(t, d)} style={n ? { background: tagColor(t), opacity: Math.min(1, 0.35 + n / 7) } : undefined}>{n || ""}</button>; })}
+          {dates.map((d) => { const n = value(t, d); return <button key={d} type="button" disabled={!n} aria-label={`${d} ${t} ${n}`} aria-pressed={filter.tag === t && filter.date === d} onClick={() => onCell(t, d)} style={n ? { background: `color-mix(in srgb, ${tagColor(t)} ${Math.min(35, 10 + n * 3)}%, var(--chrome))` } : undefined}>{n || ""}</button>; })}
           <span className="log-map-sum">{dates.reduce((s, d) => s + value(t, d), 0)}</span>
         </div>)}
       </div>
