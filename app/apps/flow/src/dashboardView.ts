@@ -14,6 +14,7 @@ import {
   readStudio,
   TEST_STAGE_DIR_NAME,
   type Ir,
+  type IrCredential,
 } from "@patchbay/core";
 import type { DashboardMetric, DashboardView, EvalOutcome } from "./testContract.js";
 
@@ -150,6 +151,16 @@ async function envNames(repo: string): Promise<Set<string>> {
   }
 }
 
+/** `.env` 에 없는 자격 증명 id. 설계에 `env` 이름이 있으면 그 이름이 다 있어야 하고, 없으면 id로 이름을 짐작한다. */
+export function missingCredentials(credentials: readonly IrCredential[], names: ReadonlySet<string>): string[] {
+  return credentials.flatMap((c) => {
+    if (c.storedAt !== "env") return [];
+    if (c.env?.length) return c.env.every((n) => names.has(n)) ? [] : [c.id];
+    const guess = c.id.toUpperCase().replace(/-/g, "_");
+    return [...names].some((n) => n === guess || n.startsWith(guess.replace(/_KEY$/, ""))) ? [] : [c.id];
+  });
+}
+
 export async function loadDashboard(studioHome: string, alias: string, langgraphUrl: string): Promise<DashboardView> {
   const overlay = await readOverlay(studioHome, alias);
   const parsed = overlay.ir ? parseIr(overlay.ir) : null;
@@ -163,11 +174,7 @@ export async function loadDashboard(studioHome: string, alias: string, langgraph
   if (ir) {
     for (const m of ir.models) if (/미정|undecided/i.test(m.provider)) attention.push(`모델 미정 — ${m.id}`);
     const names = project ? await envNames(project.path) : new Set<string>();
-    for (const c of ir.credentials) {
-      if (c.storedAt !== "env") continue;
-      const guess = c.id.toUpperCase().replace(/-/g, "_");
-      if (![...names].some((n) => n === guess || n.startsWith(guess.replace(/_KEY$/, "")))) attention.push(`자격 증명 없음 — ${c.id} (.env)`);
-    }
+    for (const id of missingCredentials(ir.credentials, names)) attention.push(`자격 증명 없음 — ${id} (.env)`);
     for (const q of ir.openQuestions ?? []) attention.push(`열린 질문 — ${q}`);
   }
   if (ir?.graph && !state) attention.push(`그래프 서버(${langgraphUrl})에 닿지 못했다 — 프로젝트에서 서버를 켠다`);

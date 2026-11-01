@@ -5,10 +5,11 @@ const PHASE: Record<RoomExecution["phase"], string> = {
   prepare: "실행 배정 중", approval: "배정 확인", act: "수행 중", check: "검증 중", check_failed: "검증 실패",
   deploy_approval: "적용 조건 확인", deploy: "적용 중", done: "완료", failed: "실패", consult: "상담 재검토", uncertain: "실제 상태 확인 필요",
 };
-export function RoomExecutionPanel({ project, roomId, members, execution, waiting, kept, revision, onChanged, onConsult, onAddMembers, showSetup = true }: {
+export function RoomExecutionPanel({ project, roomId, members, execution, waiting, kept, revision, onChanged, onConsult, onAddMembers, showSetup = true, guided = false }: {
   project: string; roomId: string; members: RoomMember[]; execution: RoomExecution | null;
   waiting: boolean; kept: boolean; revision: number; onChanged: () => void;
   onConsult: (note?: string) => void; onAddMembers: () => void; showSetup?: boolean;
+  guided?: boolean;
 }) {
   const [plan, setPlan] = useState<RoomPlan | null>(null);
   const [planError, setPlanError] = useState("");
@@ -61,6 +62,7 @@ export function RoomExecutionPanel({ project, roomId, members, execution, waitin
   }
   const label = (member: RoomMember) => `${member.name?.trim() || ROOM_SPEAKER_LABEL[member.speaker]} · ${member.model || "모델 기본"}`;
   const locked = busy || waiting || kept;
+  const cue = guided && !locked ? " user-action-pulse" : "";
   const active = execution && !["done", "failed", "consult"].includes(execution.phase);
   const changed = execution && plan && execution.plan.digest !== plan.digest;
   const phaseIndex = execution?.phase === "act" ? 0 : ["check", "check_failed"].includes(execution?.phase ?? "") ? 1
@@ -78,17 +80,17 @@ export function RoomExecutionPanel({ project, roomId, members, execution, waitin
         <p className="room-recommend-reason">추천: {task.effort ?? "모델 기본"} · {task.reason}</p>
       </div>)}
       {execution.error ? <p className="thread-err">{execution.error}</p> : null}
-      {!changed && execution.phase === "approval" ? <div className="room-execution-actions">
+      {!changed && execution.phase === "approval" ? <div className={`room-execution-actions${cue}`}>
         <label><input type="checkbox" checked={recommended} disabled={locked} onChange={e => setRecommended(e.target.checked)} /> 리더가 추천한 강도 적용</label>
         <p>해제하면 사용자가 선택한 모델·강도를 유지한다.</p>
         <button type="button" className="flow-btn primary" disabled={locked} onClick={() => void action("approve", { useRecommendedEffort: recommended })}>배정 확인 · 수행 시작</button>
       </div> : null}
-      {!changed && execution.phase === "check_failed" ? <button type="button" className="flow-btn" disabled={locked} onClick={() => void action("retry")}>구현 오류 수정 → Act</button> : null}
-      {!changed && execution.phase === "deploy_approval" ? execution.deployCommand ? <div className="room-execution-actions">
+      {!changed && execution.phase === "check_failed" ? <button type="button" className={`flow-btn${cue}`} disabled={locked} onClick={() => void action("retry")}>구현 오류 수정 → Act</button> : null}
+      {!changed && execution.phase === "deploy_approval" ? execution.deployCommand ? <div className={`room-execution-actions${cue}`}>
         <p>적용 대상: <b>{execution.deployTarget}</b></p><code>{JSON.stringify(execution.deployCommand)}</code>
         <input aria-label="적용 대상 확인" value={confirmTarget} placeholder="대상 이름을 그대로 입력" onChange={e => setConfirmTarget(e.target.value)} />
         <button type="button" className="flow-btn primary" disabled={locked || confirmTarget !== execution.deployTarget} onClick={() => void action("deploy", { target: confirmTarget })}>대상 확인 · 적용</button>
-      </div> : <button type="button" className="flow-btn primary" disabled={locked} onClick={() => void action("finish")}>검증 완료 · 배포 없이 종료</button> : null}
+      </div> : <button type="button" className={`flow-btn primary${cue}`} disabled={locked} onClick={() => void action("finish")}>검증 완료 · 배포 없이 종료</button> : null}
       {!changed && !["done", "failed", "consult"].includes(execution.phase) ? <button type="button" className="flow-btn" disabled={locked} onClick={() => void action("sync")}>LangGraph 상태 확인 · 이어가기</button> : null}
       <details><summary>요구 변경 · 상담 재검토</summary><textarea aria-label="상담으로 보낼 변경" value={consultNote} onChange={e => setConsultNote(e.target.value)} placeholder="요구 누락·해석 오류·범위 변경" />
         <button type="button" className="flow-btn" disabled={locked || !consultNote.trim()} onClick={async () => {

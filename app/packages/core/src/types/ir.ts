@@ -212,6 +212,8 @@ export const irCredentialSchema = z.object({
   id: z.string().min(1),
   what: z.string(),
   storedAt: z.enum(CREDENTIAL_STORES),
+  /** `storedAt: env` 일 때 실제 환경 변수 이름. 비어 있으면 대시보드가 id로 이름을 짐작한다 (2026-11-01). */
+  env: z.array(z.string().min(1)).optional(),
   note: z.string().optional(),
 });
 export type IrCredential = z.infer<typeof irCredentialSchema>;

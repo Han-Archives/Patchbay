@@ -64,7 +64,8 @@ export async function runVersionCompare(
     studioHome,
     alias,
     overlay.ir ?? null,
-    currentRead.ok ? scoreEvalRun(currentRead.run) : null,
+    // 채택 직후 evals.json 은 아직 앞 판의 결과다 — 지금 판의 점수로 세지 않는다.
+    currentRead.ok && currentRead.run.irVersion === overlay.ir?.version ? scoreEvalRun(currentRead.run) : null,
   );
   const all: VersionRecord[] = [...history.archived, ...(history.current ? [history.current] : [])];
   if (all.length < 2) {

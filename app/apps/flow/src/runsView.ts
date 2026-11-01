@@ -60,7 +60,9 @@ export async function loadRunsView(studioHome: string, alias: string | undefined
   const drafts = draftEvalsFromRuns(overlay.ir, records, { draft: await readProposedIrIfValid(studioHome, alias) });
 
   const currentRead = await readCurrentEvalRun(studioHome, alias);
-  const currentScore = currentRead.ok ? scoreEvalRun(currentRead.run) : null;
+  // 채택 직후 evals.json 은 아직 앞 판의 결과다 — 지금 판의 점수로 세지 않는다.
+  const currentScore =
+    currentRead.ok && currentRead.run.irVersion === overlay.ir.version ? scoreEvalRun(currentRead.run) : null;
   const history = await readVersionHistory(studioHome, alias, overlay.ir, currentScore);
   const all = [...history.archived, ...(history.current ? [history.current] : [])];
   const versions = all.map((record) => ({

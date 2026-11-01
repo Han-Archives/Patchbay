@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { adoptIr, ensureStudioInitialized, parseIr, readIrFile, readPassedNodes, recordPassedNodes, registerProject } from "@patchbay/core";
 import { describe, expect, it } from "vitest";
-import { metricLabel, metricsFrom, testsFromVitest } from "./dashboardView.js";
+import { metricLabel, metricsFrom, missingCredentials, testsFromVitest } from "./dashboardView.js";
 import { activityFromHistory, readTestActivity } from "./testActivity.js";
 
 /** 0 대시보드 · 3 테스트 (사용자 결정 2026-10-08). 그래프 서버는 가짜 fetch로 — CI는 실제 서버를 띄우지 않는다. */
@@ -122,5 +122,18 @@ describe("대시보드 — 프로젝트 전용 코드 없이 설계에서 읽는
     const tests = testsFromVitest(report, "2026-10-08T00:00:00Z");
     expect(tests.results).toEqual({ E0: "pass", E1: "fail", E13: "todo" });
     expect(tests).toMatchObject({ passed: 1, failed: 1, todo: 1 });
+  });
+});
+
+describe("대시보드 — 자격 증명 확인", () => {
+  it("설계에 적힌 변수 이름으로 확인하고, 이름이 없을 때만 id로 짐작한다", () => {
+    const names = new Set(["PATCHBAY_TELEGRAM_TOKEN", "PATCHBAY_TELEGRAM_CHAT_ID", "OPENAI_API_KEY"]);
+    expect(missingCredentials([
+      { id: "notification-channel", what: "알림", storedAt: "env", env: ["PATCHBAY_TELEGRAM_TOKEN", "PATCHBAY_TELEGRAM_CHAT_ID"] },
+      { id: "discord", what: "알림", storedAt: "env", env: ["PATCHBAY_DISCORD_WEBHOOK"] },
+      { id: "openai-api-key", what: "키", storedAt: "env" },
+      { id: "project-api-keys", what: "키", storedAt: "env" },
+      { id: "claude-login", what: "로그인", storedAt: "file" },
+    ], names)).toEqual(["discord", "project-api-keys"]);
   });
 });

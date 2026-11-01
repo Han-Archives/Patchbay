@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { registerSemanticRoutes } from "./semanticHost.js";
 import { registerRagRoutes } from "./ragHost.js";
 import { registerRequirementRoutes } from "./requirementView.js";
+import { registerEvalRoutes } from "./evalsHost.js";
 import { HISTORY_DOMAINS, historyDomainTags } from "./historyContract.js";
 import { createTodoPreparationHost, PreparationError } from "./todoPreparation.js";
 import { todoTurn } from "./todoTurn.js";
@@ -642,6 +643,7 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
   });
 
   registerRequirementRoutes(app, options.studioHome);
+  registerEvalRoutes(app, options.studioHome);
 
   app.get("/api/ir", async (c) => {
     const result = await loadIrView(options.studioHome, c.req.query("alias"), c.req.query("source"));

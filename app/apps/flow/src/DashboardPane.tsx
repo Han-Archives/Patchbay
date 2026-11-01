@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { resolveResume, type ResumeAction, type WorkLocation } from "./workspaceNavigation.js";
+import { resolveResume, workLocation, WORK_PLACES, type ResumeAction, type WorkLocation } from "./workspaceNavigation.js";
 import { ROOM_SPEAKER_LABEL, type PrdSection, type RoomMember, type RoomSummary, type TodoItem } from "@patchbay/core";
 import { stageMeta, type StageId, type WorkspaceProject } from "./workspaceContract.js";
 import type { BuildViewExisting, BuildViewReady, BuildViewResponse } from "./buildContract.js";
@@ -12,6 +12,9 @@ import { OverviewDocument } from "./OverviewDocument.js";
 import { parseOverview, type OverviewDoc } from "./overviewContract.js";
 import { ProjectCycleFlow, cycleCurrent, cycleState, markSteps, type CycleStep, type SubStep } from "./ProjectCycleFlow.js";
 import { CycleTaskTable } from "./CycleTaskTable.js";
+import { EvalReviewPanel } from "./EvalReviewPanel.js";
+import { nextUserAction, type ActionRequest, type ActionTodo } from "./userAction.js";
+import type { EvalsReviewResponse } from "./evalsContract.js";
 
 type MainView = "overview" | "dashboard";
 type TodoKind = "판단 · 모델 미정" | "자격 증명" | "열린 질문" | "사람 판단" | "확인";
@@ -46,13 +49,17 @@ function DocumentLines({ lines, open, onToggle }: { lines: string[]; open: boole
   return <>{visible.length ? <div className="main-doc-lines">{visible.map((line, index) => <p key={`${index}:${line}`}>{line}</p>)}</div> : <p className="main-empty">기록된 내용이 없다</p>}{lines.length > 6 ? <button type="button" className="main-more" onClick={onToggle}>{open ? "접기" : "더 보기"}</button> : null}</>;
 }
 
-export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, readOnly, onProjectRenamed, lastWork, onContinue }: {
+export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, readOnly, onProjectRenamed, lastWork, onContinue, actionRequest, onActionDone }: {
   project: string; revision: number; repo: ReactNode; readOnly: boolean; onProjectRenamed: () => void;
   onOpenStage: (id: StageId | "plan" | "board") => void;
   onOpenFile: (path: string) => void; workspace?: WorkspaceProject;
-  lastWork: WorkLocation | null; onContinue: (action: ResumeAction) => void;
+  lastWork: WorkLocation | null; onContinue: (action: ResumeAction) => void | Promise<void>;
+  actionRequest?: ActionRequest; onActionDone: () => void;
 }) {
   const [mainView, setMainView] = useState<MainView>(readMainView);
+  const [evalsOpen, setEvalsOpen] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const continueAbort = useRef<AbortController | null>(null);
   const [view, setView] = useState<DashboardView | null>(null);
   const [build, setBuild] = useState<BuildViewReady | null>(null);
   /** 「이미 구현됨」 길이면 구현 · 테스트 세부 단계를 노드마다의 연결 · 통과로 센다 (사용자 결정 2026-10-20). */
@@ -73,6 +80,36 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setExpandedSections(new Set()); setFlowPick(null); }, [project]);
+  useEffect(() => () => { continueAbort.current?.abort(); }, [project]);
+  useEffect(() => {
+    if (actionRequest?.action.alias !== project || actionRequest.action.target.kind !== "evals") return;
+    setMainView("dashboard"); setFlowPick("review"); setEvalsOpen(true);
+    const frame = requestAnimationFrame(() => root.current?.querySelector(".eval-review")?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [project, actionRequest]);
+
+  async function resumeNow() {
+    if (continueAbort.current) return;
+    if (readOnly) { await onContinue(resume); return; }
+    const controller = new AbortController();
+    continueAbort.current = controller; setContinuing(true); setError(null);
+    try {
+      async function get<T>(path: string): Promise<T> {
+        const res = await fetch(`${path}?alias=${encodeURIComponent(project)}`, { signal: controller.signal, cache: "no-store" });
+        const body = await res.json() as T & { error?: string };
+        if (!res.ok || body.error) throw new Error(body.error ?? "지금 할 일을 확인하지 못했습니다.");
+        return body;
+      }
+      const [todoBody, evalBody] = await Promise.all([get<{ todos: ActionTodo[] }>("/api/todos"), get<EvalsReviewResponse>("/api/evals")]);
+      if (controller.signal.aborted) return;
+      const action = nextUserAction(project, todoBody.todos, evalBody, workspace?.stages ?? [], !!prd?.length);
+      await onContinue(action ? { kind: "action", action, label: "이어하기", title: action.title } : resume);
+    } catch (reason) {
+      if (!controller.signal.aborted) setError(`이어갈 일을 확인하지 못했습니다. ${reason instanceof Error ? reason.message : String(reason)} 다시 눌러 주세요.`);
+    } finally {
+      if (continueAbort.current === controller) { continueAbort.current = null; setContinuing(false); }
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -216,13 +253,13 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
       <div className="main-actions">
         <nav className="main-switch" aria-label="메인 화면"><button type="button" aria-pressed={mainView === "overview"} onClick={() => chooseMain("overview")}>개요</button><button type="button" aria-pressed={mainView === "dashboard"} onClick={() => chooseMain("dashboard")}>대시보드</button></nav>
         <button type="button" className="main-icon-button" aria-label="새로고침" onClick={() => setTick(value => value + 1)}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .2 5.4M16 3v4h-4" /></svg></button>
-        <div className="main-continue"><button type="button" className="main-primary" title={resume.title} aria-label={resume.title} disabled={!lastWork && !roomsReady} onClick={() => onContinue(resume)}>{resume.label}</button></div>
+        <div className="main-continue"><button type="button" className="main-primary" title="지금 해야 할 일을 확인하고 해당 화면에서 이어하기" aria-label="지금 할 일 이어하기" disabled={continuing || (!lastWork && !roomsReady)} onClick={() => void resumeNow()}>{continuing ? "확인 중…" : resume.label}</button></div>
       </div>
     </header>
     {error ? <p className="flow-error">{error}</p> : null}
 
     {mainView === "dashboard" ? <div key={`dashboard:${project}`} className="main-dashboard-grid">
-        <section className={`main-card main-flow is-${cycleState(flowSelected, cycle)}`}><header className="main-flow-head"><h3>Workflow</h3>{timing?.measured ? <span className={`task-timing${timing.over.length ? " is-over" : ""}`} title={timing.over.length ? timing.over.map(turn => `${turn.title} · ${Math.round(turn.ms / 60_000)}분${turn.endAt ? "" : " · 아직 결과 없음"}`).join("\n") : "최근 7일, 세션에 맡긴 일이 모두 1시간 안에 결과를 냈다"}>{timing.over.length ? `1시간 넘김 ${timing.over.length}건` : `맡긴 일 ${timing.measured}건 · 1시간 안`}</span> : null}</header>
+        <section className={`main-card main-flow is-${cycleState(flowSelected, cycle)}`}><header className="main-flow-head"><h3>Workflow</h3>{flowSelected === "review" ? <button type="button" className="flow-btn eval-review-open" onClick={() => setEvalsOpen(true)}>평가 결과 받기</button> : null}{timing?.measured ? <span className={`task-timing${timing.over.length ? " is-over" : ""}`} title={timing.over.length ? timing.over.map(turn => `${turn.title} · ${Math.round(turn.ms / 60_000)}분${turn.endAt ? "" : " · 아직 결과 없음"}`).join("\n") : "최근 7일, 세션에 맡긴 일이 모두 1시간 안에 결과를 냈다"}>{timing.over.length ? `1시간 넘김 ${timing.over.length}건` : `맡긴 일 ${timing.measured}건 · 1시간 안`}</span> : null}</header>
           <ProjectCycleFlow stages={workspace?.stages ?? []} steps={cycleSteps} selected={flowSelected} onSelect={setFlowPick} />
           <CycleTaskTable key={`${project}:${flowSelected}`} project={project} step={flowSelected} steps={cycleSteps[flowSelected]} action={flowAction[flowSelected]} onAction={() => openCycle(flowSelected)} />
         </section>
@@ -239,6 +276,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
         <section id="main-section-6"><h3><span>6</span>산출물 · 역할 · 도구</h3>{agents.length ? <DocumentLines lines={agents.map(agent => `${agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]} — ${agent.role.split("\n")[0] || "역할 기록 없음"}`)} open={expandedSections.has(6)} onToggle={() => toggleSection(6)} /> : <p className="main-empty">등록된 Agent가 없다</p>}<div className="main-tools"><span>도구 · 단계가 아니라 필요할 때 연다</span><button type="button" className="flow-btn" onClick={() => onOpenStage("graph")}>지식 그래프</button><button type="button" className="flow-btn" onClick={() => onOpenStage("docs")}>문서 호출</button><button type="button" className="flow-btn" onClick={() => setRepoOpen(true)}>폴더 · 문서</button></div></section>
       </div>
     </div>}
+    {evalsOpen ? <EvalReviewPanel key={`evals:${project}`} project={project} readOnly={readOnly} guided={actionRequest?.action.target.kind === "evals"} onRecorded={() => { onActionDone(); setTick(n => n + 1); }} onClose={() => setEvalsOpen(false)} onOpenPlace={place => { const location = workLocation(project, place); if (location) void onContinue({ kind: "place", location, label: "이어하기", title: WORK_PLACES[place] }); }} /> : null}
     {repoOpen ? <div className="main-repo" role="dialog" aria-modal="true" aria-label="폴더 · 문서"><header><h3>폴더 · 문서</h3><button type="button" className="flow-btn" onClick={() => setRepoOpen(false)}>닫기</button></header>{repo}</div> : null}
   </div>;
 }

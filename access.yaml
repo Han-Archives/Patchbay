@@ -36,6 +36,9 @@ rules:
   - path: "workspace/projects/*/test-runs/**"
     tier: 허가
     why: 실행 기록 원문
+  - path: "workspace/projects/*/eval-evidence/**"
+    tier: 허가
+    why: 평가 근거 원문(스크린샷 · 출력)
   - path: "workspace/projects/*/refs/**"
     tier: 허가
     why: 외부 자료 원본

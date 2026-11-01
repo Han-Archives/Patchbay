@@ -8,3 +8,4 @@ export * from "./versions.js";
 export * from "./normalize.js";
 export * from "./passedNodes.js";
 export * from "./testRuns.js";
+export * from "./evidence.js";

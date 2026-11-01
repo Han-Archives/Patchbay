@@ -7635,3 +7635,564 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 720px) {
   .main-document { padding: 16px; }
 }
+
+/* ── 대화창 + 버튼 정가운데 모달 · 첨부 대기 칩 (사용자 요청 2026-10-31) ───────────────── */
+.todo-modal.room-center-modal {
+  box-sizing: border-box;
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(640px, calc(100dvh - 48px));
+  margin: auto;
+  padding: 20px 22px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 14px;
+  background: var(--surface-pure);
+  color: var(--text);
+  box-shadow: 0 20px 48px rgb(16 20 28 / 0.22);
+}
+.todo-modal.room-center-modal.room-attach-modal {
+  width: min(740px, calc(100vw - 32px));
+}
+.room-center-modal .room-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+.room-center-modal .room-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.room-center-modal .room-modal-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.room-center-modal .room-modal-close {
+  min-height: 32px;
+  width: 32px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+.room-center-modal .room-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.room-modal-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--elevated);
+  border: 1px solid var(--stroke);
+}
+.room-role-modal .room-modal-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.room-center-modal .room-modal-tab {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.room-center-modal .room-modal-tab.is-on {
+  background: var(--surface-pure);
+  color: var(--text);
+  border-color: var(--stroke);
+  box-shadow: 0 1px 2px rgb(16 20 28 / 0.06);
+}
+.room-dropzone {
+  border: 1.5px dashed var(--stroke-strong);
+  border-radius: 12px;
+  background: var(--elevated);
+  padding: 36px 24px;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.room-dropzone.is-dragover {
+  border-color: var(--ok);
+  background: var(--ok-fill);
+}
+.room-dropzone-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.room-dropzone-body b {
+  font-size: 14px;
+}
+.room-dropzone-body p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 460px;
+  line-height: 1.5;
+}
+.room-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.room-modal-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.room-modal-search-bar input {
+  flex: 1 1 240px;
+  margin-top: 0;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.room-modal-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ok);
+  white-space: nowrap;
+}
+.room-filter-pills {
+  display: inline-flex;
+  gap: 4px;
+}
+.room-center-modal .room-filter-pill {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.room-center-modal .room-filter-pill.is-on {
+  background: var(--ok-fill);
+  border-color: var(--ok);
+  color: var(--ok);
+  font-weight: 600;
+}
+.room-file-picker-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+.room-file-picker-split:has(.room-file-preview) {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+.room-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: var(--elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.room-modal-list.is-cards {
+  gap: 6px;
+  padding: 8px;
+}
+.room-modal-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.room-modal-item,
+.room-modal-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-pure);
+}
+.room-modal-item.is-selected,
+.room-modal-card-item.is-selected {
+  border-color: var(--ok);
+  background: var(--ok-fill);
+}
+.room-modal-item.is-previewing {
+  border-color: var(--stroke-strong);
+}
+.room-center-modal .room-modal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.room-center-modal .room-modal-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+}
+.room-modal-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.room-modal-item-text b {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-modal-item-text small {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.room-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.room-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid var(--stroke);
+  background: var(--elevated);
+  color: var(--text);
+}
+.room-badge.is-rule {
+  color: var(--stage-design, #2563eb);
+  border-color: color-mix(in srgb, var(--stage-design, #2563eb) 35%, transparent);
+}
+.room-badge.is-skill {
+  color: var(--ok);
+  border-color: var(--ok-stroke);
+}
+.room-badge.is-subtle {
+  color: var(--muted);
+  font-weight: 500;
+}
+.room-modal-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.room-center-modal .room-modal-item-actions button,
+.room-center-modal .room-modal-card-item > button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.room-center-modal .flow-btn.primary {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--on-solid);
+  font-weight: 600;
+}
+.room-file-preview {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: var(--surface-pure);
+  max-height: 310px;
+  overflow: hidden;
+}
+.room-file-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--stroke);
+  background: var(--elevated);
+}
+.room-file-preview > header b {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-file-preview > header button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+.room-file-preview pre {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow: auto;
+  flex: 1;
+}
+.room-preview-img {
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  margin: auto;
+  padding: 8px;
+}
+.room-modal-agent-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  text-align: left;
+  cursor: pointer;
+}
+.room-mode-prompt-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.room-link-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.room-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--stroke);
+  flex-wrap: wrap;
+}
+.room-modal-footer > small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.room-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.room-staged-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.room-staged-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: 26px;
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 999px;
+  background: var(--surface-pure);
+  font-size: 11.5px;
+  flex: none;
+}
+.room-staged-chip.is-rule,
+.room-staged-chip.is-skill {
+  border-color: var(--ok-stroke);
+  background: var(--ok-fill);
+}
+.room-staged-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex: none;
+}
+.room-staged-badge {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ok);
+  flex: none;
+}
+.room-staged-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-staged-remove {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.room-staged-remove:hover {
+  background: var(--fill);
+  color: var(--text);
+}
+@media (max-width: 640px) {
+  .room-modal-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .room-file-picker-split:has(.room-file-preview) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* Review 칸 · 평가 결과 받기 (EvalReviewPanel, 2026-10-31) */
+.main-flow-head .eval-review-open { margin-left: auto; }
+.eval-review { display: flex; flex-direction: column; gap: 10px; }
+.eval-review > * { flex: none; }
+.eval-review > header h3 small { color: var(--muted); font-size: 13px; font-weight: 400; }
+.eval-review-lead { margin: 0; color: var(--muted); font-size: 13px; }
+.eval-review-meter { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--fill); }
+.eval-review-meter span { transition: width 0.2s ease; }
+.eval-review-meter .is-pass, .eval-review-legend i.is-pass { background: var(--complete); }
+.eval-review-meter .is-fail, .eval-review-legend i.is-fail { background: var(--bad); }
+.eval-review-meter .is-skip, .eval-review-legend i.is-skip { background: var(--warn); }
+.eval-review-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: var(--muted); }
+.eval-review-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.eval-review-legend i { width: 9px; height: 9px; border-radius: 3px; background: var(--fill); border: 1px solid var(--stroke); }
+.eval-review-recorded { margin-left: auto; }
+.eval-review-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.eval-review-tools label.flow-btn { cursor: pointer; }
+.eval-review-only { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; margin-left: auto; }
+.eval-review-paste { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.eval-review-paste textarea { width: 100%; min-height: 120px; font: 12px/1.4 ui-monospace, monospace; padding: 8px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-pure); color: var(--text); }
+.eval-review-notice { margin: 0; font-size: 13px; color: var(--complete); }
+.eval-review-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.eval-review-list li { padding: 9px 12px; border: 1px solid var(--stroke); border-left: 4px solid var(--stroke); border-radius: 8px; background: var(--chrome); }
+.eval-review-list li.is-pass { border-left-color: var(--complete); }
+.eval-review-list li.is-fail { border-left-color: var(--bad); }
+.eval-review-list li.is-skip { border-left-color: var(--warn); }
+.eval-review-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.eval-review-head small { margin-left: auto; color: var(--muted); font-size: 12px; }
+.eval-review-expect { margin: 4px 0 6px; font-size: 13px; overflow-wrap: anywhere; }
+.eval-review-expect span { color: var(--muted); margin-right: 8px; font-size: 12px; }
+.eval-review-score { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.eval-review-score [role="radiogroup"] { display: inline-flex; border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; }
+.eval-review-score [role="radio"] { font: inherit; font-size: 13px; padding: 4px 12px; border: 0; border-right: 1px solid var(--stroke); background: var(--surface-pure); color: var(--text); cursor: pointer; }
+.eval-review-score [role="radio"]:last-child { border-right: 0; }
+.eval-review-score [role="radio"][aria-checked="true"].is-pass { background: var(--complete); color: var(--on-solid); }
+.eval-review-score [role="radio"][aria-checked="true"].is-fail { background: var(--bad); color: var(--on-solid); }
+.eval-review-score [role="radio"][aria-checked="true"].is-skip { background: var(--warn); color: var(--on-solid); }
+.eval-review-score input[type="text"] { flex: 1; min-width: 160px; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-pure); color: var(--text); }
+.eval-review-foot { position: sticky; bottom: -18px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 0; background: var(--bg); border-top: 1px solid var(--stroke); }
+.eval-review-foot label { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 220px; font-size: 13px; color: var(--muted); }
+.eval-review-foot input { flex: 1; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-pure); color: var(--text); }
+.eval-review-evidence { margin: 2px 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--elevated); font-size: 13px; }
+.eval-review-evidence dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin: 0; }
+.eval-review-evidence dt { color: var(--muted); font-size: 12px; }
+.eval-review-evidence dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.eval-review-shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.eval-review-shots button { padding: 0; border: 1px solid var(--stroke); border-radius: 6px; background: var(--surface-pure); cursor: zoom-in; overflow: hidden; }
+.eval-review-shots img { display: block; width: 168px; height: 105px; object-fit: cover; object-position: top left; }
+.eval-review-links { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin-top: 6px; font-size: 12px; }
+.eval-review-links a, .eval-review-screen { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.eval-review-screen { font: inherit; padding: 0; border: 0; background: none; cursor: pointer; }
+.eval-review-links small { margin-left: auto; color: var(--muted); }
+.eval-review-noevidence { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.eval-review-zoom { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; border: 0; background: var(--backdrop); cursor: zoom-out; }
+.eval-review-zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: var(--shadow); }
+@media (max-width: 640px) { .eval-review-shots img { width: calc(50vw - 40px); height: auto; aspect-ratio: 16 / 10; } }
+
+/* 이어하기: 지금 사람이 해야 할 위치와 대화 안내 (2026-11-01). */
+.user-action-pulse {
+  outline: 2px solid #bd6a16;
+  outline-offset: 3px;
+  border-radius: 7px;
+  animation: user-action-pulse 1.6s ease-in-out infinite;
+}
+@keyframes user-action-pulse {
+  50% { outline-color: #d99b47; box-shadow: 0 0 0 5px rgb(189 106 22 / .14); }
+}
+@media (prefers-reduced-motion: reduce) { .user-action-pulse { animation: none; box-shadow: 0 0 0 3px rgb(189 106 22 / .14); } }
+.user-action-guide { flex: none; max-height: 38%; overflow-y: auto; padding: 12px 14px; border-top: 1px solid #d5b48b; border-bottom: 1px solid #d5b48b; background: #fff6e9; color: var(--text); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.user-action-guide header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; color: #81501c; }
+.user-action-guide header > span { font-size: 11px; font-weight: 700; }
+.user-action-guide header > button { border: 0; background: none; color: inherit; font: inherit; font-size: 18px; padding: 0 4px; cursor: pointer; }
+.user-action-guide > b { display: block; font-size: 13px; }
+.user-action-guide p { margin: 4px 0; }
+.user-action-guide ol { margin: 6px 0 10px; padding-left: 20px; }
+.user-action-guide li + li { margin-top: 4px; }
+.user-action-guide > .flow-btn { min-height: 30px; font-size: 12px; }
+.eval-review-current { border-color: #bd6a16 !important; scroll-margin-top: 12px; }
+.eval-review-score.user-action-pulse { margin: 8px 3px 3px; }
+.user-action-label { color: #81501c; background: #fff0d7; padding: 2px 7px; border-radius: 5px; font-size: 11px; }
+@media (max-width: 900px) { .user-action-guide { max-height: 240px; } }
+.eval-review > header { position: sticky; top: -18px; z-index: 2; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--stroke); }
+.eval-review > header h3 { flex: 1; }
+.eval-review > header .flow-btn { flex: none; }
+.eval-review-current { scroll-margin-top: 70px; }
+@media (max-width: 640px) {
+  .eval-review > header { flex-wrap: wrap; gap: 6px; }
+  .eval-review > header h3 { flex-basis: 100%; }
+  .eval-review-current { scroll-margin-top: 110px; }
+}
+
+/* 대화방 「질문」 칸 — 모델이 사람에게 묻는 것을 선택지 단추 · 입력 칸으로 (사용자 요청 2026-11-01). */
+.room-ask { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--elevated); white-space: normal; }
+.room-ask.is-past { border-color: var(--stroke); background: none; }
+.room-ask-item { display: flex; flex-direction: column; gap: 6px; }
+.room-ask-q { display: flex; gap: 6px; align-items: baseline; font-size: 13.5px; font-weight: 700; line-height: 1.45; }
+.room-ask-n { flex: none; min-width: 1.4em; padding: 0 4px; border-radius: 4px; background: var(--fill); font-size: 11.5px; text-align: center; }
+.room-ask-how { font-size: 11px; color: var(--muted); }
+.room-ask-options { display: flex; flex-direction: column; gap: 4px; }
+.room-ask-option { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border: 1px solid var(--stroke); border-radius: 6px; background: var(--chrome); color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.room-ask-option:hover:not(:disabled) { border-color: var(--accent); }
+.room-ask-option.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--fill); }
+.room-ask-option:disabled { cursor: default; color: var(--muted); }
+.room-ask-option small { color: var(--muted); font-size: 11.5px; }
+.room-ask-label { display: flex; gap: 6px; align-items: center; }
+.room-ask-rec { padding: 0 5px; border-radius: 4px; border: 1px solid var(--ok); color: var(--ok); font-size: 10.5px; font-style: normal; }
+.room-ask-input { padding: 6px 8px; border: 1px solid var(--stroke); border-radius: 4px; background: var(--chrome); color: var(--text); font: inherit; font-size: 13px; }
+.room-ask-send { display: flex; gap: 8px; align-items: center; }
+.room-ask-send small { color: var(--muted); font-size: 11.5px; }

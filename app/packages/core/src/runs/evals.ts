@@ -99,6 +99,32 @@ export function scoreEvalRun(run: EvalRun): EvalScore {
   };
 }
 
+export type EvalRunFit =
+  | { ok: true; unknown: string[]; missing: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Whether a run can be filed against the design in force. Results for another
+ * version are refused -- filed against the wrong version, a later comparison
+ * compares nothing. Ids the design lacks, and evals the run left out, are told
+ * but not refused: a partial run is still a run.
+ *
+ * The CLI's `evals record` and the console's Review screen both go through this.
+ */
+export function fitEvalRun(ir: { version: number; evals: { id: string }[] } | null | undefined, run: EvalRun): EvalRunFit {
+  if (!ir) return { ok: false, error: "승인된 설계가 없다 — 어느 버전의 결과인지 붙일 곳이 없다." };
+  if (run.irVersion !== ir.version) {
+    return { ok: false, error: `결과는 v${run.irVersion} 인데 승인된 설계는 v${ir.version} 다 — 다른 버전의 결과를 현재 버전에 붙이지 않는다.` };
+  }
+  const known = new Set(ir.evals.map((entry) => entry.id));
+  const ran = new Set(run.results.map((result) => result.evalId));
+  return {
+    ok: true,
+    unknown: [...ran].filter((id) => !known.has(id)),
+    missing: [...known].filter((id) => !ran.has(id)),
+  };
+}
+
 export function currentEvalsPath(studioHome: string, alias: string): string {
   return path.join(projectStudioDir(studioHome, alias), EVALS_FILE_NAME);
 }

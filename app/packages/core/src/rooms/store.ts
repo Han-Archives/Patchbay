@@ -271,6 +271,23 @@ const READ_INSTRUCTIONS = [
   "읽기 전용 모드: 이번 차례에는 프로젝트 파일을 수정하거나 삭제하지 않는다. 읽기와 분석만으로 답한다.",
 ].join("\n");
 
+/**
+ * 사람에게 묻는 말은 글 속에 섞지 않고 「질문」 칸으로 쓴다 — 콘솔이 선택지 단추 · 입력 칸으로 그린다 (사용자 요청 2026-11-01).
+ * 형식을 바꾸면 `apps/flow/src/roomQuestions.ts` 의 읽는 쪽도 같이 고친다.
+ */
+const QUESTION_INSTRUCTIONS = [
+  "질문: 사람이 고르거나 적어야 답할 수 있는 것이 있으면 본문에 흘려 쓰지 말고 맨 끝에 질문 하나마다 아래 칸을 쓴다. 칸 밖에 같은 질문을 되풀이하지 않는다.",
+  "```질문",
+  "<무엇을 정해야 하는지 한 줄>",
+  "1. <선택지> — <고르면 무엇이 되는지>",
+  "2. <선택지> — <고르면 무엇이 되는지>",
+  "기타: <선택지 말고 직접 적을 때 무엇을 적을지>",
+  "```",
+  "- 고를 수 있는 답이면 선택지를 2~4개 둔다. 추천하는 것은 맨 앞에 두고 끝에 (추천)을 붙인다. 직접 적을 여지가 없으면 기타 줄을 뺀다.",
+  "- 사람이 직접 적어야 하는 답(이름 · 경로 · 숫자 · 문장)이면 선택지 없이 `입력: <무엇을 어떤 꼴로 적을지, 예 하나>` 한 줄만 둔다.",
+  "- 물을 것이 없으면 칸을 쓰지 않는다.",
+].join("\n");
+
 const canAct = (speaker: RoomSpeaker) => speaker === "claude-code" || speaker === "codex";
 
 /** 한 바퀴에서 이 사람에게 주는 기록. 역할은 사람이 적은 문장이고, 모드가 켜져 있으면 모드 규약과 권한을 따른다. */
@@ -300,7 +317,7 @@ export function roundPrompt(
         : canAct(member.speaker)
           ? `\n${ACT_INSTRUCTIONS}`
           : "";
-  return `${roomPrompt(messages, member.speaker, member.model)}\n\n${named}네 역할: ${role}\n${how}${modeBlock}${actBlock}`;
+  return `${roomPrompt(messages, member.speaker, member.model)}\n\n${named}네 역할: ${role}\n${how}${modeBlock}${actBlock}\n${QUESTION_INSTRUCTIONS}`;
 }
 
 /** `title` 이 null 이면 아직 사람이 고치지 않았다. 빈 문자열이면 사람이 비웠다. */

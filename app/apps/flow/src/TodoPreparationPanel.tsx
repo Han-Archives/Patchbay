@@ -58,19 +58,21 @@ export function TodoPreparationControls({ project, todos, canWrite }: { project:
     {open ? <dialog ref={dialog} className="todo-modal prep-selection" aria-label="미리 준비할 할일" onCancel={e => { e.preventDefault(); setOpen(false); }}><header><h3>미리 준비할 할일</h3><button type="button" onClick={() => setOpen(false)} aria-label="닫기">×</button></header><p>진행할 할일을 선택하고 아래 실행을 누르세요. 최대 5개를 목록 순서대로 준비합니다.</p>{items.length ? <div className="prep-dialog-status"><div className="prep-heading"><span>{state.running ? "자동 준비 중" : "최근 준비"} · {count}/{items.length}</span>{state.running && canWrite ? <button type="button" onClick={() => { void request("/api/todo-preparations/action", { alias: project, action: "stop" }).then(refresh).catch(e => setError(e.message)); }}>중지</button> : null}</div><div className="prep-batch-items">{items.map(v => <a key={v.id} href={`#room/${encodeURIComponent(project)}/${encodeURIComponent(v.roomId)}`} onClick={() => setOpen(false)}><span>{v.title}</span><small>{PREPARATION_LABELS[v.status]}</small></a>)}</div></div> : null}<div className="prep-select-list">{todos.filter(t => !t.done && !t.inactive).map((t, i) => <label key={t.id}><input type="checkbox" checked={selected.includes(t.id)} disabled={busy || state.running || (!selected.includes(t.id) && selected.length === 5)} onChange={e => setSelected(old => e.target.checked ? [...old, t.id] : old.filter(id => id !== t.id))} /><span>{String(i + 1).padStart(2, "0")} · {t.title}</span></label>)}</div><label>주 담당 LLM<select aria-label="주 담당 LLM" disabled={busy || state.running} value={memberId} onChange={e => setMemberId(e.target.value)}>{members.map(m => <option key={m.id} value={m.id}>{m.name || m.speaker} {m.model}</option>)}</select></label>{!members.length ? <p>LLM 설정에서 Claude 또는 Codex 담당을 먼저 등록해주세요.</p> : null}<p className="thread-note">준비 중에는 원본 파일을 바꾸지 않습니다. 완료한 산출물은 해당 할일 대화에서 검토합니다.</p>{error ? <p role="alert" className="flow-error">{error}</p> : null}<div className="todo-form-actions"><span>{selected.length}/5개 선택</span><button type="button" disabled={busy || state.running || !selected.length || !memberId} onClick={() => void start()}>{busy ? "시작 중…" : "실행"}</button></div></dialog> : null}
   </div>;
 }
-export function TodoPreparationReview({ project, roomId, readOnly }: { project: string; roomId: string; readOnly: boolean }) {
+export function TodoPreparationReview({ project, roomId, readOnly, guided, onDecision }: { project: string; roomId: string; readOnly: boolean; guided?: boolean; onDecision?: () => void }) {
   const { state, error, setError, refresh } = usePreparations(project, roomId);
   const v = state.items.find(v => v.roomId === roomId);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const root = useRef<HTMLElement>(null);
   useEffect(() => { setEditing(false); setConfirming(false); setNote(""); }, [roomId, v?.id]);
+  useEffect(() => { if (guided) root.current?.querySelector(".user-action-pulse")?.scrollIntoView({ block: "nearest" }); }, [guided, v?.status, confirming]);
   if (!v) return error ? <p className="thread-err">{error}</p> : null;
   const version = v;
   async function act(action: string) {
     setBusy(true); setError("");
-    try { await request("/api/todo-preparations/action", { alias: project, id: version.id, action, note }); setConfirming(false); setEditing(false); await refresh(); }
+    try { await request("/api/todo-preparations/action", { alias: project, id: version.id, action, note }); setConfirming(false); setEditing(false); onDecision?.(); await refresh(); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   function download(index: number) {
@@ -79,7 +81,7 @@ export function TodoPreparationReview({ project, roomId, readOnly }: { project: 
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = a.name.replace(/[\\/]/g, "-") + ({ html: ".html", markdown: ".md", text: ".txt", diff: ".patch" })[a.format]; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const blocked = busy || readOnly || state.running;
-  return <section className="prep-review" aria-label="미리 준비한 결과">
+  return <section ref={root} className="prep-review" aria-label="미리 준비한 결과">
     <header className="prep-heading"><div><small>미리 준비한 대화</small><h3>{v.mode?.name ?? "업무 판단 중"}</h3></div><span className={`prep-status is-${v.status}`}>{PREPARATION_LABELS[v.status]}</span></header>
     <small>{v.member.name || v.member.speaker} · {new Date(v.at).toLocaleString()} · 준비본 {v.id.slice(0, 8)}</small>
     {v.reason ? <p>{v.reason}</p> : null}
@@ -91,11 +93,11 @@ export function TodoPreparationReview({ project, roomId, readOnly }: { project: 
     {v.error ? <p className="prep-warning" role="status">{v.error}</p> : null}
     {v.result ? <p className="prep-result">{v.result}</p> : null}
     {error ? <p className="thread-err" role="alert">{error}</p> : null}
-    {!readOnly && !["done", "queued", "preparing", "applying"].includes(v.status) ? <div className="prep-actions">
+    {!readOnly && !["done", "queued", "preparing", "applying"].includes(v.status) ? <div className={`prep-actions${guided && !blocked && !confirming && !editing ? " user-action-pulse" : ""}`}>
       {["ready", "held"].includes(v.status) && v.artifacts.length ? <button type="button" className="prep-primary" disabled={blocked} onClick={() => setConfirming(true)}>그대로 진행</button> : null}
       <button type="button" disabled={blocked} onClick={() => setEditing(open => !open)}>수정 요청</button><button type="button" disabled={blocked} onClick={() => void act("reprepare")}>다시 준비</button>{v.status !== "held" ? <button type="button" disabled={blocked} onClick={() => void act("hold")}>보류</button> : null}
     </div> : null}
-    {confirming ? <div className="prep-confirm" role="group" aria-label="준비본 실행 확인"><p>이 준비본의 산출물로 실제 작업을 진행할까요? 원본과 선행 결과를 확인한 뒤 실행합니다.</p><button type="button" disabled={blocked} onClick={() => void act("approve")}>확인한 준비본 실행</button><button type="button" onClick={() => setConfirming(false)}>취소</button></div> : null}
-    {editing ? <form onSubmit={e => { e.preventDefault(); void act("revise"); }}><textarea aria-label="준비본 수정 요청" maxLength={4000} value={note} onChange={e => setNote(e.target.value)} placeholder="수정할 내용을 적어주세요" /><button type="submit" disabled={blocked || !note.trim()}>수정해서 다시 준비</button></form> : null}
+    {confirming ? <div className={`prep-confirm${guided && !blocked ? " user-action-pulse" : ""}`} role="group" aria-label="준비본 실행 확인"><p>이 준비본의 산출물로 실제 작업을 진행할까요? 원본과 선행 결과를 확인한 뒤 실행합니다.</p><button type="button" disabled={blocked} onClick={() => void act("approve")}>확인한 준비본 실행</button><button type="button" onClick={() => setConfirming(false)}>취소</button></div> : null}
+    {editing ? <form className={guided && !blocked ? "user-action-pulse" : undefined} onSubmit={e => { e.preventDefault(); void act("revise"); }}><textarea aria-label="준비본 수정 요청" maxLength={4000} value={note} onChange={e => setNote(e.target.value)} placeholder="수정할 내용을 적어주세요" /><button type="submit" disabled={blocked || !note.trim()}>수정해서 다시 준비</button></form> : null}
   </section>;
 }

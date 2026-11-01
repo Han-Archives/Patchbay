@@ -1,0 +1,97 @@
+{
+  "verifiedAt": "2026-11-01T03:44:27.099Z",
+  "data": "fictional examples only",
+  "checks": [
+    "A: status filters",
+    "A: search and empty state",
+    "A: hidden projects",
+    "A: sort",
+    "Project destination modal and Escape",
+    "Project registration destination",
+    "Design principles modal",
+    "B: grouped tasks and status filters",
+    "C: project focus, destination and filtering",
+    "Search keyboard shortcut",
+    "C: contained horizontal scrolling on mobile",
+    "Comparison gallery links, images and mobile"
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "screenshots": [
+    {
+      "name": "a-desktop",
+      "width": 1440,
+      "overflow": false,
+      "heading": "모든 프로젝트, 여기서 이어갑니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "b-desktop",
+      "width": 1440,
+      "overflow": false,
+      "heading": "오늘, 무엇부터 할까요?",
+      "scheme": "light"
+    },
+    {
+      "name": "c-desktop",
+      "width": 1440,
+      "overflow": false,
+      "heading": "어디까지 왔는지, 나란히 봅니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "a-tablet",
+      "width": 1024,
+      "overflow": false,
+      "heading": "모든 프로젝트, 여기서 이어갑니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "b-tablet",
+      "width": 1024,
+      "overflow": false,
+      "heading": "오늘, 무엇부터 할까요?",
+      "scheme": "light"
+    },
+    {
+      "name": "c-tablet",
+      "width": 1024,
+      "overflow": false,
+      "heading": "어디까지 왔는지, 나란히 봅니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "a-mobile",
+      "width": 390,
+      "overflow": false,
+      "heading": "모든 프로젝트, 여기서 이어갑니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "b-mobile",
+      "width": 390,
+      "overflow": false,
+      "heading": "오늘, 무엇부터 할까요?",
+      "scheme": "light"
+    },
+    {
+      "name": "c-mobile",
+      "width": 390,
+      "overflow": false,
+      "heading": "어디까지 왔는지, 나란히 봅니다.",
+      "scheme": "light"
+    },
+    {
+      "name": "comparison",
+      "width": 1560,
+      "overflow": false,
+      "scheme": "light"
+    },
+    {
+      "name": "comparison-mobile",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { runIrAdopt } from "./commands/irAdopt.js";
 import { runIrCheck } from "./commands/irCheck.js";
 import { runIrPrd } from "./commands/irPrd.js";
 import { runEvalsRecord } from "./commands/evalsRecord.js";
+import { runEvalsEvidence } from "./commands/evalsEvidence.js";
 import { runKnowledgeAudit } from "./commands/knowledgeAudit.js";
 import { runKnowledgeDocs } from "./commands/knowledgeDocs.js";
 import { runRunsCollect } from "./commands/runsCollect.js";
@@ -336,6 +337,20 @@ evals
   .option("--json", "machine-readable output")
   .action(async (opts) => {
     process.exitCode = await runAction(() => runEvalsRecord(opts));
+  });
+
+evals
+  .command("evidence")
+  .description("Attach what was done and seen when an eval ran (screenshots, output), shown beside it in the Review screen")
+  .option("--project <alias>", "alias of the registered project")
+  .option("--eval <id>", "eval id in the approved design")
+  .option("--how <text>", "what was done to run it")
+  .option("--observed <text>", "what was seen")
+  .option("--file <path>", "screenshot or output to attach (repeatable)", (value: string, previous: string[] = []) => [...previous, value])
+  .option("--screen <place>", "where the console shows it today: a work place (test, files, ...) or room:<id>")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await runAction(() => runEvalsEvidence(opts));
   });
 
 const version = program

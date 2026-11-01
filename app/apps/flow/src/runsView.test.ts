@@ -67,6 +67,24 @@ describe("loadRunsView", () => {
     expect(result.body.pair).toBeNull();
   });
 
+  it("does not count another version's evals.json as the current score", async () => {
+    const studioHome = await adoptedStudio();
+    fs.writeFileSync(
+      path.join(studioHome, "projects", "demo", "evals.json"),
+      JSON.stringify({
+        irVersion: 2,
+        ranAt: "2026-11-01T00:00:00.000Z",
+        how: "다른 판",
+        results: [{ evalId: "E1", kind: "deterministic", status: "pass" }],
+      }),
+      "utf8",
+    );
+    const result = await loadRunsView(studioHome, "demo");
+    if (!result.ok || !isRunsViewOk(result.body)) throw new Error("expected ok");
+    expect(result.body.versions[0]?.score).toBeNull();
+    expect(result.body.versions[0]?.notes).toEqual(["평가 결과가 아직 없다"]);
+  });
+
   it("says there is no design rather than reporting an empty comparison", async () => {
     const studioHome = fs.mkdtempSync(path.join(os.tmpdir(), "patchbay-runsview-"));
     await ensureStudioInitialized(studioHome);

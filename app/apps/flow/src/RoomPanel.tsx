@@ -17,7 +17,72 @@ import {
 import { TodoPreparationReview } from "./TodoPreparationPanel.js";
 import { RoomExecutionPanel } from "./RoomExecutionPanel.js";
 import { ChatText } from "./ChatText.js";
-import { isChatImage, refImageHref } from "./chatLinks.js";
+import { RoomQuestionCard } from "./RoomQuestionCard.js";
+import { splitQuestions } from "./roomQuestions.js";
+import { UserActionGuide } from "./UserActionGuide.js";
+import type { ActionRequest } from "./userAction.js";
+import { isChatImage, projectFileHref, refImageHref } from "./chatLinks.js";
+import {
+  buildComposedMessage,
+  clipAttach,
+  filterProjectFiles,
+  filterRulesAndSkills,
+  makeStagedDoc,
+  makeStagedImage,
+  makeStagedLink,
+  makeStagedProjectFile,
+  makeStagedRuleOrSkill,
+  type RuleSkillRow,
+  type StagedAttachment,
+} from "./roomComposer.js";
+
+function RoomCenterDialog({
+  title,
+  subtitle,
+  className = "",
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  className?: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className={`todo-modal room-center-modal ${className}`.trim()}
+      aria-label={title}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose();
+      }}
+    >
+      <header className="room-modal-header">
+        <div>
+          <h3>{title}</h3>
+          {subtitle ? <small className="room-modal-sub">{subtitle}</small> : null}
+        </div>
+        <button type="button" className="room-modal-close" onClick={onClose} aria-label="닫기">
+          ×
+        </button>
+      </header>
+      <div className="room-modal-body">{children}</div>
+    </dialog>
+  );
+}
 
 function roomRequestError(reason: unknown) {
   const message = reason instanceof Error ? reason.message : String(reason);
@@ -40,11 +105,6 @@ const CHIP: Record<RoomSpeaker, { mark: string; color: string }> = {
   grok: { mark: "Gr", color: "#5b6fd6" },
   local: { mark: "Lo", color: "#3d6fe0" },
 };
-
-function clipAttach(text: string): string {
-  const line = text.trim();
-  return line.length > 4000 ? `${line.slice(0, 4000)}\n…` : line;
-}
 
 function RoomsIcon() {
   return (
@@ -303,6 +363,9 @@ export function RoomPanel({
   onConsult,
   draftRequest,
   readOnly = false,
+  actionRequest,
+  onReturnToAction,
+  onDismissAction,
 }: {
   project: string;
   revision: number;
@@ -312,6 +375,9 @@ export function RoomPanel({
   onConsult?: (note?: string) => void;
   draftRequest?: { text: string; nonce: number };
   readOnly?: boolean;
+  actionRequest?: ActionRequest;
+  onReturnToAction?: () => void;
+  onDismissAction?: () => void;
 }) {
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [hosts, setHosts] = useState<HostRow[]>([]);
@@ -326,17 +392,7 @@ export function RoomPanel({
   const [dockOpen, setDockOpen] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [llmTab, setLlmTab] = useState<"agent" | "mode">("agent");
-  // + 메뉴와 모드 메뉴는 바깥을 누르면 닫는다. 열어 둔 채면 보내기 버튼을 가린다.
-  useEffect(() => {
-    if (!dockOpen && !modeMenuOpen) return;
-    const close = (e: MouseEvent) => {
-      if (!(e.target instanceof Element)) return;
-      if (dockOpen && !e.target.closest(".room-dock-add")) setDockOpen(false);
-      if (modeMenuOpen && !e.target.closest(".room-dock-mode")) setModeMenuOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [dockOpen, modeMenuOpen]);
+  // + 메뉴와 모드 메뉴는 모달로 열리므로 RoomCenterDialog가 닫기를 처리한다.
   const [roomQuery, setRoomQuery] = useState("");
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -348,15 +404,32 @@ export function RoomPanel({
   const [preparationView, setPreparationView] = useState(true);
   useEffect(() => { setPreparationView(true); }, [project, roomId]);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [plusTab, setPlusTab] = useState<"upload" | "files" | "rules" | "link">("upload");
+  const [staged, setStaged] = useState<StagedAttachment[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
   const [projectFiles, setProjectFiles] = useState<string[] | null>(null);
-  const [ruleList, setRuleList] = useState<{ kind: "규칙" | "스킬"; name: string; description: string }[] | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [ruleList, setRuleList] = useState<RuleSkillRow[] | null>(null);
+  const [ruleQuery, setRuleQuery] = useState("");
+  const [ruleFilter, setRuleFilter] = useState<"all" | "규칙" | "스킬">("all");
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   const [fileQuery, setFileQuery] = useState("");
+  const [agentQuery, setAgentQuery] = useState("");
+  const [modeQuery, setModeQuery] = useState("");
   const docRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const guidedTodo = actionRequest?.action.target.kind === "todo" && actionRequest.action.target.roomId === roomId && !!room?.todo && !room.running;
+  const visibleGuide = actionRequest && (actionRequest.action.target.kind !== "todo" || guidedTodo) ? actionRequest : undefined;
+  useEffect(() => {
+    if (!actionRequest) return;
+    setFace("chat"); setQuickOpen(false); setPreparationView(true);
+  }, [actionRequest]);
 
   useEffect(() => {
     setRoom(null);
@@ -364,6 +437,10 @@ export function RoomPanel({
     setRoomLoadError(null);
     setRoomsLoadError(null);
     setQuickOpen(false);
+    setPlusOpen(false);
+    setDockOpen(false);
+    setModeMenuOpen(false);
+    setStaged([]);
     setMenuFor(null);
     setDraft("");
     // 위에서 비운 방 · 목록을 다시 읽는다. 열려던 방이 이미 보던 방이면 roomId가 그대로라 읽기가 다시 돌지 않아 빈 칸으로 남았다
@@ -488,6 +565,7 @@ export function RoomPanel({
   const blank = !room?.messages.some((m) => m.role === "user" || m.role === "speaker");
 
   function show(id: string) {
+    if (guidedTodo && id !== roomId) onDismissAction?.();
     setRoomId(id);
     rememberRoom(project, id);
     onOpenRoom?.(id);
@@ -584,8 +662,21 @@ export function RoomPanel({
     setTick((n) => n + 1);
   }
 
-  async function send(text: string, round?: "talk" | "discuss") {
-    const line = text.trim();
+  function stageItems(items: StagedAttachment[]) {
+    setStaged((cur) => {
+      const map = new Map(cur.map((item) => [item.id, item]));
+      for (const item of items) map.set(item.id, item);
+      return [...map.values()];
+    });
+  }
+
+  function removeStaged(id: string) {
+    setStaged((cur) => cur.filter((item) => item.id !== id));
+  }
+
+  // `answer` 는 「질문」 칸의 답이다 — 입력창에 적던 말 · 첨부는 그대로 둔다. Send 단추처럼 켜진 사람이 있으면 대화도 시작한다.
+  async function send(text: string, round?: "talk" | "discuss", answer = false) {
+    const line = answer ? text : buildComposedMessage(text, staged);
     if ((!line && !round) || busy || waiting || kept || roomLoadError) return;
     setBusy(true);
     setError(null);
@@ -598,7 +689,11 @@ export function RoomPanel({
       const body = (await res.json()) as { roomId?: string; error?: string };
       if (!res.ok || body.error) setError(body.error ?? `HTTP ${res.status}`);
       else {
-        setDraft("");
+        if (!answer) {
+          setDraft("");
+          setStaged([]);
+        }
+        if (guidedTodo) onDismissAction?.();
         if (body.roomId) show(body.roomId);
       }
     } catch (err) {
@@ -618,6 +713,7 @@ export function RoomPanel({
       const res = await fetch("/api/room/complete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: project, roomId }) });
       const body = (await res.json()) as { error?: string };
       if (!res.ok || body.error) setError(body.error ?? `HTTP ${res.status}`);
+      else if (guidedTodo) onDismissAction?.();
     } catch (err) {
       setError(roomRequestError(err));
     } finally {
@@ -726,52 +822,127 @@ export function RoomPanel({
     }
   }
 
-  async function onPickedFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || busy || waiting || kept || readOnly || roomLoadError || attachingImage) return;
-    setPlusOpen(false);
-    if (isChatImage(file.name)) {
-      if (file.size > 10 * 1024 * 1024) { setError("사진은 10MB까지 붙일 수 있습니다."); return; }
-      setAttachingImage(true);
-      setError(null);
-      try {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        let binary = "";
-        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        const response = await fetch("/api/refs/file", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ alias: project, name: file.name, dataBase64: btoa(binary) }),
-        });
-        const result = await roomJson<{ ref?: { id: string } }>(response, "사진");
-        if (!result.ref?.id) throw new Error("사진을 저장하지 못했습니다.");
-        const title = file.name.replace(/[\[\]\r\n]/g, " ");
-        const message = `![${title}](${refImageHref(project, result.ref.id)})`;
-        setDraft(message);
-        await send(message);
-      } catch (cause) { setError(roomRequestError(cause)); }
-      finally { setAttachingImage(false); }
-      return;
+  async function stageLocalFiles(fileList: FileList | File[]) {
+    const files = Array.from(fileList);
+    if (!files.length || busy || waiting || kept || readOnly || roomLoadError || attachingImage) return;
+    setError(null);
+    const added: StagedAttachment[] = [];
+    for (const file of files) {
+      if (isChatImage(file.name)) {
+        if (file.size > 10 * 1024 * 1024) {
+          setError(`${file.name}: 사진은 10MB까지 붙일 수 있습니다.`);
+          continue;
+        }
+        setAttachingImage(true);
+        try {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          let binary = "";
+          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+          const response = await fetch("/api/refs/file", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ alias: project, name: file.name, dataBase64: btoa(binary) }),
+          });
+          const result = await roomJson<{ ref?: { id: string } }>(response, "사진");
+          if (!result.ref?.id) throw new Error("사진을 저장하지 못했습니다.");
+          const href = refImageHref(project, result.ref.id);
+          added.push(makeStagedImage(file.name, href, `img:${result.ref.id}`));
+        } catch (cause) {
+          setError(roomRequestError(cause));
+        } finally {
+          setAttachingImage(false);
+        }
+      } else {
+        try {
+          const text = await file.text();
+          added.push(makeStagedDoc(file.name, text, `doc:${file.name}:${file.size}`));
+        } catch {
+          setError(`${file.name} 파일을 읽지 못했습니다.`);
+        }
+      }
     }
-    const text = await file.text();
-    const body = text.trim();
-    await send(body ? `첨부 · 문서 「${file.name}」\n${clipAttach(body)}` : `첨부 · 문서 「${file.name}」\n글이 비어 있다.`);
+    if (added.length) {
+      stageItems(added);
+      setPlusOpen(false);
+    }
   }
 
-  async function attachProjectFile(file: string) {
-    setPlusOpen(false);
-    setProjectFiles(null);
-    if (isChatImage(file)) {
-      await send(`첨부 · 프로젝트 이미지\n![${file.replace(/[\[\]\r\n]/g, " ")}](<${file}>)`);
-      return;
+  async function onPickedFile(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files?.length) return;
+    const picked = Array.from(files);
+    event.target.value = "";
+    await stageLocalFiles(picked);
+  }
+
+  function loadModalData(nextTab?: "upload" | "files" | "rules" | "link") {
+    const tab = nextTab ?? plusTab;
+    if (tab === "files" && projectFiles === null) {
+      void fetch(`/api/room/files?alias=${encodeURIComponent(project)}`)
+        .then((res) => res.json() as Promise<{ files?: string[]; error?: string }>)
+        .then((body) => setProjectFiles(body.files ?? []))
+        .catch(() => setProjectFiles([]));
     }
-    const res = await fetch(`/api/source?alias=${encodeURIComponent(project)}&path=${encodeURIComponent(file)}`);
-    const body = (await res.json()) as { content?: string; error?: string };
-    if (!res.ok || typeof body.content !== "string") {
-      setError("이 파일은 글로 읽지 못한다.");
-      return;
+    if (tab === "rules" && ruleList === null) {
+      void fetch(`/api/rules?alias=${encodeURIComponent(project)}`)
+        .then((res) => res.json() as Promise<{ rules?: { name: string; description: string; apply?: "always" | "request" }[]; skills?: { name: string; description: string; scope?: "project" | "studio" }[] }>)
+        .then((body) =>
+          setRuleList([
+            ...(body.rules ?? []).map((row) => ({ kind: "규칙" as const, ...row })),
+            ...(body.skills ?? []).map((row) => ({ kind: "스킬" as const, ...row })),
+          ]),
+        )
+        .catch(() => setRuleList([]));
     }
-    await send(`첨부 · 프로젝트 「${file}」\n${clipAttach(body.content)}`);
+  }
+
+  async function previewProjectFile(file: string) {
+    setPreviewPath(file);
+    setPreviewContent(null);
+    if (isChatImage(file)) return;
+    try {
+      const res = await fetch(`/api/source?alias=${encodeURIComponent(project)}&path=${encodeURIComponent(file)}`);
+      const body = (await res.json()) as { content?: string; error?: string };
+      setPreviewContent(res.ok && typeof body.content === "string" ? clipAttach(body.content) : (body.error ?? "이 파일은 글로 읽지 못합니다."));
+    } catch {
+      setPreviewContent("미리보기를 불러오지 못했습니다.");
+    }
+  }
+
+  async function stageSelectedProjectFiles(paths: string[]) {
+    if (!paths.length) return;
+    setError(null);
+    const items: StagedAttachment[] = [];
+    for (const file of paths) {
+      if (isChatImage(file)) {
+        items.push(makeStagedProjectFile(file));
+        continue;
+      }
+      const res = await fetch(`/api/source?alias=${encodeURIComponent(project)}&path=${encodeURIComponent(file)}`);
+      const body = (await res.json()) as { content?: string; error?: string };
+      if (!res.ok || typeof body.content !== "string") {
+        setError(`${file}: 이 파일은 글로 읽지 못합니다.`);
+        continue;
+      }
+      items.push(makeStagedProjectFile(file, body.content));
+    }
+    if (items.length) {
+      stageItems(items);
+      setSelectedFiles([]);
+      setPlusOpen(false);
+    }
+  }
+
+  function stageSelectedRules(ids: string[]) {
+    if (!ruleList || !ids.length) return;
+    const items = ruleList
+      .filter((row) => ids.includes(`${row.kind}:${row.name}`))
+      .map((row) => makeStagedRuleOrSkill(row));
+    if (items.length) {
+      stageItems(items);
+      setSelectedRuleIds([]);
+      setPlusOpen(false);
+    }
   }
 
   function personLabel(member: RoomMember): string {
@@ -938,20 +1109,22 @@ export function RoomPanel({
               <div className="thread-body room-stage">
                 {roomLoadError || roomsLoadError ? <p className="thread-err" role="alert">{roomLoadError ?? roomsLoadError} 현재 실행 상태를 확인할 수 없습니다. <button type="button" className="flow-btn" onClick={() => setTick(n => n + 1)}>다시 확인</button></p> : null}
                 {room?.preparationWarning ? <p className="thread-note" role="status">{room.preparationWarning}</p> : null}
-                {room?.preparationStatus && preparationView ? <TodoPreparationReview key={`${project}/${roomId}`} project={project} roomId={roomId} readOnly={readOnly || !!room?.kept} /> : <>
+                {room?.preparationStatus && preparationView ? <TodoPreparationReview key={`${project}/${roomId}`} project={project} roomId={roomId} readOnly={readOnly || !!room?.kept} guided={guidedTodo} onDecision={onDismissAction} /> : <>
                 {(!roomId || room) && !room?.messages.length && !room?.execution && !waiting ? (
                   <div className="msg room-welcome">안녕하세요. 무엇을 도와드릴까요?</div>
                 ) : null}
                 {room?.execution ? <RoomExecutionPanel showSetup={false} key={`${project}/${roomId}`} project={project} roomId={roomId} members={members}
                   execution={room?.execution ?? null} waiting={!!waiting} kept={kept} revision={revision}
-                  onChanged={() => setTick(n => n + 1)} onConsult={note => onConsult?.(note)} onAddMembers={() => setFace("llm")} /> : null}
-                {room?.messages.map((m) => (
-                  <RoomLine key={m.seq} message={m} project={project} />
+                  guided={guidedTodo} onChanged={() => { setTick(n => n + 1); if (guidedTodo) onDismissAction?.(); }} onConsult={note => onConsult?.(note)} onAddMembers={() => setFace("llm")} /> : null}
+                {room?.messages.map((m, i, all) => (
+                  <RoomLine key={m.seq} message={m} project={project}
+                    onAnswer={i === all.length - 1 && !readOnly && !kept && !waiting && !busy ? (text) => void send(text, enabled.length === 0 ? undefined : "talk", true) : undefined} />
                 ))}
                 {waiting ? <p className="thread-note">{room?.execution ? "테스트 실행 처리 중" : enabled.some((m) => m.speaker === "claude-code" || m.speaker === "codex") ? "답하는 중 · 고쳐 달라는 요청이면 직접 고치고 검사한다 (몇 분 걸릴 수 있다)" : "한 바퀴를 말하는 중"}</p> : null}
                 <div ref={endRef} />
                 </>}
               </div>
+              {visibleGuide && (!waiting || visibleGuide.action.target.kind !== "todo") ? <UserActionGuide request={visibleGuide} onReturn={() => onReturnToAction?.()} onDismiss={() => onDismissAction?.()} /> : null}
               {room?.preparationStatus && preparationView ? <div className="room-compose"><p className="thread-note">준비 결과에서 산출물을 확인하고 승인·수정·보류할 수 있습니다. 준비 과정은 대화 기록에 남습니다.</p></div> : readOnly ? <div className="room-compose"><p className="thread-note">조회 전용 연결 · 대화와 실행 기록을 확인한다.</p></div> : room?.execution ? (
                 <div className="room-compose"><p className="thread-note">테스트 실행은 위의 단계 버튼으로 이어간다. 요구사항 변경은 상담으로 보낸다.</p>{error ? <p className="thread-err">{error}</p> : null}</div>
               ) : (
@@ -962,13 +1135,60 @@ export function RoomPanel({
                       <button type="button" className="flow-btn" disabled={busy || !!waiting} onClick={() => void completeTodo()}>완료</button>
                     </div>
                   ) : null}
+                  {staged.length > 0 ? (
+                    <div className="room-staged-row" aria-label="첨부 대기 항목">
+                      {staged.map((item) => (
+                        <span key={item.id} className={`room-staged-chip is-${item.kind}`} title={item.title}>
+                          {item.kind === "image" ? (
+                            <img className="room-staged-thumb" src={item.href} alt="" />
+                          ) : item.kind === "file" && item.isImage ? (
+                            <img className="room-staged-thumb" src={projectFileHref(project, item.path)} alt="" />
+                          ) : (
+                            <i className="room-staged-badge">
+                              {item.kind === "doc"
+                                ? "문서"
+                                : item.kind === "link"
+                                  ? "링크"
+                                  : item.kind === "file"
+                                    ? "파일"
+                                    : item.kind === "rule"
+                                      ? "규칙"
+                                      : "스킬"}
+                            </i>
+                          )}
+                          <span className="room-staged-name">{item.title}</span>
+                          <button
+                            type="button"
+                            className="room-staged-remove"
+                            aria-label={`${item.title} 첨부 빼기`}
+                            onClick={() => removeStaged(item.id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   {error ? <p className="thread-err">{error}</p> : null}
                   <textarea
                     aria-label="보낼 말"
+                    className={guidedTodo && !waiting ? "user-action-pulse" : undefined}
                     rows={4}
                     value={draft}
                     disabled={waiting}
+                    placeholder={staged.length > 0 ? "첨부한 자료와 함께 보낼 말을 적어 주세요 (비워 두고 바로 보낼 수도 있습니다)" : undefined}
                     onChange={(e) => setDraft(e.target.value)}
+                    onPaste={(e) => {
+                      const files = Array.from(e.clipboardData?.files ?? []);
+                      if (files.some((f) => isChatImage(f.name) || f.type.startsWith("image/"))) {
+                        e.preventDefault();
+                        void stageLocalFiles(
+                          files.map((f, idx) =>
+                            isChatImage(f.name) ? f : new File([f], `붙여넣은-이미지-${idx + 1}.png`, { type: f.type || "image/png" }),
+                          ),
+                        );
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void send(draft, "talk"); }
                     }}
@@ -977,93 +1197,314 @@ export function RoomPanel({
                   <div className="room-attach">
                     <button
                       type="button"
-                      className={`room-plus${plusOpen ? " is-on" : ""}`}
+                      className={`room-plus${plusOpen || staged.length > 0 ? " is-on" : ""}`}
                       aria-label="첨부"
+                      title="자료 · 파일 · 규칙/스킬 · 링크 추가"
                       disabled={attachingImage}
                       aria-pressed={plusOpen}
                       aria-expanded={plusOpen}
                       onClick={() => {
-                        setPlusOpen((open) => !open);
-                        setProjectFiles(null);
-                        setRuleList(null);
+                        const next = !plusOpen;
+                        setPlusOpen(next);
+                        if (next) loadModalData(plusTab);
                       }}
                     >
                       <PlusIcon />
                     </button>
                     {plusOpen ? (
-                      <div className="room-plus-menu" role="menu">
-                        <button type="button" disabled={busy || waiting || attachingImage} onClick={() => docRef.current?.click()}>{attachingImage ? "사진 올리는 중…" : "문서 · 사진"}</button>
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const url = linkDraft.trim();
-                            if (!/^https?:\/\//.test(url)) {
-                              setError("링크는 http 로 시작한다.");
-                              return;
-                            }
-                            setLinkDraft("");
-                            setPlusOpen(false);
-                            void send(`첨부 · 링크\n${url}`);
-                          }}
-                        >
-                          <input aria-label="링크" value={linkDraft} placeholder="https://" onChange={(e) => setLinkDraft(e.target.value)} />
-                          <button type="submit">링크</button>
-                        </form>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void fetch(`/api/room/files?alias=${encodeURIComponent(project)}`)
-                              .then((res) => res.json() as Promise<{ files?: string[]; error?: string }>)
-                              .then((body) => setProjectFiles(body.files ?? []));
-                          }}
-                        >
-                          프로젝트 파일
-                        </button>
-                        {/* 이름만 넣는다 — 보내면 서버가 이름이 나온 규칙 · 스킬 본문을 LLM에 넘긴다. */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void fetch(`/api/rules?alias=${encodeURIComponent(project)}`)
-                              .then((res) => res.json() as Promise<{ rules?: { name: string; description: string }[]; skills?: { name: string; description: string }[] }>)
-                              .then((body) => setRuleList([...(body.rules ?? []).map((row) => ({ kind: "규칙" as const, ...row })), ...(body.skills ?? []).map((row) => ({ kind: "스킬" as const, ...row }))]));
-                          }}
-                        >
-                          규칙 · 스킬
-                        </button>
-                        {ruleList ? (
-                          <ul>
-                            {ruleList.length ? ruleList.map((row) => (
-                              <li key={`${row.kind}:${row.name}`}>
-                                <button type="button" title={row.description} onClick={() => {
-                                  setDraft((cur) => `${cur.trim() ? `${cur.trimEnd()} ` : ""}${row.kind} 「${row.name}」대로 `);
-                                  setPlusOpen(false);
-                                  setRuleList(null);
-                                }}>{row.kind} · {row.name}</button>
-                              </li>
-                            )) : <li>저장된 규칙 · 스킬이 없다.</li>}
-                          </ul>
+                      <RoomCenterDialog
+                        title="대화 자료 · 맥락 추가"
+                        subtitle="선택한 항목은 입력창 위에 담기며, 메시지와 함께 한 번에 전송됩니다."
+                        className="room-attach-modal"
+                        onClose={() => setPlusOpen(false)}
+                      >
+                        <div className="room-modal-tabs" role="tablist" aria-label="첨부 종류">
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={plusTab === "upload"}
+                            className={`room-modal-tab${plusTab === "upload" ? " is-on" : ""}`}
+                            onClick={() => { setPlusTab("upload"); loadModalData("upload"); }}
+                          >
+                            문서 · 사진
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={plusTab === "files"}
+                            className={`room-modal-tab${plusTab === "files" ? " is-on" : ""}`}
+                            onClick={() => { setPlusTab("files"); loadModalData("files"); }}
+                          >
+                            프로젝트 파일
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={plusTab === "rules"}
+                            className={`room-modal-tab${plusTab === "rules" ? " is-on" : ""}`}
+                            onClick={() => { setPlusTab("rules"); loadModalData("rules"); }}
+                          >
+                            규칙 · 스킬
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={plusTab === "link"}
+                            className={`room-modal-tab${plusTab === "link" ? " is-on" : ""}`}
+                            onClick={() => { setPlusTab("link"); loadModalData("link"); }}
+                          >
+                            웹 링크
+                          </button>
+                        </div>
+
+                        {plusTab === "upload" ? (
+                          <div
+                            className={`room-dropzone${dragOver ? " is-dragover" : ""}`}
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDragOver(false);
+                              if (e.dataTransfer?.files?.length) void stageLocalFiles(e.dataTransfer.files);
+                            }}
+                          >
+                            <div className="room-dropzone-body">
+                              <b>컴퓨터에서 문서나 사진을 끌어다 놓거나 선택하세요</b>
+                              <p>지원 형식: 텍스트 · 마크다운 · JSON · YAML · CSV · 이미지(PNG, JPG, GIF, WEBP, SVG · 최대 10MB)</p>
+                              <button
+                                type="button"
+                                className="flow-btn primary"
+                                disabled={busy || waiting || attachingImage}
+                                onClick={() => docRef.current?.click()}
+                              >
+                                {attachingImage ? "사진 올리는 중…" : "파일 · 사진 선택하기"}
+                              </button>
+                            </div>
+                          </div>
                         ) : null}
-                        {projectFiles ? (
-                          <>
-                            <input aria-label="파일 경로" value={fileQuery} placeholder="경로" onChange={(e) => setFileQuery(e.target.value)} />
-                            <ul>
-                              {projectFiles.filter((file) => file.toLowerCase().includes(fileQuery.trim().toLowerCase())).slice(0, 40).map((file) => (
-                                <li key={file}>
-                                  <button type="button" onClick={() => void attachProjectFile(file)}>{file}</button>
-                                </li>
-                              ))}
+
+                        {plusTab === "files" ? (
+                          <div className="room-modal-section">
+                            <div className="room-modal-search-bar">
+                              <input
+                                aria-label="파일 경로"
+                                value={fileQuery}
+                                placeholder="파일 이름이나 폴더 경로로 검색 (예: RoomPanel, 기획, .md)"
+                                onChange={(e) => setFileQuery(e.target.value)}
+                              />
+                              {selectedFiles.length > 0 ? (
+                                <span className="room-modal-count">{selectedFiles.length}개 선택됨</span>
+                              ) : null}
+                            </div>
+                            <div className="room-file-picker-split">
+                              <ul className="room-modal-list" aria-label="프로젝트 파일 목록">
+                                {projectFiles === null ? (
+                                  <li className="room-modal-empty">파일 목록을 불러오는 중…</li>
+                                ) : filterProjectFiles(projectFiles, fileQuery).length === 0 ? (
+                                  <li className="room-modal-empty">조건에 맞는 프로젝트 파일이 없습니다.</li>
+                                ) : (
+                                  filterProjectFiles(projectFiles, fileQuery).map((file) => {
+                                    const checked = selectedFiles.includes(file);
+                                    const parts = file.split("/");
+                                    const base = parts.pop() ?? file;
+                                    const dir = parts.join("/");
+                                    return (
+                                      <li key={file} className={`room-modal-item${checked ? " is-selected" : ""}${previewPath === file ? " is-previewing" : ""}`}>
+                                        <label className="room-modal-check">
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() =>
+                                              setSelectedFiles((cur) => (checked ? cur.filter((x) => x !== file) : [...cur, file]))
+                                            }
+                                          />
+                                          <span className="room-modal-item-text">
+                                            <b>{base}</b>
+                                            {dir ? <small>{dir}</small> : <small>루트 폴더</small>}
+                                          </span>
+                                        </label>
+                                        <div className="room-modal-item-actions">
+                                          <button type="button" className="flow-btn" onClick={() => void previewProjectFile(file)}>
+                                            미리보기
+                                          </button>
+                                          <button type="button" className="flow-btn primary" onClick={() => void stageSelectedProjectFiles([file])}>
+                                            담기
+                                          </button>
+                                        </div>
+                                      </li>
+                                    );
+                                  })
+                                )}
+                              </ul>
+                              {previewPath ? (
+                                <aside className="room-file-preview" aria-label="파일 미리보기">
+                                  <header>
+                                    <b>{previewPath}</b>
+                                    <button type="button" className="flow-btn" onClick={() => { setPreviewPath(null); setPreviewContent(null); }}>
+                                      닫기
+                                    </button>
+                                  </header>
+                                  {isChatImage(previewPath) ? (
+                                    <img src={projectFileHref(project, previewPath)} alt={previewPath} className="room-preview-img" />
+                                  ) : (
+                                    <pre>{previewContent ?? "불러오는 중…"}</pre>
+                                  )}
+                                </aside>
+                              ) : null}
+                            </div>
+                            <footer className="room-modal-footer">
+                              <small>원하는 파일을 여러 개 체크한 뒤 한 번에 담거나, 오른쪽 「담기」를 누르세요.</small>
+                              <div className="room-modal-footer-actions">
+                                <button type="button" className="flow-btn" onClick={() => setPlusOpen(false)}>
+                                  취소
+                                </button>
+                                <button
+                                  type="button"
+                                  className="flow-btn primary"
+                                  disabled={selectedFiles.length === 0}
+                                  onClick={() => void stageSelectedProjectFiles(selectedFiles)}
+                                >
+                                  선택한 파일 담기 ({selectedFiles.length})
+                                </button>
+                              </div>
+                            </footer>
+                          </div>
+                        ) : null}
+
+                        {plusTab === "rules" ? (
+                          <div className="room-modal-section">
+                            <div className="room-modal-search-bar">
+                              <input
+                                aria-label="규칙 또는 스킬 검색"
+                                value={ruleQuery}
+                                placeholder="규칙 · 스킬 이름이나 설명으로 검색 (예: task-clarity, briefing, intent)"
+                                onChange={(e) => setRuleQuery(e.target.value)}
+                              />
+                              <div className="room-filter-pills" role="group" aria-label="종류 필터">
+                                {(["all", "규칙", "스킬"] as const).map((kind) => (
+                                  <button
+                                    key={kind}
+                                    type="button"
+                                    className={`room-filter-pill${ruleFilter === kind ? " is-on" : ""}`}
+                                    aria-pressed={ruleFilter === kind}
+                                    onClick={() => setRuleFilter(kind)}
+                                  >
+                                    {kind === "all" ? "전체" : kind}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <ul className="room-modal-list is-cards" aria-label="규칙 · 스킬 목록">
+                              {ruleList === null ? (
+                                <li className="room-modal-empty">규칙 · 스킬 목록을 불러오는 중…</li>
+                              ) : filterRulesAndSkills(ruleList, ruleQuery, ruleFilter).length === 0 ? (
+                                <li className="room-modal-empty">저장된 규칙 · 스킬이 없습니다.</li>
+                              ) : (
+                                filterRulesAndSkills(ruleList, ruleQuery, ruleFilter).map((row) => {
+                                  const key = `${row.kind}:${row.name}`;
+                                  const checked = selectedRuleIds.includes(key);
+                                  return (
+                                    <li key={key} className={`room-modal-card-item${checked ? " is-selected" : ""}`}>
+                                      <label className="room-modal-check">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() =>
+                                            setSelectedRuleIds((cur) => (checked ? cur.filter((x) => x !== key) : [...cur, key]))
+                                          }
+                                        />
+                                        <span className="room-modal-item-text">
+                                          <span className="room-modal-title-row">
+                                            <span className={`room-badge is-${row.kind === "규칙" ? "rule" : "skill"}`}>{row.kind}</span>
+                                            <b>{row.name}</b>
+                                            {row.apply === "always" ? <span className="room-badge is-subtle">항상 적용</span> : null}
+                                            {row.scope === "studio" ? <span className="room-badge is-subtle">공용</span> : null}
+                                          </span>
+                                          <small>{row.description || "설명이 등록되지 않았습니다."}</small>
+                                        </span>
+                                      </label>
+                                      <button
+                                        type="button"
+                                        className="flow-btn primary"
+                                        onClick={() => {
+                                          stageItems([makeStagedRuleOrSkill(row)]);
+                                          setPlusOpen(false);
+                                        }}
+                                      >
+                                        담기
+                                      </button>
+                                    </li>
+                                  );
+                                })
+                              )}
                             </ul>
-                          </>
+                            <footer className="room-modal-footer">
+                              <small>규칙 · 스킬을 담고 메시지를 보내면 서버가 해당 본문을 프롬프트에 함께 넣어 전달합니다.</small>
+                              <div className="room-modal-footer-actions">
+                                <button type="button" className="flow-btn" onClick={() => setPlusOpen(false)}>
+                                  취소
+                                </button>
+                                <button
+                                  type="button"
+                                  className="flow-btn primary"
+                                  disabled={selectedRuleIds.length === 0}
+                                  onClick={() => stageSelectedRules(selectedRuleIds)}
+                                >
+                                  선택한 항목 담기 ({selectedRuleIds.length})
+                                </button>
+                              </div>
+                            </footer>
+                          </div>
                         ) : null}
-                      </div>
+
+                        {plusTab === "link" ? (
+                          <form
+                            className="room-modal-section room-link-form"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const built = makeStagedLink(linkDraft);
+                              if (!built.ok) {
+                                setError(built.error);
+                                return;
+                              }
+                              setError(null);
+                              stageItems([built.item]);
+                              setLinkDraft("");
+                              setPlusOpen(false);
+                            }}
+                          >
+                            <label className="room-link-field">
+                              <span>참고할 웹 주소 (URL)</span>
+                              <input
+                                aria-label="링크"
+                                value={linkDraft}
+                                placeholder="https://example.com/docs/..."
+                                onChange={(e) => setLinkDraft(e.target.value)}
+                              />
+                            </label>
+                            <p className="thread-note">문서 주소나 참고 링크를 입력창에 담아 메시지와 함께 전달합니다.</p>
+                            <footer className="room-modal-footer">
+                              <span />
+                              <div className="room-modal-footer-actions">
+                                <button type="button" className="flow-btn" onClick={() => setPlusOpen(false)}>
+                                  취소
+                                </button>
+                                <button type="submit" className="flow-btn primary" disabled={!linkDraft.trim()}>
+                                  링크 담기
+                                </button>
+                              </div>
+                            </footer>
+                          </form>
+                        ) : null}
+                      </RoomCenterDialog>
                     ) : null}
-                    <input ref={docRef} type="file" accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain,.png,.jpg,.jpeg,.gif,.webp,.svg" hidden onChange={(e) => void onPickedFile(e)} />
+                    <input ref={docRef} type="file" multiple accept=".txt,.md,.json,.csv,.yaml,.yml,text/plain,.png,.jpg,.jpeg,.gif,.webp,.svg" hidden onChange={(e) => void onPickedFile(e)} />
                   </div>
                   <div className="room-call-actions">
-                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || attachingImage || !!roomLoadError || !draft.trim()} onClick={() => void send(draft)}>Record</button>
+                    <button type="button" className="flow-btn room-send" disabled={busy || waiting || attachingImage || !!roomLoadError || (!draft.trim() && staged.length === 0)} onClick={() => void send(draft)}>Record</button>
                     <button type="button" className="flow-btn room-stop" disabled={room?.running !== true} onClick={() => void stopTurn()}>Stop</button>
                     {/* 보내기는 맨 오른쪽 (사용자 요청 2026-10-16) */}
-                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || attachingImage || !!roomLoadError || (enabled.length === 0 && !draft.trim())} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
+                    <button type="button" className="flow-btn primary room-submit" disabled={busy || waiting || attachingImage || !!roomLoadError || (enabled.length === 0 && !draft.trim() && staged.length === 0)} onClick={() => void (enabled.length === 0 ? send(draft) : send(draft, "talk"))}>Send</button>
                   </div>
                   </div>
                 </div>
@@ -1102,7 +1543,7 @@ export function RoomPanel({
                 ) : null}
                 <div className="room-dock-controls">
                   <span className="room-dock-add">
-                    <button type="button" className="room-plus is-add" aria-label="LLM 추가" aria-expanded={dockOpen} onClick={() => {
+                    <button type="button" className="room-plus is-add" aria-label="LLM 추가" title="참여 LLM 선택 · 관리" aria-expanded={dockOpen} onClick={() => {
                       if (!dockOpen) void refreshAgents();
                       setModeMenuOpen(false);
                       setDockOpen((cur) => !cur);
@@ -1110,42 +1551,82 @@ export function RoomPanel({
                       <PlusIcon />
                     </button>
                     {dockOpen ? (
-                      <div className="room-plus-menu room-dock-menu" role="menu">
-                        {agents.map((agent) => {
-                          const at = members.findIndex((member) => member.id === agent.id || sameAgent(member, agent));
-                          const on = at >= 0 && members[at]!.enabled !== false;
-                          return (
-                            <button
-                              key={agent.id ?? `${agent.speaker}-${agent.model}-${agent.name}`}
-                              type="button"
-                              role="menuitemcheckbox"
-                              aria-checked={on}
-                              className="room-dock-agent"
-                              disabled={kept || !!waiting}
-                              onClick={() => {
-                                // 켜면 이 대화에 들어오고(처음이면 Agents 목록에서 복사), 끄면 꺼진 채로 남는다.
-                                if (at < 0) void cast([...members, { ...agent, enabled: true }]);
-                                else patchMember(at, { enabled: !on }, true);
-                              }}
-                            >
-                              <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
-                              {agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}
-                              <span className={`room-icon room-power${on ? " is-on" : ""}`} aria-hidden="true"><PowerIcon /></span>
+                      <RoomCenterDialog
+                        title="이 대화의 참여 LLM 선택"
+                        subtitle="켜 둔 순서대로 한 바퀴씩 말하거나 작업을 수행합니다."
+                        className="room-agent-modal"
+                        onClose={() => setDockOpen(false)}
+                      >
+                        <div className="room-modal-search-bar">
+                          <input
+                            aria-label="LLM 검색"
+                            value={agentQuery}
+                            placeholder="이름 · 공급자 · 모델 · 역할로 검색"
+                            onChange={(e) => setAgentQuery(e.target.value)}
+                          />
+                          <span className="room-modal-count">활성 {enabled.length}명</span>
+                        </div>
+                        <ul className="room-modal-list is-cards" aria-label="등록된 LLM 목록">
+                          {agents.length === 0 ? (
+                            <li className="room-modal-empty">등록된 Agent가 없습니다. 아래 「새 Agent 등록」으로 추가해 주세요.</li>
+                          ) : (
+                            agents
+                              .filter((agent) => {
+                                const q = agentQuery.trim().toLowerCase();
+                                if (!q) return true;
+                                const hay = `${agent.name ?? ""} ${ROOM_SPEAKER_LABEL[agent.speaker]} ${agent.model} ${agent.role}`.toLowerCase();
+                                return hay.includes(q);
+                              })
+                              .map((agent) => {
+                                const at = members.findIndex((member) => member.id === agent.id || sameAgent(member, agent));
+                                const on = at >= 0 && members[at]!.enabled !== false;
+                                return (
+                                  <li key={agent.id ?? `${agent.speaker}-${agent.model}-${agent.name}`} className={`room-modal-card-item${on ? " is-selected" : ""}`}>
+                                    <button
+                                      type="button"
+                                      role="menuitemcheckbox"
+                                      aria-checked={on}
+                                      className="room-dock-agent room-modal-agent-btn"
+                                      disabled={kept || !!waiting}
+                                      onClick={() => {
+                                        if (at < 0) void cast([...members, { ...agent, enabled: true }]);
+                                        else patchMember(at, { enabled: !on }, true);
+                                      }}
+                                    >
+                                      <span className="room-chip" style={chipStyle(agent)}>{chipFace(agent)}</span>
+                                      <span className="room-modal-item-text">
+                                        <span className="room-modal-title-row">
+                                          <b>{agent.name?.trim() || ROOM_SPEAKER_LABEL[agent.speaker]}</b>
+                                          <span className="room-badge is-subtle">{ROOM_SPEAKER_LABEL[agent.speaker]}{agent.model ? ` · ${agent.model}` : ""}{agent.effort ? ` · ${agent.effort}` : ""}</span>
+                                        </span>
+                                        <small>{agent.role.trim() || "역할 설명 없음"}</small>
+                                      </span>
+                                      <span className={`room-icon room-power${on ? " is-on" : ""}`} aria-hidden="true"><PowerIcon /></span>
+                                    </button>
+                                  </li>
+                                );
+                              })
+                          )}
+                        </ul>
+                        <footer className="room-modal-footer">
+                          <button
+                            type="button"
+                            className="flow-btn"
+                            onClick={() => {
+                              setDockOpen(false);
+                              setLlmTab("agent");
+                              setFace("llm");
+                            }}
+                          >
+                            새 Agent 등록 · 상세 설정
+                          </button>
+                          <div className="room-modal-footer-actions">
+                            <button type="button" className="flow-btn primary" onClick={() => setDockOpen(false)}>
+                              확인
                             </button>
-                          );
-                        })}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setDockOpen(false);
-                            setLlmTab("agent");
-                            setFace("llm");
-                          }}
-                        >
-                          새 Agent 등록
-                        </button>
-                      </div>
+                          </div>
+                        </footer>
+                      </RoomCenterDialog>
                     ) : null}
                   </span>
                   <span className="room-dock-mode">
@@ -1168,45 +1649,85 @@ export function RoomPanel({
                       {currentMode ? modeFace(currentMode) : <ModeTriggerIcon />}
                     </button>
                     {modeMenuOpen ? (
-                      <div className="room-plus-menu room-dock-menu room-mode-menu" role="menu">
-                        {modes.map((mode) => {
-                          const on = room?.modeId === mode.id;
-                          const bound = (mode.agentIds ?? [])
-                            .map((id) => agents.find((a) => a.id === id) ?? members.find((m) => m.id === id))
-                            .filter((a): a is RoomMember => Boolean(a))
-                            .map((a) => a.name?.trim() || ROOM_SPEAKER_LABEL[a.speaker])
-                            .join(" · ");
-                          return (
-                            <button
-                              key={mode.id}
-                              type="button"
-                              role="menuitemcheckbox"
-                              aria-checked={on}
-                              className={`room-dock-agent room-dock-mode-item${on ? " is-on" : ""}`}
-                              disabled={kept || !!waiting}
-                              onClick={() => void selectMode(on ? null : mode.id)}
-                            >
-                              <span className="room-chip" style={modeStyle(mode)}>{modeFace(mode)}</span>
-                              <span className="room-mode-item-body">
-                                <b>{mode.name}</b>
-                                <small>{bound || "현재 켜진 LLM"}</small>
-                              </span>
-                              <span className={`room-mode-exec is-${mode.execution}`}>{MODE_EXEC_LABEL[mode.execution]}</span>
+                      <RoomCenterDialog
+                        title="대화 작업 모드 선택"
+                        subtitle="모드를 고르면 권한(읽기·문서·실행)과 규약, 지정된 LLM 조합이 함께 적용됩니다."
+                        className="room-mode-modal"
+                        onClose={() => setModeMenuOpen(false)}
+                      >
+                        <div className="room-modal-search-bar">
+                          <input
+                            aria-label="모드 검색"
+                            value={modeQuery}
+                            placeholder="모드 이름이나 규약으로 검색"
+                            onChange={(e) => setModeQuery(e.target.value)}
+                          />
+                          {currentMode ? (
+                            <button type="button" className="flow-btn" disabled={kept || !!waiting} onClick={() => void selectMode(null)}>
+                              모드 해제 ({currentMode.name})
                             </button>
-                          );
-                        })}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setModeMenuOpen(false);
-                            setLlmTab("mode");
-                            setFace("llm");
-                          }}
-                        >
-                          새 모드 추가
-                        </button>
-                      </div>
+                          ) : null}
+                        </div>
+                        <ul className="room-modal-list is-cards" aria-label="모드 목록">
+                          {modes
+                            .filter((mode) => {
+                              const q = modeQuery.trim().toLowerCase();
+                              if (!q) return true;
+                              return `${mode.name} ${mode.prompt}`.toLowerCase().includes(q);
+                            })
+                            .map((mode) => {
+                              const on = room?.modeId === mode.id;
+                              const bound = (mode.agentIds ?? [])
+                                .map((id) => agents.find((a) => a.id === id) ?? members.find((m) => m.id === id))
+                                .filter((a): a is RoomMember => Boolean(a))
+                                .map((a) => a.name?.trim() || ROOM_SPEAKER_LABEL[a.speaker])
+                                .join(" → ");
+                              return (
+                                <li key={mode.id} className={`room-modal-card-item${on ? " is-selected" : ""}`}>
+                                  <button
+                                    type="button"
+                                    role="menuitemcheckbox"
+                                    aria-checked={on}
+                                    className={`room-dock-agent room-dock-mode-item room-modal-agent-btn${on ? " is-on" : ""}`}
+                                    disabled={kept || !!waiting}
+                                    onClick={() => {
+                                      void selectMode(on ? null : mode.id);
+                                      setModeMenuOpen(false);
+                                    }}
+                                  >
+                                    <span className="room-chip" style={modeStyle(mode)}>{modeFace(mode)}</span>
+                                    <span className="room-mode-item-body room-modal-item-text">
+                                      <span className="room-modal-title-row">
+                                        <b>{mode.name}</b>
+                                        <span className={`room-mode-exec is-${mode.execution}`}>{MODE_EXEC_LABEL[mode.execution]}</span>
+                                      </span>
+                                      <small>참여 LLM: {bound || "현재 대화방에 켜진 LLM 유지"}</small>
+                                      {mode.prompt.trim() ? <small className="room-mode-prompt-preview">{mode.prompt.trim()}</small> : null}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                        </ul>
+                        <footer className="room-modal-footer">
+                          <button
+                            type="button"
+                            className="flow-btn"
+                            onClick={() => {
+                              setModeMenuOpen(false);
+                              setLlmTab("mode");
+                              setFace("llm");
+                            }}
+                          >
+                            새 모드 추가 · 편집
+                          </button>
+                          <div className="room-modal-footer-actions">
+                            <button type="button" className="flow-btn primary" onClick={() => setModeMenuOpen(false)}>
+                              닫기
+                            </button>
+                          </div>
+                        </footer>
+                      </RoomCenterDialog>
                     ) : null}
                   </span>
                 </div>
@@ -1244,7 +1765,7 @@ export function RoomPanel({
   );
 }
 
-function RoomLine({ message: m, project }: { message: RoomMessage; project: string }) {
+function RoomLine({ message: m, project, onAnswer }: { message: RoomMessage; project: string; onAnswer?: (text: string) => void }) {
   if (m.role === "operation") return <div className={`msg is-operation is-${m.status}`}>
     <span className="msg-meta">{{ consult: "상담 연결", prepare: "실행 배정", act: "수행", check: "검증", deploy: "적용" }[m.stage]} · {{ started: "시작", completed: "완료", failed: "실패", waiting: "대기" }[m.status]}</span>
     <ChatText text={m.text} project={project} />{m.result !== undefined ? <details><summary>실행 근거</summary><pre>{JSON.stringify(m.result, null, 2)}</pre></details> : null}
@@ -1287,13 +1808,15 @@ function RoomLine({ message: m, project }: { message: RoomMessage; project: stri
     );
   }
   const name = m.speaker === "local" && m.model ? m.model : ROOM_SPEAKER_LABEL[m.speaker];
+  const asked = splitQuestions(m.text);
   return (
     <div className="msg is-host">
       <span className="msg-meta">
         {name}
         {m.speaker !== "local" && m.model ? ` · ${m.model}` : ""}{m.effort ? ` · ${m.effort}` : ""}{m.via === "claude-session" ? " · Claude Code 세션" : ""} · {(m.ms / 1000).toFixed(1)}초
       </span>
-      <ChatText text={m.text} project={project} bold />
+      {asked.text ? <ChatText text={asked.text} project={project} bold /> : null}
+      {asked.questions.length ? <RoomQuestionCard key={m.seq} questions={asked.questions} onAnswer={onAnswer} /> : null}
     </div>
   );
 }
@@ -2056,51 +2579,121 @@ function joinRole(role: string, block: string): string {
 
 function RoleAttach({ disabled, onText }: { disabled: boolean; onText: (block: string) => void }) {
   const [openMenu, setOpenMenu] = useState(false);
+  const [tab, setTab] = useState<"doc" | "skill">("doc");
   const [skills, setSkills] = useState<{ slug: string }[] | null>(null);
+  const [skillQuery, setSkillQuery] = useState("");
   const docRef = useRef<HTMLInputElement>(null);
+
+  function loadSkills() {
+    if (skills !== null) return;
+    void fetch("/api/room/skills")
+      .then((res) => res.json() as Promise<{ skills?: { slug: string }[] }>)
+      .then((body) => setSkills(body.skills ?? []))
+      .catch(() => setSkills([]));
+  }
 
   return (
     <div className="room-attach">
-      <button type="button" className="room-plus" aria-label="역할에 붙이기" aria-expanded={openMenu} disabled={disabled} onClick={() => setOpenMenu((cur) => !cur)}>
+      <button
+        type="button"
+        className="room-plus"
+        aria-label="역할에 붙이기"
+        title="문서 또는 공용 스킬 본문을 역할에 붙이기"
+        aria-expanded={openMenu}
+        disabled={disabled}
+        onClick={() => {
+          const next = !openMenu;
+          setOpenMenu(next);
+          if (next) loadSkills();
+        }}
+      >
         <PlusIcon />
       </button>
       {openMenu ? (
-        <div className="room-plus-menu" role="menu">
-          <button type="button" onClick={() => docRef.current?.click()}>문서</button>
-          <button
-            type="button"
-            onClick={() => {
-              void fetch("/api/room/skills")
-                .then((res) => res.json() as Promise<{ skills?: { slug: string }[] }>)
-                .then((body) => setSkills(body.skills ?? []));
-            }}
-          >
-            스킬
-          </button>
-          {skills ? (
-            <ul>
-              {skills.length ? skills.map((skill) => (
-                <li key={skill.slug}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void fetch(`/api/room/skills?slug=${encodeURIComponent(skill.slug)}`)
-                        .then((res) => res.json() as Promise<{ text?: string; error?: string }>)
-                        .then((body) => {
-                          if (!body.text) return;
-                          onText(`첨부 · 스킬 「${skill.slug}」\n${clipAttach(body.text)}`);
-                          setOpenMenu(false);
-                          setSkills(null);
-                        });
-                    }}
-                  >
-                    {skill.slug}
-                  </button>
-                </li>
-              )) : <li>스킬이 없다.</li>}
-            </ul>
-          ) : null}
-        </div>
+        <RoomCenterDialog
+          title="역할 · 규약에 자료 붙이기"
+          subtitle="문서나 공용 스킬의 본문을 현재 역할/규약 입력란 끝에 덧붙입니다."
+          className="room-role-modal"
+          onClose={() => setOpenMenu(false)}
+        >
+          <div className="room-modal-tabs" role="tablist" aria-label="역할 자료 종류">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "doc"}
+              className={`room-modal-tab${tab === "doc" ? " is-on" : ""}`}
+              onClick={() => setTab("doc")}
+            >
+              문서 파일
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "skill"}
+              className={`room-modal-tab${tab === "skill" ? " is-on" : ""}`}
+              onClick={() => { setTab("skill"); loadSkills(); }}
+            >
+              공용 스킬
+            </button>
+          </div>
+          {tab === "doc" ? (
+            <div className="room-dropzone">
+              <div className="room-dropzone-body">
+                <b>역할·규약에 포함할 텍스트/마크다운 문서를 선택하세요</b>
+                <p>지원 형식: .txt, .md, .json, .csv, .yaml, .yml</p>
+                <button type="button" className="flow-btn primary" onClick={() => docRef.current?.click()}>
+                  문서 파일 선택
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="room-modal-section">
+              <div className="room-modal-search-bar">
+                <input
+                  aria-label="스킬 검색"
+                  value={skillQuery}
+                  placeholder="스킬 이름 검색"
+                  onChange={(e) => setSkillQuery(e.target.value)}
+                />
+              </div>
+              <ul className="room-modal-list is-cards" aria-label="공용 스킬 목록">
+                {skills === null ? (
+                  <li className="room-modal-empty">스킬을 불러오는 중…</li>
+                ) : skills.filter((s) => s.slug.toLowerCase().includes(skillQuery.trim().toLowerCase())).length === 0 ? (
+                  <li className="room-modal-empty">스킬이 없습니다.</li>
+                ) : (
+                  skills
+                    .filter((s) => s.slug.toLowerCase().includes(skillQuery.trim().toLowerCase()))
+                    .map((skill) => (
+                      <li key={skill.slug} className="room-modal-card-item">
+                        <span className="room-modal-item-text">
+                          <span className="room-modal-title-row">
+                            <span className="room-badge is-skill">스킬</span>
+                            <b>{skill.slug}</b>
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          className="flow-btn primary"
+                          onClick={() => {
+                            void fetch(`/api/room/skills?slug=${encodeURIComponent(skill.slug)}`)
+                              .then((res) => res.json() as Promise<{ text?: string; error?: string }>)
+                              .then((body) => {
+                                if (!body.text) return;
+                                onText(`첨부 · 스킬 「${skill.slug}」\n${clipAttach(body.text)}`);
+                                setOpenMenu(false);
+                              });
+                          }}
+                        >
+                          붙이기
+                        </button>
+                      </li>
+                    ))
+                )}
+              </ul>
+            </div>
+          )}
+        </RoomCenterDialog>
       ) : null}
       <input
         ref={docRef}

@@ -21,6 +21,8 @@ import { ConsultPane } from "./ConsultPane.js";
 import { RequirementsPane } from "./RequirementsPane.js";
 import { PrdPane } from "./PrdPane.js";
 import { RoomPanel } from "./RoomPanel.js";
+import type { ActionRequest } from "./userAction.js";
+import { useStageActionCue } from "./UserActionGuide.js";
 import { LlmHealthRail } from "./LlmHealthRail.js";
 import { ServerRestartRail } from "./ServerRestartRail.js";
 import {
@@ -73,6 +75,8 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const [linkedRoom, setLinkedRoom] = useState<{ alias: string; id: string } | null>(null);
   const [draftRequest, setDraftRequest] = useState<{ text: string; nonce: number }>();
   const [consultRequest, setConsultRequest] = useState<{ project: string; note: string } | null>(null);
+  const [actionRequest, setActionRequest] = useState<ActionRequest>();
+  const actionNonce = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +110,9 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const aliases = shellProjects.map((item) => item.alias);
   const hasProjects = aliases.length > 0;
   const selected = hasProjects ? project || aliases[0]! : "";
+  const currentAction = actionRequest?.action.alias === selected ? actionRequest : undefined;
+  useStageActionCue(currentAction, place);
+  useEffect(() => { setActionRequest(prev => prev?.action.alias === selected ? prev : undefined); }, [selected]);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const current = workspace?.projects.find((item) => item.alias === selected);
@@ -126,7 +133,29 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
     return () => window.removeEventListener(LOG_OPEN_EVENT, open);
   }, [navigate]);
   const lastWork = rememberedWork[selected] ?? readLastWork(selected, navigationStorage());
-  function continueWork(action: ResumeAction) {
+  async function continueWork(action: ResumeAction) {
+    if (action.kind === "action") {
+      if (readOnly || action.action.alias !== selectedRef.current) return;
+      const guide = { ...action.action };
+      if (guide.target.kind === "todo") {
+        let id = guide.target.roomId;
+        if (!id) {
+          const res = await fetch("/api/todos/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias: guide.alias, action: "room", id: guide.target.id }) });
+          const body = await res.json() as { roomId?: string; error?: string };
+          if (!res.ok || !body.roomId) throw new Error(body.error ?? "할일 대화를 열지 못했습니다.");
+          id = body.roomId;
+        }
+        if (guide.alias !== selectedRef.current) return;
+        guide.target = { ...guide.target, roomId: id };
+        setLinkedRoom({ alias: guide.alias, id });
+        const hash = `#room/${encodeURIComponent(guide.alias)}/${encodeURIComponent(id)}`;
+        if (window.location.hash !== hash) window.location.hash = hash;
+        setPlace("dashboard");
+      } else setPlace(guide.target.kind === "evals" ? "dashboard" : guide.target.place);
+      setPeekPath(null); setChatOpen(true); setChatAside(false);
+      setActionRequest({ action: guide, nonce: ++actionNonce.current });
+      return;
+    }
     if (action.kind === "place") {
       if (action.location.alias !== selected) return;
       setLogDate(action.location.logDate ?? null);
@@ -204,6 +233,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   }, [registeredAliasKey]);
 
   function pickProject(alias: string) {
+    setActionRequest(undefined);
     setProject(alias);
     setPlace("dashboard");
     setLogDate(null);
@@ -357,6 +387,8 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               onOpenStage={navigate}
               lastWork={lastWork}
               onContinue={continueWork}
+              actionRequest={currentAction}
+              onActionDone={() => { setActionRequest(undefined); setRevision(n => n + 1); }}
               onOpenFile={setPeekPath}
               onWorkspaceChanged={() => setRevision((n) => n + 1)}
               consultRequest={consultRequest?.project === selected ? consultRequest.note : undefined}
@@ -397,6 +429,9 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               onClose={() => setChatAside(true)}
               readOnly={readOnly}
               draftRequest={draftRequest}
+              actionRequest={currentAction}
+              onReturnToAction={() => { if (currentAction) void continueWork({ kind: "action", action: currentAction.action, label: "이어하기", title: currentAction.action.title }).catch(reason => setError(String(reason))); }}
+              onDismissAction={() => setActionRequest(undefined)}
               onConsult={(note) => {
                 navigate("design");
                 setChatOpen(false);
@@ -448,6 +483,8 @@ function PlaceBody({
   onConsultSent,
   lastWork,
   onContinue,
+  actionRequest,
+  onActionDone,
 }: {
   place: Place;
   readOnly: boolean;
@@ -464,7 +501,9 @@ function PlaceBody({
   consultRequest?: string;
   onConsultSent: () => void;
   lastWork: WorkLocation | null;
-  onContinue: (action: ResumeAction) => void;
+  onContinue: (action: ResumeAction) => void | Promise<void>;
+  actionRequest?: ActionRequest;
+  onActionDone: () => void;
 }) {
   if (place === "design") {
     return (
@@ -476,6 +515,7 @@ function PlaceBody({
         onGoBuild={() => onOpenStage("build")}
         consultRequest={consultRequest}
         onConsultSent={onConsultSent}
+        actionRequest={actionRequest}
       />
     );
   }
@@ -528,6 +568,8 @@ function PlaceBody({
         workspace={projects.find((item) => item.alias === project)}
         lastWork={lastWork}
         onContinue={onContinue}
+        actionRequest={actionRequest}
+        onActionDone={onActionDone}
         repo={<FilesPane project={project} revision={revision} readOnly={readOnly} />}
       />
     );
@@ -548,6 +590,7 @@ function DesignPane({
   onGoBuild,
   consultRequest,
   onConsultSent,
+  actionRequest,
 }: {
   project: string;
   readOnly: boolean;
@@ -556,8 +599,13 @@ function DesignPane({
   onGoBuild: () => void;
   consultRequest?: string;
   onConsultSent: () => void;
+  actionRequest?: ActionRequest;
 }) {
   const [tab, setTab] = useState<"requirements" | "consult" | "prd" | "ir">("requirements");
+  useEffect(() => {
+    const target = actionRequest?.action.target;
+    if (target?.kind === "stage" && target.place === "design" && target.designTab) setTab(target.designTab);
+  }, [actionRequest]);
   const [pendingFix, setPendingFix] = useState<{ n: number; note: string; raw?: boolean } | null>(null);
   useEffect(() => {
     if (consultRequest) { setPendingFix({ n: 0, note: consultRequest, raw: true }); setTab("consult"); }

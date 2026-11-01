@@ -81,6 +81,15 @@ describe("대화방 기록", () => {
     expect(local).not.toContain("직접 반영한다");
   });
 
+  it("사람에게 묻는 말은 모든 모델에게 「질문」 칸으로 쓰라고 넘긴다", () => {
+    const messages = [{ seq: 0, at: "t", role: "user" as const, text: "어느 쪽이 좋을까" }];
+    for (const speaker of ["claude-code", "local"] as const) {
+      const prompt = roundPrompt(messages, { speaker, model: "m", role: "답한다." }, "talk");
+      expect(prompt).toContain("```질문");
+      expect(prompt).toContain("입력: ");
+    }
+  });
+
   it("다음 모델에게 앞 모델의 말을 그대로 넘긴다", async () => {
     const prompt = roomPrompt(
       [

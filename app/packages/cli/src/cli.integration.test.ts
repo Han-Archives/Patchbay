@@ -742,6 +742,11 @@ describe("patchbay CLI (built binary)", () => {
         "adopted.json", "evals.json", "ir.approved-provenance.json", "ir.yaml",
       ]);
 
+      // 채택 직후 evals.json 은 아직 v1 결과다 — v2 점수로 세지 않는다.
+      const before = await runCli(["version", "compare", "--project", "m6f", "--json"]);
+      expect(before.exitCode).toBe(1);
+      expect(JSON.parse(before.stdout).result.reason).toContain("v2 의 평가 결과가 없다");
+
       writeEvals(2, six, true);
       expect((await runCli(["evals", "record", "--project", "m6f", "--file", evalsFile, "--json"])).exitCode).toBe(0);
 

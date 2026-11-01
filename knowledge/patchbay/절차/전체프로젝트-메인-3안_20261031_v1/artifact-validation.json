@@ -1,0 +1,28 @@
+{
+  "verifiedAt": "2026-11-01T10:31:24.251Z",
+  "scope": "A 검토 시안만",
+  "data": "fictional examples",
+  "checks": [
+    "A 카드: 결과물 있는 3개 프로젝트 활성, 없는 2개 비활성·이유 표시·실제 클릭 방지",
+    "결과물 열람: 소속 프로젝트 목록·문서 본문·상태·화면 미리보기·항목 전환·Escape",
+    "본문만 일치하는 결과물 검색과 열람 후 검색 상태 유지",
+    "파일명·제목·소속 프로젝트 이름 검색, 프로젝트와 결과물 구분, 대소문자 무관",
+    "일치 없음·공백 검색·검색어를 HTML로 실행하지 않음",
+    "숨긴 프로젝트와 소속 결과물을 기본 검색에서 제외, 포함 선택 시 검색",
+    "전체 결과물 모아보기·이름순 정렬·소속 프로젝트 상태 필터·빈 목록·프로젝트 보기 복귀",
+    "모바일 카드·문서 열람·결과물 목록 내부 스크롤·검색 후 열람, 페이지와 모달 가로 넘침 없음",
+    "태블릿 화면, B·C 보기 전환 회귀 확인"
+  ],
+  "screenshots": [
+    "a-desktop.png",
+    "a-output-viewer.png",
+    "a-output-search.png",
+    "a-output-library.png",
+    "a-mobile.png",
+    "a-output-viewer-mobile.png",
+    "a-output-search-mobile.png",
+    "a-tablet.png"
+  ],
+  "errors": [],
+  "externalRequests": []
+}

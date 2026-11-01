@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import {
+  fitEvalRun,
   parseEvalRun,
   readOverlay,
   resolveProjectAlias,
@@ -59,22 +60,12 @@ export async function runEvalsRecord(
   }
 
   const overlay = await readOverlay(studioHome, alias);
-  if (!overlay.ir) {
-    printError(json, `evals record: "${alias}" 에 승인된 설계가 없다 — 어느 버전의 결과인지 붙일 곳이 없다.`);
+  const fit = fitEvalRun(overlay.ir, parsed.run);
+  if (!fit.ok) {
+    printError(json, `evals record: "${alias}" — ${fit.error}`);
     return 1;
   }
-  if (parsed.run.irVersion !== overlay.ir.version) {
-    printError(
-      json,
-      `evals record: 결과는 v${parsed.run.irVersion} 인데 승인된 설계는 v${overlay.ir.version} 다 — ` +
-        `다른 버전의 결과를 현재 버전에 붙이지 않는다.`,
-    );
-    return 1;
-  }
-
-  const known = new Set(overlay.ir.evals.map((entry) => entry.id));
-  const unknown = parsed.run.results.map((result) => result.evalId).filter((id) => !known.has(id));
-  const missing = [...known].filter((id) => !parsed.run.results.some((result) => result.evalId === id));
+  const { unknown, missing } = fit;
 
   const file = await writeEvalRun(studioHome, alias, parsed.run);
   const score = scoreEvalRun(parsed.run);

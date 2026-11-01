@@ -1,3 +1,5 @@
+import type { UserAction } from "./userAction.js";
+
 /** Browser-only navigation preferences. Never contain document text, drafts or model requests. */
 export const WORK_PLACES = {
   design: "설계", build: "구현", test: "테스트", graph: "지식 그래프", docs: "RAG",
@@ -35,6 +37,7 @@ export function rememberWork(location: WorkLocation, storage?: NavigationStorage
   try { storage.setItem(lastWorkKey(location.alias), JSON.stringify(location)); } catch { /* React state still resumes within this session. */ }
 }
 export type ResumeAction =
+  | { kind: "action"; action: UserAction; label: "이어하기"; title: string }
   | { kind: "place"; location: WorkLocation; label: "이어하기"; title: string }
   | { kind: "chat"; label: "이어하기"; title: string }
   | { kind: "start"; label: "시작하기"; title: string };
