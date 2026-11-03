@@ -28,7 +28,18 @@ export interface RoomMirrorState {
   /** 아직 방에 적지 않은 Claude의 말 (한 턴이 끝나면 한 덩어리로 적는다). */
   draft: { text: string; model: string; from: string | null; lastAt?: string | null } | null;
   lastPromptAt: string | null;
+  /** room guard 가 묶음을 확인하지 못하고 허용한 까닭 (최근 것만). `recordGuardIssue` 가 적는다. */
+  guardIssues?: GuardIssue[];
 }
+
+export interface GuardIssue {
+  at: string;
+  event: string;
+  tool: string | null;
+  message: string;
+}
+
+const MAX_GUARD_ISSUES = 20;
 
 export interface RoomMirrorInput {
   sessionId: string;
@@ -116,7 +127,12 @@ export function assistantTextOf(line: Line): { text: string; model: string } | n
   return text ? { text, model: typeof message.model === "string" ? message.model : "" } : null;
 }
 
-/** `room_bind` 도구 호출의 id들. MCP 서버 이름이 무엇이든 `mcp__<server>__room_bind` 다. */
+/** MCP 서버 이름이 무엇이든 `mcp__<server>__room_bind` 다. */
+export function isRoomBindTool(name: unknown): boolean {
+  return typeof name === "string" && name.startsWith("mcp__") && name.endsWith(`__${ROOM_BIND_TOOL}`);
+}
+
+/** `room_bind` 도구 호출의 id들. */
 function bindCalls(line: Line): string[] {
   if (line.type !== "assistant") return [];
   const content = (line.message as { content?: unknown } | undefined)?.content;
@@ -124,9 +140,25 @@ function bindCalls(line: Line): string[] {
   return content
     .filter((c) => {
       const block = c as { type?: unknown; name?: unknown };
-      return block.type === "tool_use" && typeof block.name === "string" && block.name.startsWith("mcp__") && block.name.endsWith(`__${ROOM_BIND_TOOL}`);
+      return block.type === "tool_use" && isRoomBindTool(block.name);
     })
     .map((c) => String((c as { id?: unknown }).id ?? ""));
+}
+
+/** `room_bind` 결과 내용(글 · 글 조각 배열)이 성공이면 묶인 방. */
+function boundOf(content: unknown): { alias: string; roomId: string } | null {
+  const raw = typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => String((part as { text?: unknown }).text ?? "")).join("")
+      : "";
+  try {
+    const body = JSON.parse(raw) as { alias?: unknown; roomId?: unknown; bound?: unknown };
+    if (body.bound === true && typeof body.alias === "string" && typeof body.roomId === "string") return { alias: body.alias, roomId: body.roomId };
+  } catch {
+    // 오류 문장.
+  }
+  return null;
 }
 
 /** `room_bind` 결과가 성공이면 묶인 방. */
@@ -137,19 +169,53 @@ function bindResult(line: Line, calls: Set<string>): { alias: string; roomId: st
   for (const c of content) {
     const block = c as { type?: unknown; tool_use_id?: unknown; is_error?: unknown; content?: unknown };
     if (block.type !== "tool_result" || block.is_error === true || !calls.has(String(block.tool_use_id))) continue;
-    const raw = typeof block.content === "string"
-      ? block.content
-      : Array.isArray(block.content)
-        ? block.content.map((part) => String((part as { text?: unknown }).text ?? "")).join("")
-        : "";
-    try {
-      const body = JSON.parse(raw) as { alias?: unknown; roomId?: unknown; bound?: unknown };
-      if (body.bound === true && typeof body.alias === "string" && typeof body.roomId === "string") return { alias: body.alias, roomId: body.roomId };
-    } catch {
-      // 오류 문장.
-    }
+    const bound = boundOf(block.content);
+    if (bound) return bound;
   }
   return null;
+}
+
+/**
+ * `PostToolUse` 훅이 받은 `room_bind` 결과를 세션 상태에 적는다 (R9.2 수리 2026-11-03).
+ * 세션 기록 파일이 없는 세션 — 홈 폴더를 쓸 수 없는 샌드박스에서 띄운 `claude -p` 같은 — 도
+ * 쓰기 범위 훅이 묶음을 알게. 성공한 결과가 아니면 아무것도 쓰지 않는다.
+ */
+export async function recordSessionBinding(studioHome: string, sessionId: string, toolResponse: unknown): Promise<{ alias: string; roomId: string } | null> {
+  const binding = boundOf(toolResponse);
+  if (!binding) return null;
+  const file = statePath(studioHome, sessionId);
+  const state = await readState(file);
+  state.alias = binding.alias;
+  state.roomId = binding.roomId;
+  await writeState(file, state);
+  return binding;
+}
+
+/** 세션 상태에 적힌 묶음. 없으면 null. */
+export async function sessionBinding(studioHome: string, sessionId: string): Promise<{ alias: string; roomId: string } | null> {
+  const state = await readState(statePath(studioHome, sessionId));
+  return state.alias && state.roomId ? { alias: state.alias, roomId: state.roomId } : null;
+}
+
+/** 이 세션의 상태 파일이 있는지. */
+export async function hasSessionState(studioHome: string, sessionId: string): Promise<boolean> {
+  try {
+    await fs.access(statePath(studioHome, sessionId));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * room guard 가 묶음을 확인하지 못하고 허용한 까닭을 세션 상태에 남긴다 (사용자 결정 2026-11-03 —
+ * 허용은 그대로 두되 stderr 로 사라지지 않게). 상태 파일이 깨졌으면 덮어쓰지 않고 오류를 낸다.
+ */
+export async function recordGuardIssue(studioHome: string, sessionId: string, issue: Omit<GuardIssue, "at">, now: Date = new Date()): Promise<void> {
+  const file = statePath(studioHome, sessionId);
+  const state = await readState(file);
+  state.guardIssues = [...(state.guardIssues ?? []), { at: now.toISOString(), ...issue }].slice(-MAX_GUARD_ISSUES);
+  await writeState(file, state);
 }
 
 function parseLines(text: string): { lines: Line[]; complete: number } {

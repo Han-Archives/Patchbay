@@ -500,7 +500,7 @@ room
 room
   .command("guard")
   .description(
-    "Claude Code hook (PreToolUse): once this session is bound to a project with MCP room_bind, deny file writes outside that project's folder. Reads the hook JSON on stdin; always exits 0",
+    "Claude Code hook (PreToolUse · PostToolUse): once this session is bound to a project with MCP room_bind, deny file writes outside that project's folder. PostToolUse on room_bind records the binding so sessions without a transcript file are guarded too. Reads the hook JSON on stdin; always exits 0",
   )
   .action(async () => {
     process.exitCode = await runRoomGuard();

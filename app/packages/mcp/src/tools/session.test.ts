@@ -7,6 +7,16 @@ import { connectInProcess, callTool, resultJson } from "../testSupport.js";
 import { llmStatus, type LlmRun } from "./session.js";
 
 describe("세션 도구", () => {
+  it("room_bind 는 다른 도구와 동시에 실행되지 않도록 readOnlyHint 를 두지 않는다", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "pb-mcp-bind-annotations-"));
+    const { client, close } = await connectInProcess(home);
+    try {
+      const roomBind = (await client.listTools()).tools.find((tool) => tool.name === "room_bind");
+      expect(roomBind).toBeDefined();
+      expect(roomBind?.annotations?.readOnlyHint).toBeUndefined();
+    } finally { await close(); }
+  });
+
   it("room_bind 는 등록된 프로젝트에만 새 방을 열고, 읽기 전용 방은 거절한다", async () => {
     const home = await fs.mkdtemp(path.join(os.tmpdir(), "pb-mcp-bind-"));
     await registerProject(home, { alias: "demo", kind: "local_repo", path: "/tmp/demo" });
