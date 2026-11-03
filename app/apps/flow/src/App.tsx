@@ -25,6 +25,8 @@ import type { ActionRequest } from "./userAction.js";
 import { useStageActionCue } from "./UserActionGuide.js";
 import { LlmHealthRail } from "./LlmHealthRail.js";
 import { ServerRestartRail } from "./ServerRestartRail.js";
+import { WorkspaceHome } from "./WorkspaceHome.js";
+import { useChatLayout } from "./useChatLayout.js";
 import {
   adapterLabel,
   type AdapterStatus,
@@ -59,7 +61,10 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   const [shell, setShell] = useState<ShellResponse | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [place, setPlace] = useState<Place>("dashboard");
+  const [place, setPlace] = useState<Place>(() => readRoomLink(window.location.hash) ? "dashboard" : "home");
+  const placeRef = useRef(place);
+  placeRef.current = place;
+  const [todoFocus, setTodoFocus] = useState<{ alias: string; id: string; nonce: number } | null>(null);
   // History 칸에서 날짜를 고르면 Log 의 그날을 연다 (사용자 결정 2026-10-15 — History 는 Log 의 입력 · 요약창).
   const [logDate, setLogDate] = useState<string | null>(null);
   const [project, setProject] = useState<string>("");
@@ -70,6 +75,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   // 진행과 대화를 같은 오른쪽 작업 패널에 둔다 (사용자 결정 2026-10-10).
   const [chatOpen, setChatOpen] = useState(true);
   const [chatAside, setChatAside] = useState(false);
+  const chatLayout = useChatLayout(place !== "home" && chatOpen && !chatAside);
   const [peekPath, setPeekPath] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const [linkedRoom, setLinkedRoom] = useState<{ alias: string; id: string } | null>(null);
@@ -174,7 +180,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
       const message = ev as MessageEvent<string>;
       try {
         const payload = JSON.parse(message.data) as { alias?: string };
-        if (payload.alias && payload.alias === selectedRef.current) {
+        if (payload.alias && (placeRef.current === "home" || payload.alias === selectedRef.current)) {
           setRevision((n) => n + 1);
         }
       } catch {
@@ -184,7 +190,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
     const onRoomEvent = (ev: Event) => {
       try {
         const payload = JSON.parse((ev as MessageEvent<string>).data) as { alias?: string };
-        if (payload.alias && payload.alias === selectedRef.current) setRoomRevision((n) => n + 1);
+        if (payload.alias && (placeRef.current === "home" || payload.alias === selectedRef.current)) setRoomRevision((n) => n + 1);
       } catch {
         // 다음 이벤트가 다시 읽는다.
       }
@@ -223,6 +229,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
       if (!registeredAliases.includes(room.alias)) { setLinkedRoom(null); return; }
       setLinkedRoom(room);
       setProject(room.alias);
+      setPlace("dashboard");
       setChatOpen(true);
       setChatAside(false);
     };
@@ -234,6 +241,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
 
   function pickProject(alias: string) {
     setActionRequest(undefined);
+    setTodoFocus(null);
     setProject(alias);
     setPlace("dashboard");
     setLogDate(null);
@@ -242,6 +250,12 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       setLinkedRoom(null);
     }
+  }
+
+  function goHome() {
+    setActionRequest(undefined); setTodoFocus(null); setPeekPath(null); setPlace("home");
+    if (window.location.hash.startsWith("#room/")) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    setLinkedRoom(null);
   }
 
   // 레일 불빛 — LLM이 일하는 중인 프로젝트. 서버 메모리만 읽는 가벼운 요청이라 짧게 물어본다.
@@ -280,10 +294,10 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
   }
 
   return (
-    <div className={`shell is-unified${chatOpen ? "" : " is-chat-off"}${chatOpen && chatAside ? " is-chat-aside" : ""}`}>
+    <div className={`shell is-unified${place === "home" ? " is-workspace-home" : ""}${chatOpen ? "" : " is-chat-off"}${chatOpen && chatAside ? " is-chat-aside" : ""}`}>
       {/* 레일 — 셸 시안 나 (사용자 결정 2026-10-05). 프로젝트를 한 번에 바꾸고, 기획 · 배치도로 간다. */}
       <nav className="rail" aria-label="프로젝트와 도구">
-        <PatchbayMark />
+        <button type="button" className="rail-home" aria-label="Patchbay 메인 화면으로 이동" title="Patchbay 메인 화면" onClick={goHome}><PatchbayMark /></button>
         <div className="rail-projects">
           {visibleProjects.map((item) => {
             const name = item.name ?? item.alias;
@@ -297,7 +311,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
                   type="button"
                   className="rail-pj is-project"
                   style={{ "--project-color": projectIconColor(item.alias) } as CSSProperties}
-                  aria-current={item.alias === selected ? "true" : undefined}
+                  aria-current={place !== "home" && item.alias === selected ? "true" : undefined}
                   aria-label={said}
                   title={said}
                   onClick={() => pickProject(item.alias)}
@@ -362,12 +376,13 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
         </div>
       </nav>
 
-      <div className="main-col">
+      <div ref={chatLayout.ref} className={`main-col${chatLayout.expanded ? " is-chat-expanded" : ""}`} style={{ "--chat-width": `${chatLayout.width}px` } as CSSProperties}>
 
         <main className="pane" data-pane={place}>
+          {place === "home" ? <WorkspaceHome revision={revision + roomRevision} readOnly={readOnly} onAdd={() => setAdding(true)} onOpenProject={pickProject} onOpenTest={alias => { pickProject(alias); setPlace("test"); }} onOpenTodo={(alias, id) => { pickProject(alias); setTodoFocus({ alias, id, nonce: ++actionNonce.current }); }} /> : null}
           {error ? <p>{error}</p> : null}
           {!error && !shell ? <p>불러오는 중</p> : null}
-          {shell && !hasProjects ? (
+          {place !== "home" && shell && !hasProjects ? (
             <div className="empty">
               <h2>등록된 프로젝트가 없습니다</h2>
               <p>왼쪽 「+」로 이 컴퓨터의 폴더를 등록한다.</p>
@@ -376,7 +391,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               </button>
             </div>
           ) : null}
-          {shell && hasProjects && workspace ? (
+          {place !== "home" && shell && hasProjects && workspace ? (
             <PlaceBody
               place={place}
               readOnly={readOnly}
@@ -389,6 +404,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               onContinue={continueWork}
               actionRequest={currentAction}
               onActionDone={() => { setActionRequest(undefined); setRevision(n => n + 1); }}
+              focusTodo={todoFocus?.alias === selected ? todoFocus : undefined}
               onOpenFile={setPeekPath}
               onWorkspaceChanged={() => setRevision((n) => n + 1)}
               consultRequest={consultRequest?.project === selected ? consultRequest.note : undefined}
@@ -407,9 +423,11 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           ) : null}
           {peekPath && selected ? <FilePeek alias={selected} path={peekPath} onClose={() => setPeekPath(null)} /> : null}
         </main>
-        <aside className="workspace-side" aria-label="진행과 대화">
+        {chatLayout.expanded ? <button type="button" className="chat-shade" aria-label="대화 복원" tabIndex={-1} onClick={() => chatLayout.setExpanded(false)} /> : null}
+        {place !== "home" ? <aside className="workspace-side" aria-label="진행과 대화">
+      {chatOpen && !chatAside && !chatLayout.expanded ? <div className="chat-splitter" role="separator" tabIndex={0} aria-label="대화창 너비 조절" aria-orientation="vertical" aria-controls="workspace-chat" title="드래그 · 방향키로 너비 조절 · 더블클릭으로 초기화. 더 넓게 보려면 대화 확대" {...chatLayout.separator} /> : null}
       {chatOpen ? (
-        <aside className={`ws-chat workspace-chat-panel${chatAside ? " is-aside" : ""}`} aria-label="대화">
+        <aside id="workspace-chat" className={`ws-chat workspace-chat-panel${chatAside ? " is-aside" : ""}`} aria-label="대화">
           {chatAside ? <button
             type="button"
             className="chat-nudge"
@@ -427,6 +445,8 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
               revision={revision + roomRevision}
               openRoom={linkedRoom?.alias === selected ? linkedRoom.id : ""}
               onClose={() => setChatAside(true)}
+              expanded={chatLayout.expanded}
+              onToggleExpand={() => chatLayout.setExpanded(value => !value)}
               readOnly={readOnly}
               draftRequest={draftRequest}
               actionRequest={currentAction}
@@ -450,7 +470,7 @@ function WorkspaceApp({ readOnly }: { readOnly: boolean }) {
           ) : null}
         </aside>
       ) : <section className="workspace-chat-closed"><span className="sec-title">프로젝트 대화</span><p>구조를 보며 대화와 작업을 이어갑니다.</p><button type="button" className="flow-btn" onClick={() => { setChatAside(false); setChatOpen(true); }}>대화 열기 ↗</button></section>}
-        </aside>
+        </aside> : null}
       </div>
 
       {adding ? (
@@ -485,6 +505,7 @@ function PlaceBody({
   onContinue,
   actionRequest,
   onActionDone,
+  focusTodo,
 }: {
   place: Place;
   readOnly: boolean;
@@ -504,6 +525,7 @@ function PlaceBody({
   onContinue: (action: ResumeAction) => void | Promise<void>;
   actionRequest?: ActionRequest;
   onActionDone: () => void;
+  focusTodo?: { id: string; nonce: number };
 }) {
   if (place === "design") {
     return (
@@ -570,6 +592,7 @@ function PlaceBody({
         onContinue={onContinue}
         actionRequest={actionRequest}
         onActionDone={onActionDone}
+        focusTodo={focusTodo}
         repo={<FilesPane project={project} revision={revision} readOnly={readOnly} />}
       />
     );

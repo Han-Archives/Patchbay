@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-11-02T12:28:39.611Z",
+  "scope": "A 시안 사용자 수정사항 5건",
+  "data": "fictional examples only",
+  "checks": [
+    "기존 64px 왼쪽 바·프로젝트 아이콘·도구 8개·연결 표시, Patchbay 제목",
+    "해야 할 일 4건 → 소속 프로젝트 할 일 화면·선택한 항목 강조 → 로고로 메인 복귀",
+    "카드 실행 아이콘 → 연결된 실제 로컬 화면 새 탭 열기, 프로젝트 결과 화면·열람·뒤로·앞으로·새로고침",
+    "실행 주소 없는 아이콘 비활성·결과물 없는 버튼 비활성, 문서는 있으나 실행 주소는 없는 경우 구분",
+    "실행 캘린더: 월별 합계·활동 일수·날짜 선택·월 이동·미래 날짜 집계 전, 예시 표시",
+    "즐겨찾기·갤러리/목록 전환, 목록 보기에서 결과 이동",
+    "검색·빈 결과·입력 문자 그대로 표시·상태 필터·로고 초기화·키보드 검색",
+    "태블릿·모바일: 하단 가로 바·목록·결과·할 일 화면과 메인 복귀, 가로 넘침 없음",
+    "기존 B·C 시안의 화면과 이동 설명창 유지"
+  ],
+  "screenshots": [
+    "a-feedback-desktop.png",
+    "a-feedback-tasks.png",
+    "a-feedback-result.png",
+    "a-feedback-calendar.png",
+    "a-feedback-list.png",
+    "a-feedback-tablet.png",
+    "a-feedback-mobile.png",
+    "a-feedback-list-mobile.png",
+    "a-feedback-result-mobile.png",
+    "a-feedback-tasks-mobile.png"
+  ],
+  "errors": [],
+  "externalRequests": []
+}

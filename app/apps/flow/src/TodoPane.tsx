@@ -27,7 +27,7 @@ function TodoDialog({ title, onClose, children }: { title: string; onClose: () =
   return <dialog ref={ref} className="todo-modal" aria-label={title} onCancel={event => { event.preventDefault(); onClose(); }}><header><h3>{title}</h3><button type="button" onClick={onClose} aria-label="닫기">×</button></header>{children}</dialog>;
 }
 
-export function TodoPane({ project, revision, suggestions }: { project: string; revision: number; suggestions: TodoItem[] }) {
+export function TodoPane({ project, revision, suggestions, focusTodo }: { project: string; revision: number; suggestions: TodoItem[]; focusTodo?: { id: string; nonce: number } }) {
   const [todos, setTodos] = useState<TodoRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,6 +50,20 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
   const generation = useRef(0);
   const pending = useRef(false);
   const signature = JSON.stringify(suggestions);
+  const focused = useRef<string>("");
+  const focusRoot = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!focusTodo || !todos.some(todo => todo.id === focusTodo.id)) return;
+    const key = `${project}:${focusTodo.id}:${focusTodo.nonce}`;
+    if (focused.current === key) return;
+    focused.current = key; setExpanded(focusTodo.id);
+    const frame = requestAnimationFrame(() => {
+      const row = Array.from(focusRoot.current?.querySelectorAll<HTMLElement>("[data-todo-id]") ?? []).find(el => el.dataset.todoId === focusTodo.id);
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      row?.querySelector<HTMLButtonElement>(".todo-title")?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [project, focusTodo, todos]);
 
   useEffect(() => {
     ++generation.current;
@@ -162,12 +176,12 @@ export function TodoPane({ project, revision, suggestions }: { project: string; 
     finally { if (generation.current === token) setBusy(false); }
   }
 
-  return <aside className="main-todos todo-pane">
+  return <aside ref={focusRoot} className="main-todos todo-pane">
     <header><h3>Tasks</h3><span className="todo-count" aria-label={`진행할 할일 총 ${active.length}건`}>{active.length}건</span><div className="todo-header-actions"><TodoPreparationControls key={project} project={project} todos={todos} canWrite={canWrite} /><button type="button" className="todo-add" aria-label="신규 할일 추가" disabled={busy || !canWrite} onClick={() => { setError(null); setAddOpen(true); }}>+</button><button type="button" className="todo-search" aria-label="할일 기록 찾기" title="할일 기록 찾기" onClick={() => void openHistory()}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m12.5 12.5 4 4" /></svg></button><button type="button" className="todo-search todo-trash" aria-label="휴지통" title="휴지통 — 지운 할일 · 대화 4일 보관" onClick={() => void openTrash()}><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" /></svg></button></div></header>
     {error ? <p className="flow-error todo-error" role="alert">{error}</p> : null}
     <div ref={reorder.list} className={`todo-active-list${reorder.drag ? " is-reordering" : ""}`} tabIndex={active.length > 6 ? 0 : undefined} aria-label="진행할 할일" onScroll={() => setMenu(null)}>{active.map(todo => {
       const index = movable.findIndex(row => row.id === todo.id);
-      return <article key={todo.id} data-todo-id={todo.id} className={`todo-row${todo.running ? " is-running" : ""}${todo.turn ? " is-your-turn" : ""}${reorder.drag?.id === todo.id ? " is-dragging" : ""}${reorder.drag?.targetId === todo.id ? reorder.drag.after ? " is-drop-after" : " is-drop-before" : ""}`} style={reorder.drag?.id === todo.id ? { transform: `translateY(${reorder.drag.offset}px)` } : undefined} onPointerDown={event => reorder.start(event, todo)} onClickCapture={event => { if (reorder.suppressClick()) { event.preventDefault(); event.stopPropagation(); } }}>
+      return <article key={todo.id} data-todo-id={todo.id} className={`todo-row${focusTodo?.id === todo.id ? " is-home-selected" : ""}${todo.running ? " is-running" : ""}${todo.turn ? " is-your-turn" : ""}${reorder.drag?.id === todo.id ? " is-dragging" : ""}${reorder.drag?.targetId === todo.id ? reorder.drag.after ? " is-drop-after" : " is-drop-before" : ""}`} style={reorder.drag?.id === todo.id ? { transform: `translateY(${reorder.drag.offset}px)` } : undefined} onPointerDown={event => reorder.start(event, todo)} onClickCapture={event => { if (reorder.suppressClick()) { event.preventDefault(); event.stopPropagation(); } }}>
         <div className="todo-row-head">
         <span className="todo-node" role={todo.running || todo.turn ? "img" : undefined} aria-label={todo.running ? "진행 중" : todo.turn ? `내 차례 · ${todo.turn}` : undefined} aria-hidden={todo.running || todo.turn ? undefined : true} />
         <button type="button" className="todo-title" title={todo.title} aria-expanded={expanded === todo.id} onKeyDown={event => { if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) { event.preventDefault(); if (!todo.running && !busy && canWrite) move(todo, event.key === "ArrowUp" ? -1 : 1); } }} aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" onClick={() => setExpanded(expanded === todo.id ? null : todo.id)}><b>{todo.title}</b>{todo.turn ? <small className="todo-turn">내 차례 · {todo.turn}</small> : null}</button>

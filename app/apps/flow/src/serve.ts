@@ -8,6 +8,7 @@ import open from "open";
 import { resolveLangGraphUrl } from "./langgraphContract.js";
 import { resolveNeo4jPassword, resolveNeo4jUri, resolveNeo4jUser } from "./neo4jContract.js";
 import { createFlowApp, type ServerRestart } from "./server.js";
+import os from "node:os";
 import { createClaudeQuotaRefresh } from "./claudeQuotaHost.js";
 import { dialHost, isLoopbackHost, resolveFlowHost } from "./serveContract.js";
 
@@ -61,6 +62,7 @@ const serverRestart: ServerRestart = {
 
 const app = createFlowApp({
   studioHome,
+  executionHostHome: os.homedir(),
   claudeQuotaRefresh: createClaudeQuotaRefresh(studioHome),
   project: process.env.PATCHBAY_FLOW_PROJECT || undefined,
   watch: true,

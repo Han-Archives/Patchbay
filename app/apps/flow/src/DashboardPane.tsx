@@ -49,12 +49,13 @@ function DocumentLines({ lines, open, onToggle }: { lines: string[]; open: boole
   return <>{visible.length ? <div className="main-doc-lines">{visible.map((line, index) => <p key={`${index}:${line}`}>{line}</p>)}</div> : <p className="main-empty">기록된 내용이 없다</p>}{lines.length > 6 ? <button type="button" className="main-more" onClick={onToggle}>{open ? "접기" : "더 보기"}</button> : null}</>;
 }
 
-export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, readOnly, onProjectRenamed, lastWork, onContinue, actionRequest, onActionDone }: {
+export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile: _onOpenFile, workspace, readOnly, onProjectRenamed, lastWork, onContinue, actionRequest, onActionDone, focusTodo }: {
   project: string; revision: number; repo: ReactNode; readOnly: boolean; onProjectRenamed: () => void;
   onOpenStage: (id: StageId | "plan" | "board") => void;
   onOpenFile: (path: string) => void; workspace?: WorkspaceProject;
   lastWork: WorkLocation | null; onContinue: (action: ResumeAction) => void | Promise<void>;
   actionRequest?: ActionRequest; onActionDone: () => void;
+  focusTodo?: { id: string; nonce: number };
 }) {
   const [mainView, setMainView] = useState<MainView>(readMainView);
   const [evalsOpen, setEvalsOpen] = useState(false);
@@ -78,6 +79,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
   const [repoOpen, setRepoOpen] = useState(false);
   const [timing, setTiming] = useState<{ measured: number; over: { roomId: string; title: string; startAt: string; endAt: string | null; ms: number }[] } | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (focusTodo) setMainView("dashboard"); }, [focusTodo]);
 
   useEffect(() => { setExpandedSections(new Set()); setFlowPick(null); }, [project]);
   useEffect(() => () => { continueAbort.current?.abort(); }, [project]);
@@ -263,7 +265,7 @@ export function DashboardPane({ project, revision, repo, onOpenStage, onOpenFile
           <ProjectCycleFlow stages={workspace?.stages ?? []} steps={cycleSteps} selected={flowSelected} onSelect={setFlowPick} />
           <CycleTaskTable key={`${project}:${flowSelected}`} project={project} step={flowSelected} steps={cycleSteps[flowSelected]} action={flowAction[flowSelected]} onAction={() => openCycle(flowSelected)} />
         </section>
-      <TodoPane key={`tasks:${project}`} project={project} revision={revision} suggestions={todoSuggestions} />
+      <TodoPane key={`tasks:${project}`} project={project} revision={revision} suggestions={todoSuggestions} focusTodo={focusTodo} />
       <DashboardHistory key={`history:${project}`} project={project} revision={revision + tick} />
     </div> : overview ? <OverviewDocument key={`overview:${project}`} doc={overview.doc} source={overview.rel} /> : <div key={`overview-fallback:${project}`} className="main-overview">
       <nav className="main-toc" aria-label="개요 목차">{["목적과 대상", "성공 기준", "범위", "구조 · LangGraph", "흐름과 결정", "산출물 · 역할 · 도구"].map((title, index) => <button type="button" key={title} onClick={() => document.getElementById(`main-section-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span>{index + 1}</span>{title}</button>)}</nav>

@@ -1,0 +1,137 @@
+{
+  "measures": [
+    {
+      "mode": "baseline",
+      "requestedChat": 340,
+      "appliedChat": 340,
+      "viewport": 1536,
+      "pane": 1132,
+      "flow": 676,
+      "tasks": 400,
+      "gridColumns": "676px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "unbounded",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1536,
+      "pane": 832,
+      "flow": 376,
+      "tasks": 400,
+      "gridColumns": "376px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "guarded",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1536,
+      "pane": 832,
+      "flow": 376,
+      "tasks": 400,
+      "gridColumns": "376px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "overlay",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1536,
+      "pane": 1472,
+      "flow": 1016,
+      "tasks": 400,
+      "gridColumns": "1016px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "baseline",
+      "requestedChat": 340,
+      "appliedChat": 340,
+      "viewport": 1280,
+      "pane": 876,
+      "flow": 420,
+      "tasks": 400,
+      "gridColumns": "420px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "unbounded",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1280,
+      "pane": 576,
+      "flow": 120,
+      "tasks": 400,
+      "gridColumns": "120px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "guarded",
+      "requestedChat": 640,
+      "appliedChat": 416,
+      "viewport": 1280,
+      "pane": 800,
+      "flow": 344,
+      "tasks": 400,
+      "gridColumns": "344px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "overlay",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1280,
+      "pane": 1216,
+      "flow": 760,
+      "tasks": 400,
+      "gridColumns": "760px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "baseline",
+      "requestedChat": 340,
+      "appliedChat": 340,
+      "viewport": 1024,
+      "pane": 620,
+      "flow": 164,
+      "tasks": 400,
+      "gridColumns": "164px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    },
+    {
+      "mode": "unbounded",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1024,
+      "pane": 320,
+      "flow": 34,
+      "tasks": 320,
+      "gridColumns": "0px 320px",
+      "paneOverflow": false,
+      "gridOverflow": true
+    },
+    {
+      "mode": "overlay",
+      "requestedChat": 640,
+      "appliedChat": 640,
+      "viewport": 1024,
+      "pane": 960,
+      "flow": 504,
+      "tasks": 400,
+      "gridColumns": "504px 400px",
+      "paneOverflow": false,
+      "gridOverflow": false
+    }
+  ],
+  "errors": []
+}

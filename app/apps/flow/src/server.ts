@@ -126,6 +126,8 @@ import {
 import { acceptSkillDraftView, distillSkillDraft, patchSkillView } from "./skillView.js";
 import { loadProjectFile, loadSourceFile, projectRelFromAbsolute, saveSourceFile } from "./sourceFileView.js";
 import { loadShell } from "./shell.js";
+import { loadHome } from "./homeView.js";
+import { validMonth } from "./homeContract.js";
 import { startStudioWatch, type StudioWatch } from "./studioWatch.js";
 import {
   closeConsultConversation,
@@ -208,6 +210,8 @@ export interface FlowAppOptions {
   claudeQuotaRefresh?: () => Promise<void>;
   /** Registered alias to prefer in the console. Omitted -> first registered project. */
   project?: string;
+  /** Native CLI command records. serve.ts opts in; isolated tests use fixture homes. */
+  executionHostHome?: string;
   /**
    * Watch studio files and push `/api/events`. Default false so unit tests
    * do not leak chokidar watchers. `serve.ts` sets true.
@@ -371,10 +375,18 @@ export function createFlowApp(options: FlowAppOptions): FlowApp {
 
   app.get("/api/workspace", async (c) => c.json(await loadWorkspace(options.studioHome)));
 
+  const homeRunning = () => [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases(), ...semanticHost.busyAliases(), ...ragHost.busyAliases()])];
+  app.get("/api/home", async c => {
+    c.header("Cache-Control", "no-store");
+    const month = c.req.query("month");
+    if (month !== undefined && !validMonth(month)) return c.json({ error: "월은 YYYY-MM 형식이어야 합니다." }, 400);
+    return c.json(await loadHome(options.studioHome, { query: c.req.query("q"), month, hidden: c.req.query("hidden") === "1", running: homeRunning(), hostHome: options.executionHostHome }));
+  });
+
   // 레일 불빛 — 대화방 · 상담 · 테스트 실행 어디서든 LLM이 일하는 중인 프로젝트.
   app.get("/api/running", (c) => {
     c.header("Cache-Control", "no-store");
-    return c.json({ aliases: [...new Set([...runningRoomAliases(), ...runningConsultAliases(), ...roomExecution.busyAliases(), ...semanticHost.busyAliases(), ...ragHost.busyAliases()])] });
+    return c.json({ aliases: homeRunning() });
   });
 
   // 서버 다시 켜기 (사용자 결정 2026-10-26, A안 — 서버가 교대). LLM이 일하는 중이면 거절하고, 빌드가 실패하면 끄지 않는다.

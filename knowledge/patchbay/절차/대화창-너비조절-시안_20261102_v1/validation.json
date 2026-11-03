@@ -1,0 +1,22 @@
+{
+  "verifiedAt": "2026-11-02T14:07:22.602Z",
+  "checks": [
+    "안전 최대 폭: 작업 영역 최소 800px 보장",
+    "포인터 드래그로 왼쪽 최소 폭 초과 방지",
+    "분리선 방향키/Home/End 조작",
+    "확대/복원 때 작업 폭·작성 문장 보존, Esc 복귀",
+    "공간 부족 시 대화 열기로 전환, 확대·복원",
+    "390px 모바일 작업/대화 전환·입력 보존·가로 넘침 없음",
+    "실제 Patchbay 파일 열람 주소에서 시안 로드·확대 동작 확인"
+  ],
+  "screenshots": [
+    "default.png",
+    "wide.png",
+    "expanded.png",
+    "laptop.png",
+    "tablet-expanded.png",
+    "mobile.png",
+    "mobile-expanded.png"
+  ],
+  "errors": []
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Patchbay · 프로젝트 홈 A</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="artifacts.css">
+  <link rel="stylesheet" href="home-redesign.css">
+  <script src="artifacts.js" defer></script>
+  <script src="home-redesign.js" defer></script>
+  <script src="prototype.js" defer></script>
+</head>
+<body class="workspace-redesign">
+  <a class="skip-link" href="#main">본문으로 이동</a>
+  <div class="design-note"><span><b>A</b> 프로젝트 홈 <span class="design-note-divider">/</span> 디자인 검토</span><span>예시 데이터 <span class="design-note-divider">·</span> <button data-benchmark>참고한 화면 ↗</button></span></div>
+  <div class="app-shell">
+    <aside class="rail" aria-label="작업 공간 이동"><div id="rail-projects"></div></aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="breadcrumb"><span class="breadcrumb-home" aria-hidden="true">⌂</span><span>작업 공간</span><span>/</span><b>홈</b></div>
+        <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" placeholder="프로젝트·결과물 검색" aria-label="프로젝트와 결과물 검색"><kbd>/</kbd></label>
+        <button class="button primary" data-add><span>＋</span> 새 프로젝트</button>
+      </header>
+      <main id="main" tabindex="-1"></main>
+      <footer class="prototype-foot"><span id="variant-caption"></span><span>검토용 예시입니다. 실제 프로젝트 데이터와 연결되어 있지 않습니다.</span></footer>
+    </div>
+  </div>
+  <dialog id="detail" aria-labelledby="detail-title"><div id="detail-content"></div></dialog>
+  <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
+</body>
+</html>

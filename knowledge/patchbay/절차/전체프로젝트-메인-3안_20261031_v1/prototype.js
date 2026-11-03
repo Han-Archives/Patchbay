@@ -50,6 +50,7 @@ function card(p) {
   return `<article class="project-card" data-project="${p.id}"><div class="card-heading">${icon(p)}<div><h3>${p.name}</h3><small>${p.version} · ${steps[p.stage]}${p.hidden?' · 숨김':''}</small></div>${chip(p)}</div><p class="card-summary">${p.summary}</p>${miniFlow(p)}${projectArtifactAction(p)}<div class="card-foot"><time>${p.time}</time><button data-open="${p.id}" data-destination="${steps[p.stage]}">프로젝트 열기 ↗</button></div></article>`;
 }
 function renderA() {
+  if(document.body.classList.contains('workspace-redesign'))return renderWorkspaceHome();
   const p=projectById('patchbay'), searching=Boolean(state.query.trim());
   return `${heading('YOUR WORKSPACE', '모든 프로젝트, 여기서 이어갑니다.', '프로젝트의 현재 상태와 Patchbay에서 만든 결과물을 한곳에서 확인하세요.')}${stats()}
     ${searching?'':`<div class="top-panels"><section class="panel continue-panel" aria-label="최근 작업 이어하기">${icon(p)}<div><div class="eyebrow">이어서 할 작업</div><h2>Patchbay <span class="muted">/</span> 평가 결과 검토</h2><p>최근 열었던 화면 · Review · ${p.time}</p></div><button class="button primary" data-open="patchbay" data-destination="최근 작업 · Review">이어하기 →</button></section>
@@ -99,6 +100,7 @@ function render() {
   const search=document.querySelector('#search');
   search.placeholder=state.variant==='a'?'프로젝트·결과물 검색':'프로젝트 검색';
   search.setAttribute('aria-label',state.variant==='a'?'프로젝트와 결과물 검색':'프로젝트 검색');
+  if(document.body.classList.contains('workspace-redesign')){renderWorkspaceNavigation();document.title=homeNavigation.project?`Patchbay · ${projectById(homeNavigation.project).name} · ${projectScreenLabel(homeNavigation.screen)}`:'Patchbay · 프로젝트 홈 A';}
 }
 function setVariant(v) {
   if(!['a','b','c'].includes(v)) return;
@@ -113,6 +115,7 @@ function showDialog(title, eyebrow, body, actions='') {
 }
 function openProject(id,destination='대시보드') {
   const p=projectById(id);if(!p)return;
+  if(document.body.classList.contains('workspace-redesign')){if(dialog.open)dialog.close();navigateProjectScreen(id,destination.includes('할일')?'tasks':destination.includes('실행')?'runs':destination==='결과'?'result':'dashboard');return;}
   showDialog(`${p.name} · ${esc(destination)}`,'PROJECT DESTINATION / 시안',`<p>선택한 항목에서 해당 프로젝트의 작업 화면으로 바로 이동하는 흐름입니다.</p><div class="destination"><span>전체 프로젝트 홈</span><span>→</span><b>${p.name}</b><span>→</span><span>${esc(destination)}</span></div>${miniFlow(p)}<dl class="dialog-facts"><dt>현재 단계</dt><dd>${steps[p.stage]} · ${p.statusLabel}</dd><dt>다음 할 일</dt><dd>${p.next}</dd><dt>최근 기록</dt><dd>${p.latest} · ${p.time}</dd><dt>연결 방식</dt><dd>프로젝트 식별자 + 화면${destination.includes('대화방')?' + 할일과 연결된 대화방 식별자':''}</dd></dl><div class="dialog-notice">이 창은 이동 목적지를 설명하는 시안입니다. 실제 프로젝트를 열거나 작업 상태를 바꾸지 않습니다.</div>`);
 }
 document.querySelector('#rail-projects').innerHTML=sampleProjects.filter(p=>!p.hidden).map(p=>`<button class="rail-project" data-open="${p.id}" data-destination="대시보드" aria-label="${p.name} 프로젝트 열기" title="${p.name}">${icon(p)}</button>`).join('');
@@ -121,7 +124,7 @@ document.addEventListener('click',event=>{
   if(target.hasAttribute('data-close')){dialog.close();return;}
   if(target.dataset.variant){setVariant(target.dataset.variant);return;}
   if(target.dataset.switch){setVariant(target.dataset.switch);return;}
-  if(target.hasAttribute('data-home')||target.hasAttribute('data-reset')){state.filter='all';state.query='';state.homeView='projects';document.querySelector('#search').value='';render();return;}
+  if(target.hasAttribute('data-home')||target.hasAttribute('data-reset')){if(document.body.classList.contains('workspace-redesign'))resetHomeRoute();state.filter='all';state.query='';state.homeView='projects';document.querySelector('#search').value='';render();window.scrollTo(0,0);return;}
   if(target.dataset.homeView){state.homeView=target.dataset.homeView;state.query='';document.querySelector('#search').value='';render();return;}
   if(target.dataset.artifacts){openArtifactCollection(target.dataset.artifacts);return;}
   if(target.dataset.artifact){const a=sampleArtifacts.find(a=>a.id===target.dataset.artifact);if(a)openArtifactCollection(a.project,a.id);return;}
@@ -137,10 +140,11 @@ document.addEventListener('change',event=>{
   if(event.target.id==='show-hidden'){state.hidden=event.target.checked;render();}
   if(event.target.id==='sort'){state.sort=event.target.value;render();}
 });
-document.querySelector('#search').addEventListener('input',event=>{state.query=event.target.value;render();});
+document.querySelector('#search').addEventListener('input',event=>{if(document.body.classList.contains('workspace-redesign'))resetHomeRoute();state.query=event.target.value;render();});
 document.addEventListener('keydown',event=>{
   if(event.key==='/'&&!dialog.open&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){event.preventDefault();document.querySelector('#search').focus();}
 });
 dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(['a','b','c'].includes(v))setVariant(v);});
+if(document.body.classList.contains('workspace-redesign'))readHomeRoute();
 render();

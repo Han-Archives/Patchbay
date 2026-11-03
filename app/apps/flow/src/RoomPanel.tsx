@@ -361,6 +361,8 @@ export function RoomPanel({
   onOpenRoom,
   onClose,
   onConsult,
+  expanded = false,
+  onToggleExpand,
   draftRequest,
   readOnly = false,
   actionRequest,
@@ -373,6 +375,8 @@ export function RoomPanel({
   onOpenRoom?: (roomId: string) => void;
   onClose?: () => void;
   onConsult?: (note?: string) => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
   draftRequest?: { text: string; nonce: number };
   readOnly?: boolean;
   actionRequest?: ActionRequest;
@@ -1014,6 +1018,9 @@ export function RoomPanel({
               >
                 <LlmIcon />
               </button>
+              {onToggleExpand ? <button type="button" className="room-icon chat-expand" aria-label={expanded ? "대화 복원" : "대화 확대"} title={expanded ? "대화 복원 · Esc" : "대화 확대"} aria-pressed={expanded} onClick={onToggleExpand}>
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d={expanded ? "M2 6h4V2M14 10h-4v4M6 6 2 2m8 8 4 4" : "M6 2H2v4m8 8h4v-4M2 2l4 4m8 8-4-4"} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button> : null}
               {onClose ? (
                 <button type="button" className="room-icon" aria-label="대화 최소화" onClick={onClose}>
                   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
